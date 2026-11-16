@@ -18,6 +18,8 @@ export class WorldScene extends Phaser.Scene {
   private bars!: Phaser.GameObjects.Graphics;
   private zoom = 2;
   private sprites = new Map<string, Phaser.GameObjects.Image>();
+  /** Antal steg varje figur tagit, för att växla fot i gå-animationen. */
+  private steps = new Map<string, number>();
   private overlay!: Phaser.GameObjects.Graphics;
   private cursor!: Phaser.GameObjects.Rectangle;
   private reach: Point[] = [];
@@ -204,13 +206,22 @@ export class WorldScene extends Phaser.Scene {
         this.tweens.killTweensOf(s);
         // Under steget ligger figuren på den sydligaste av de två raderna, så att den inte skyms.
         const sprite = s;
+        const step = (this.steps.get(a.id) ?? 0) + 1;
+        this.steps.set(a.id, step);
         sprite.setDepth(actorDepth(Math.max(a.y, Math.round((sprite.y - TILE / 2) / TILE))));
+        sprite.setTexture(`${a.sprite}_g${(step % 2) + 1}`);
         this.tweens.add({
           targets: sprite,
           x: tx,
           y: ty,
           duration: STEP_MS,
-          onComplete: () => sprite.setDepth(actorDepth(a.y)),
+          onComplete: () => {
+            sprite.setDepth(actorDepth(a.y));
+            // Stå still igen om inget nytt steg hunnit börja.
+            this.time.delayedCall(40, () => {
+              if (sprite.active && !this.tweens.isTweening(sprite)) sprite.setTexture(a.sprite);
+            });
+          },
         });
       }
     }
