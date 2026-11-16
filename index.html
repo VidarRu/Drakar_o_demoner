@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Drakar och Demoner</title>
+    <link rel="stylesheet" href="/src/ui/style.css" />
+  </head>
+  <body>
+    <div id="game"></div>
+
+    <div id="hud" hidden>
+      <aside id="sheet"></aside>
+      <div id="bottom">
+        <div id="combat" hidden>
+          <span id="combat-info"></span>
+          <button id="btn-parry">Parera</button>
+          <button id="btn-end">Avsluta tur</button>
+        </div>
+        <div id="log"></div>
+      </div>
+      <button id="btn-sheet" aria-label="Visa rollformulär">☰</button>
+    </div>
+
+    <section id="dialog" hidden>
+      <img id="dialog-portrait" alt="" />
+      <div id="dialog-body">
+        <header>
+          <h2 id="dialog-name"></h2>
+          <span id="dialog-mode"></span>
+        </header>
+        <div id="dialog-text"></div>
+        <div id="dialog-options"></div>
+        <form id="dialog-form">
+          <input id="dialog-input" placeholder="Säg något eget…" maxlength="300" autocomplete="off" />
+          <button>Säg</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="start" class="screen">
+      <div class="card">
+        <h1>Drakar och Demoner</h1>
+        <p class="sub">Ett soloäventyr i byn Gråvad</p>
+        <button id="btn-continue" class="primary" hidden>Fortsätt äventyret</button>
+        <h3>Ny rollperson</h3>
+        <label>Namn <input id="in-name" value="Halvar" maxlength="24" /></label>
+        <div id="professions"></div>
+        <div id="attrs"></div>
+        <div class="row">
+          <button id="btn-reroll">Slå om grundegenskaper</button>
+          <button id="btn-start" class="primary">Börja äventyret</button>
+        </div>
+        <details>
+          <summary>AI-inställningar</summary>
+          <label>Åtkomstkod (om servern kräver en) <input id="in-code" type="password" autocomplete="off" /></label>
+        </details>
+      </div>
+    </section>
+
+    <section id="dead" class="screen" hidden>
+      <div class="card">
+        <h1>Du har stupat</h1>
+        <p class="sub">Din saga slutar här – men en ny kan börja.</p>
+        <button id="btn-restart" class="primary">Nytt äventyr</button>
+      </div>
+    </section>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
