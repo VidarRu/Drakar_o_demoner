@@ -34,7 +34,7 @@ Utan AI-nyckel används förskriven dialog, så spelet går att spela helt grati
 | --- | --- |
 | `src/engine/` | Regelmotorn: tärningar, färdighetsslag, strid, karta, siktlinje, sparning. Ingen grafik. |
 | `src/content/` | Allt spelinnehåll som data: vapen, rustningar, yrken, varelser, personer, kartor. |
-| `src/game/` | Kartvyn (Phaser 3) och grafiken, som ritas i kod. |
+| `src/game/` | Kartvyn (Phaser 3). Grafiken ritas i kod i `src/game/art/`: marken som en bild per karta, väggar, berg och träd radvis snett uppifrån. |
 | `src/ui/` | Rollformulär, logg, stridspanel och samtalsruta. |
 | `src/ai/`, `api/` | Dialog via språkmodell, med förskriven reservdialog. |
 | `tests/` | Tester för regelmotorn och innehållet. |

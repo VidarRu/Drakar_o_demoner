@@ -1,108 +1,14 @@
 /**
- * All grafik ritas i kod (pixelgrafik, 16×16) så att spelet inte beror på några
- * externa bildfiler. Vill man byta till ett färdigt tileset räcker det att ersätta
- * den här filen – resten av spelet refererar bara till texturnamn.
+ * Figurerna. De ritas i 16×16 och förstoras till rutstorleken. (Ritas om i
+ * högre upplösning i ett senare steg.)
  */
-import { seededRng } from '../engine/dice';
+import { TILE } from './grid';
 
-export const TILE = 16;
-export const TILE_VARIANTS = 4;
-
-export const TILE_TEXTURE: Record<string, string> = {
-  '.': 'grass',
-  ',': 'path',
-  _: 'floor',
-  ':': 'cave',
-  '+': 'door',
-  '#': 'wall',
-  '%': 'rock',
-  T: 'tree',
-  '~': 'water',
-};
-
+const SRC = 16;
 type Ctx = CanvasRenderingContext2D;
 const px = (c: Ctx, x: number, y: number, w: number, h: number, color: string) => {
   c.fillStyle = color;
   c.fillRect(x, y, w, h);
-};
-
-function canvas(draw: (c: Ctx) => void): HTMLCanvasElement {
-  const el = document.createElement('canvas');
-  el.width = TILE;
-  el.height = TILE;
-  draw(el.getContext('2d')!);
-  return el;
-}
-
-function speckle(c: Ctx, seed: number, base: string, colors: string[], count: number) {
-  const rng = seededRng(seed);
-  px(c, 0, 0, TILE, TILE, base);
-  for (let i = 0; i < count; i++) {
-    px(c, Math.floor(rng() * TILE), Math.floor(rng() * TILE), 1, 1, colors[Math.floor(rng() * colors.length)]);
-  }
-}
-
-const tileDrawers: Record<string, (c: Ctx, v: number) => void> = {
-  grass: (c, v) => {
-    speckle(c, 11 + v, '#4c7c3b', ['#5c8f47', '#40692f', '#568843'], 40);
-    if (v === 3) {
-      px(c, 5, 9, 1, 1, '#e8d96a');
-      px(c, 11, 4, 1, 1, '#e9e3f0');
-    }
-  },
-  path: (c, v) => speckle(c, 31 + v, '#a88c5e', ['#b99d6d', '#927a4f', '#b2966a'], 36),
-  cave: (c, v) => speckle(c, 51 + v, '#5b5661', ['#6a6570', '#4d4953', '#625d69'], 30),
-  floor: (c, v) => {
-    px(c, 0, 0, TILE, TILE, '#8c6039');
-    for (let y = 0; y < TILE; y += 4) {
-      px(c, 0, y + 3, TILE, 1, '#6c4829');
-      px(c, (y * 3 + v * 5) % TILE, y, 1, 3, '#6c4829');
-      px(c, (y * 3 + v * 5 + 3) % TILE, y + 1, 2, 1, '#9a6c43');
-    }
-  },
-  wall: (c, v) => {
-    px(c, 0, 0, TILE, TILE, '#55525b');
-    for (let row = 0; row < 4; row++) {
-      const off = row % 2 ? 4 : 0;
-      for (let x = -8; x < TILE; x += 8) {
-        px(c, x + off + 1, row * 4 + 1, 7, 3, (row + x / 8 + v) % 3 === 0 ? '#8a878f' : '#7e7b83');
-        px(c, x + off + 1, row * 4 + 1, 7, 1, '#96939b');
-      }
-    }
-  },
-  rock: (c, v) => {
-    speckle(c, 71 + v, '#3a3740', ['#46424d', '#2f2c34'], 24);
-    const rng = seededRng(91 + v);
-    for (let i = 0; i < 3; i++) {
-      const x = Math.floor(rng() * 11);
-      const y = Math.floor(rng() * 11);
-      px(c, x, y, 4, 3, '#48444f');
-      px(c, x, y, 4, 1, '#56515e');
-    }
-  },
-  tree: (c, v) => {
-    tileDrawers.grass(c, v);
-    px(c, 7, 10, 2, 5, '#5c3f25');
-    px(c, 3, 3, 10, 8, '#2f5c2b');
-    px(c, 4, 2, 8, 10, '#2f5c2b');
-    px(c, 5, 1, 6, 1, '#2f5c2b');
-    px(c, 5, 3, 4, 3, '#3f7636');
-    px(c, 4 + v, 6, 2, 2, '#3f7636');
-    px(c, 9, 8, 2, 2, '#244a22');
-  },
-  water: (c, v) => {
-    px(c, 0, 0, TILE, TILE, '#2f6ea6');
-    px(c, (2 + v * 3) % 12, 3, 4, 1, '#4b8dc6');
-    px(c, (9 + v * 5) % 12, 8, 4, 1, '#4b8dc6');
-    px(c, (4 + v * 7) % 12, 13, 3, 1, '#255d8f');
-  },
-  door: (c) => {
-    tileDrawers.wall(c, 0);
-    px(c, 3, 1, 10, 15, '#3d2a18');
-    px(c, 4, 2, 8, 14, '#7c5230');
-    px(c, 7, 2, 1, 14, '#62401f');
-    px(c, 10, 9, 1, 2, '#d8b84a');
-  },
 };
 
 interface Look {
@@ -227,28 +133,32 @@ const sprites: Record<string, (c: Ctx) => void> = {
   },
 };
 
-export const TEXTURES: Record<string, HTMLCanvasElement> = {};
-
-for (const [name, draw] of Object.entries(tileDrawers)) {
-  for (let v = 0; v < TILE_VARIANTS; v++) TEXTURES[`${name}_${v}`] = canvas((c) => draw(c, v));
+function canvas(size: number, draw: (c: Ctx) => void): HTMLCanvasElement {
+  const el = document.createElement('canvas');
+  el.width = size;
+  el.height = size;
+  const c = el.getContext('2d')!;
+  c.imageSmoothingEnabled = false;
+  draw(c);
+  return el;
 }
-for (const [name, draw] of Object.entries(sprites)) TEXTURES[name] = canvas(draw);
 
-/** Texturnamn för en kartruta; varianten väljs utifrån positionen så att marken inte ser upprepad ut. */
-export function tileTexture(ch: string, x: number, y: number): string {
-  const v = ((x * 73856093) ^ (y * 19349663)) >>> 0;
-  return `${TILE_TEXTURE[ch]}_${v % TILE_VARIANTS}`;
+/** Figurerna i originalstorlek (används för porträtt). */
+const SOURCE: Record<string, HTMLCanvasElement> = {};
+/** Figurerna i rutstorlek. */
+export const SPRITES: Record<string, HTMLCanvasElement> = {};
+
+for (const [name, draw] of Object.entries(sprites)) {
+  SOURCE[name] = canvas(SRC, draw);
+  SPRITES[name] = canvas(TILE, (c) => c.drawImage(SOURCE[name], 0, 0, TILE, TILE));
 }
 
 /** Förstorat porträtt (huvud och axlar) som bild-URL för gränssnittet. */
 export function portraitUrl(sprite: string): string {
-  const el = document.createElement('canvas');
-  el.width = 96;
-  el.height = 96;
-  const c = el.getContext('2d')!;
-  c.imageSmoothingEnabled = false;
-  c.fillStyle = '#2a2530';
-  c.fillRect(0, 0, 96, 96);
-  c.drawImage(TEXTURES[sprite], 2, 0, 12, 12, 0, 0, 96, 96);
+  const el = canvas(96, (c) => {
+    c.fillStyle = '#2a2530';
+    c.fillRect(0, 0, 96, 96);
+    c.drawImage(SOURCE[sprite], 2, 0, 12, 12, 0, 0, 96, 96);
+  });
   return el.toDataURL();
 }
