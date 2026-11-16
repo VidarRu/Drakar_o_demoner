@@ -8,6 +8,7 @@ import { ATTR_KEYS } from './engine/types';
 import { portraitUrl } from './game/art';
 import { WorldScene } from './game/WorldScene';
 import { $, DialogUi, el, Hud } from './ui/hud';
+import { Minimap } from './ui/minimap';
 
 let attrs = rollAttrs(Math.random);
 let profession = Object.keys(PROFESSIONS)[0];
@@ -40,6 +41,7 @@ function launch(game: Game) {
   $('start').hidden = true;
   const dialog = new DialogUi(game);
   new Hud(game);
+  new Minimap(game);
   game.onChange(() => {
     if (game.state.mode === 'explore') saveGame(game.state);
     else if (game.state.mode === 'dead') clearSave();

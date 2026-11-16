@@ -48,7 +48,8 @@ Lägg inte in text eller bilder ur regelboken i repot – den är upphovsrättss
 ## Det här finns
 
 - Rollperson med grundegenskaper (3T6), tre yrken, KP, skadebonus och färdigheter
-- Utforskning med klick för att gå, stigfinnande och dimma över outforskat
+- Utforskning med klick för att gå, stigfinnande, dimma över outforskat och en minikarta
+- Grottor är mörka utanför skenet från rollpersonens fackla
 - Turbaserad strid på rutnät: turordning efter SMI, förflyttning, anfall, parering,
   sköld, rustning, perfekta slag och fummel
 - Erfarenhetskryss och förbättringsslag vid vila

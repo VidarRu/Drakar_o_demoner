@@ -4,6 +4,6 @@
  * tileset är det de här funktionerna som ska ersättas.
  */
 export { TILE } from './grid';
-export { bakeGround } from './ground';
+export { bakeGround, caveMask, type Glints } from './ground';
 export { bakeRows, OVER, PADX } from './objects';
 export { portraitUrl, SPRITES } from './sprites';

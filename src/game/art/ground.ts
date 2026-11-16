@@ -67,7 +67,22 @@ function groundGrid(map: GameMap): Uint8Array {
   return g;
 }
 
-export function bakeGround(map: GameMap): HTMLCanvasElement {
+/** Hur mycket grotta varje ruta är (1 = grotta, 0 = utomhus). Används för ljussättningen. */
+export function caveMask(map: GameMap): Float32Array {
+  const g = groundGrid(map);
+  return Float32Array.from(g, (v) => (v === G.Cave ? 1 : 0));
+}
+
+/** Glitter på vattnet i flera ramar som går runt i en slinga, beskurna till vattnets yta. */
+export interface Glints {
+  frames: HTMLCanvasElement[];
+  x: number;
+  y: number;
+}
+
+const GLINT_FRAMES = 8;
+
+export function bakeGround(map: GameMap): { ground: HTMLCanvasElement; glints: Glints | null } {
   const W = map.w * T;
   const H = map.h * T;
   const gg = groundGrid(map);
@@ -188,8 +203,7 @@ export function bakeGround(map: GameMap): HTMLCanvasElement {
             break;
           }
           const v = 0.78 - (Math.min(d, 14) / 14) * 0.6 + (fbm(px / 20, py / 20, 17, 2) - 0.5) * 0.3 - s * 0.6;
-          const glint = d > 3 && py % 3 === 0 && noise(px / 7, py / 3, 19) > 0.83;
-          c = glint ? PAL.sparkle : shade(PAL.water, v, px, py, 0.4);
+          c = shade(PAL.water, v, px, py, 0.4);
         }
       }
       out.set(px, py, c);
@@ -233,7 +247,44 @@ export function bakeGround(map: GameMap): HTMLCanvasElement {
       }
     }
   }
-  return out.toCanvas();
+  return { ground: out.toCanvas(), glints: bakeGlints(W, H, water, toLand) };
+}
+
+function bakeGlints(W: number, H: number, water: Uint8Array, toLand: Float32Array): Glints | null {
+  let x0 = W;
+  let y0 = H;
+  let x1 = -1;
+  let y1 = -1;
+  for (let py = 0; py < H; py++) {
+    for (let px = 0; px < W; px++) {
+      if (!water[py * W + px]) continue;
+      x0 = Math.min(x0, px);
+      y0 = Math.min(y0, py);
+      x1 = Math.max(x1, px);
+      y1 = Math.max(y1, py);
+    }
+  }
+  if (x1 < 0) return null;
+  const frames: HTMLCanvasElement[] = [];
+  for (let f = 0; f < GLINT_FRAMES; f++) {
+    // Bruset följer en cirkel, så att sista ramen går mjukt över i den första.
+    const a = (f / GLINT_FRAMES) * Math.PI * 2;
+    const ox = Math.cos(a) * 1.3;
+    const oy = Math.sin(a) * 0.9;
+    const r = new Raster(x1 - x0 + 1, y1 - y0 + 1);
+    for (let py = y0; py <= y1; py++) {
+      if (py % 3) continue;
+      for (let px = x0; px <= x1; px++) {
+        const i = py * W + px;
+        if (!water[i] || toLand[i] <= 3) continue;
+        const n = noise(px / 7 + ox, py / 3 + oy, 19);
+        if (n > 0.86) r.set(px - x0, py - y0, PAL.sparkle);
+        else if (n > 0.82) r.set(px - x0, py - y0, PAL.sparkle, 110);
+      }
+    }
+    frames.push(r.toCanvas());
+  }
+  return { frames, x: x0, y: y0 };
 }
 
 const rgb3 = (r: number, g: number, b: number): RGB => [r, g, b];

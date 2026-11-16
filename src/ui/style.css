@@ -9,6 +9,13 @@
   --red: #c8483a;
   --green: #5fbf6c;
   --blue: #7fc8ff;
+  /* Fint korn som gör ytorna mindre platta. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .32 0 0 0 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* Nitar i ramarnas hörn. */
+  --rivet: radial-gradient(circle, #e2c070 0 1px, #8a6a34 1.6px, #2a1e12 2.4px, transparent 3px);
+  --rivets: var(--rivet) left 1px top 1px / 9px 9px no-repeat, var(--rivet) right 1px top 1px / 9px 9px no-repeat,
+    var(--rivet) left 1px bottom 1px / 9px 9px no-repeat, var(--rivet) right 1px bottom 1px / 9px 9px no-repeat;
+  --frame: linear-gradient(180deg, #9a7a44, #5a4428 35%, #33261a 100%);
   font-family: Georgia, 'Palatino Linotype', 'Book Antiqua', serif;
   color: var(--text);
 }
@@ -33,6 +40,14 @@ body {
   position: fixed;
   inset: 0;
 }
+/* Vinjett: kanterna av kartan mörknar lite, som i gamla rollspel. */
+#game::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, transparent 55%, rgba(6, 4, 10, 0.55) 100%);
+}
 
 h1,
 h2,
@@ -46,27 +61,32 @@ h3 {
 button {
   font: inherit;
   color: var(--text);
-  background: #2c2530;
+  background: linear-gradient(#3a3036, #231c22);
   border: 1px solid var(--edge);
-  border-radius: 3px;
+  border-radius: 2px;
   padding: 7px 12px;
   cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 230, 180, 0.12), 0 1px 2px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7);
 }
 button:hover:not(:disabled) {
-  background: #3b3140;
+  background: linear-gradient(#4a3c44, #2e252c);
   border-color: var(--gold);
+}
+button:active:not(:disabled) {
+  transform: translateY(1px);
 }
 button:disabled {
   opacity: 0.45;
   cursor: default;
 }
 button.primary {
-  background: #5a4420;
+  background: linear-gradient(#7c5c2a, #4c3618);
   border-color: var(--gold);
   color: #fff3d0;
 }
-button.primary:hover {
-  background: #70562a;
+button.primary:hover:not(:disabled) {
+  background: linear-gradient(#94703a, #5c4220);
 }
 
 input {
@@ -84,11 +104,40 @@ input {
 #log,
 #combat,
 #dialog,
+#minimap,
 .card {
-  background: var(--panel);
-  border: 1px solid var(--edge);
-  border-radius: 4px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55), inset 0 0 0 1px rgba(227, 196, 118, 0.08);
+  background: var(--rivets), var(--grain), linear-gradient(180deg, rgba(36, 29, 26, 0.95), rgba(18, 14, 17, 0.96));
+  border: 3px solid transparent;
+  border-image: var(--frame) 1;
+  box-shadow:
+    0 6px 22px rgba(0, 0, 0, 0.6),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.75),
+    inset 0 0 0 2px rgba(227, 196, 118, 0.16),
+    inset 0 0 26px rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- Minikarta ---------- */
+
+#minimap {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 6px 8px 8px;
+}
+#minimap h4 {
+  margin: 0 0 5px;
+  font-weight: normal;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--gold);
+}
+#minimap canvas {
+  display: block;
+  image-rendering: pixelated;
+  border: 1px solid #0b090c;
+  box-shadow: 0 0 0 1px rgba(227, 196, 118, 0.2);
 }
 
 /* ---------- HUD ---------- */
@@ -121,18 +170,32 @@ input {
   width: 56px;
   height: 56px;
   image-rendering: pixelated;
-  border: 1px solid var(--edge);
+  border: 2px solid #8a6a34;
+  outline: 1px solid #0b090c;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
 }
 #sheet .who small {
   color: var(--muted);
 }
 #sheet h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  margin: 12px 0 5px;
-  border-bottom: 1px solid rgba(107, 90, 58, 0.5);
-  padding-bottom: 3px;
+  margin: 14px 0 6px;
+}
+/* Ornamentlinjer på båda sidor om rubrikerna. */
+#sheet h3::before,
+#sheet h3::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(227, 196, 118, 0.55));
+}
+#sheet h3::after {
+  background: linear-gradient(90deg, rgba(227, 196, 118, 0.55), transparent);
 }
 .bar {
   position: relative;
@@ -148,10 +211,13 @@ input {
 .bar i {
   position: absolute;
   inset: 0 auto 0 0;
-  background: linear-gradient(#b8463a, #8c2f27);
+  background: linear-gradient(#e06a56, #a63a2e 45%, #6e221c);
+  box-shadow: inset 0 1px 0 rgba(255, 210, 190, 0.45);
+  transition: width 0.3s;
 }
 .bar span {
   position: relative;
+  text-shadow: 0 1px 1px #000;
 }
 .grid {
   display: grid;
@@ -160,7 +226,8 @@ input {
   text-align: center;
 }
 .grid div {
-  background: #100d12;
+  background: linear-gradient(#0e0b10, #18131a);
+  border: 1px solid rgba(107, 90, 58, 0.45);
   border-radius: 2px;
   padding: 3px 0;
 }
@@ -217,7 +284,7 @@ input {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-color: var(--red);
+  border-image: linear-gradient(180deg, #c45a40, #6e2a1c 40%, #3a1610) 1;
   font-size: 14px;
 }
 #combat-info {
@@ -238,11 +305,24 @@ input {
   padding: 14px;
   z-index: 5;
 }
+/* Samtal på pergament. */
+#dialog {
+  background:
+    var(--rivets),
+    var(--grain),
+    radial-gradient(ellipse at 50% 40%, #ead9b4 0%, #dcc596 70%, #b99a64 100%);
+  color: #2b2014;
+}
+#dialog h2 {
+  color: #6a2a14;
+}
 #dialog-portrait {
   width: 96px;
   height: 96px;
   image-rendering: pixelated;
-  border: 1px solid var(--edge);
+  border: 2px solid #6b4a24;
+  outline: 1px solid #2b2014;
+  box-shadow: 0 2px 8px rgba(60, 40, 10, 0.5);
   flex: none;
 }
 #dialog-body {
@@ -260,7 +340,7 @@ input {
 }
 #dialog-mode {
   font-size: 11px;
-  color: var(--muted);
+  color: #7a6448;
 }
 #dialog-text {
   overflow-y: auto;
@@ -272,15 +352,15 @@ input {
   margin: 0 0 6px;
 }
 #dialog-text .player {
-  color: var(--blue);
+  color: #23466e;
 }
 #dialog-text .event {
-  color: var(--gold);
+  color: #8a5a10;
   font-style: italic;
   font-size: 13px;
 }
 #dialog-text .wait {
-  color: var(--muted);
+  color: #7a6448;
 }
 #dialog-options {
   display: flex;
@@ -290,18 +370,29 @@ input {
 #dialog-options button {
   text-align: left;
   border-color: transparent;
-  background: rgba(127, 200, 255, 0.07);
-  color: var(--blue);
+  background: rgba(35, 70, 110, 0.08);
+  color: #23466e;
+  box-shadow: none;
+  text-shadow: none;
+}
+#dialog-options button:hover:not(:disabled) {
+  background: rgba(35, 70, 110, 0.16);
+  border-color: rgba(107, 74, 36, 0.5);
 }
 #dialog-options button.act {
-  color: var(--gold);
-  background: rgba(227, 196, 118, 0.08);
+  color: #7a4a08;
+  background: rgba(138, 90, 16, 0.1);
 }
 #dialog-options button.danger {
-  color: #ff8a7a;
+  color: #9a2a1a;
 }
 #dialog-options button.bye {
-  color: var(--muted);
+  color: #7a6448;
+}
+#dialog-form input {
+  background: rgba(255, 248, 230, 0.6);
+  color: #2b2014;
+  border-color: #8a6a3a;
 }
 #dialog-form {
   display: flex;
@@ -435,9 +526,22 @@ input {
   #log {
     height: 96px;
   }
+  #minimap {
+    padding: 4px 5px 5px;
+  }
+  #minimap h4 {
+    display: none;
+  }
+  #minimap canvas {
+    width: 132px;
+  }
   #dialog-portrait {
     width: 56px;
     height: 56px;
+  }
+  #dialog header {
+    flex-direction: column;
+    gap: 2px;
   }
   #professions button small {
     display: none;
