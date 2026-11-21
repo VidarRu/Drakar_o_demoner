@@ -29,7 +29,7 @@ describe('tärningar', () => {
 });
 
 describe('regler', () => {
-  it('färdighetsslag: 1 är perfekt, 20 är fummel', () => {
+  it('färdighetsslag: 1 följt av lågt slag är perfekt, 20 följt av högt är fummel', () => {
     expect(skillCheck(10, () => 0).result).toBe('perfekt');
     expect(skillCheck(19, () => 0.999).result).toBe('fummel');
     expect(skillCheck(10, () => 0.45).success).toBe(true); // slår 10
@@ -37,8 +37,8 @@ describe('regler', () => {
   });
   it('räknar KP och skadebonus', () => {
     expect(maxKp(attrs)).toBe(13);
-    expect(damageBonus(attrs)).toBe('1T6'); // STY + STO = 25
-    expect(damageBonus({ ...attrs, STY: 5, STO: 5 })).toBe('-1T4');
+    expect(damageBonus(attrs)).toBe(''); // STY + STO = 25 ger ingen skadebonus
+    expect(damageBonus({ ...attrs, STY: 18, STO: 15 })).toBe('1T4');
     const rolled = rollAttrs(seededRng(3));
     expect(Object.keys(rolled)).toHaveLength(7);
   });

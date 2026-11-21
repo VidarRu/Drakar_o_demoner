@@ -11,7 +11,7 @@ import {
   type GameMap,
   type Point,
 } from './map';
-import { damageBonus, improvementRoll, maxKp, RULES, skillCheck, type Check } from './rules';
+import { damageBonus, improvementRoll, maxKp, movement, skillCheck, type Check } from './rules';
 import type { Actor, CombatState, GameState, NewCharacter } from './types';
 
 export const FOV_RADIUS = 8;
@@ -64,7 +64,7 @@ export class Game {
       weapon: prof.weapon,
       armor: prof.armor,
       shield: !!prof.shield,
-      move: RULES.baseMove,
+      move: movement(char.attrs),
       hostile: false,
       sight: FOV_RADIUS,
       alive: true,
