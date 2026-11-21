@@ -60,6 +60,7 @@ export const RACE_LIST: RaceDef[] = [
     sleepHours: 6,
     weight: 'plus-sty',
     dice: { STY: '4T6', STO: '2T4+1', FYS: '2T6+6', SMI: '3T6', INT: '3T6', PSY: '2T6+6', KAR: '3T6' },
+    darkvision: true,
     traits: ['Mörkersyn även utan ljuskälla, lika långt som en människa ser med fackla.', 'Geologi räknas som primär färdighet.'],
   },
   {
@@ -76,6 +77,7 @@ export const RACE_LIST: RaceDef[] = [
     ages: { ung: [30, 40], mogen: [41, 70], medelålders: [71, 100], gammal: [101, 130] },
     sleepHours: 6,
     dice: { STY: '3T6', STO: '2T6+6', FYS: '3T6', SMI: '3T6+2', INT: '3T6', PSY: '3T6', KAR: '3T6+1' },
+    darkvision: true,
     traits: ['Dubbelt så god syn och hörsel som människor.', 'Dubbel FYS vid motståndsslag mot sjukdomar.'],
   },
   {

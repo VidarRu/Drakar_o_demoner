@@ -1,0 +1,126 @@
+import type { TableRow } from './outcomes';
+
+/**
+ * Fummeltabellerna (Bok III s. 39–41), 1T20. Beskrivningarna är egna och korta; bara de
+ * spelmekaniska följderna är bokens. Varelser med naturliga vapen använder tabellen för
+ * obeväpnad strid. Rad 20 betyder alltid två slag på tabellen (nya tjugor slås om).
+ */
+export type FumbleTable = 'närstrid' | 'sköld' | 'avstånd' | 'obeväpnad';
+
+export const FUMBLE_TABLES: Record<FumbleTable, TableRow[]> = {
+  närstrid: [
+    { text: 'Hugget går i marken och vapnet brister.', effects: [{ kind: 'vapenSönder' }] },
+    {
+      text: 'Vapnet spricker och en bit flyger i huvudet på dig (1 KP, hjälmen hjälper inte).',
+      effects: [{ kind: 'vapenSönder' }, { kind: 'skada', kp: 1, loc: 'huvud' }],
+    },
+    {
+      text: 'Du vacklar till. Nästa runda kan du bara parera, med −10.',
+      effects: [{ kind: 'endastParera', rounds: 2 }, { kind: 'cl', mod: -10, scope: 'parering', rounds: 2 }],
+    },
+    { text: 'Du sträcker en ryggmuskel: −4 på SMI- och STY-färdigheter i 1T2+1 dagar.', effects: [{ kind: 'cl', mod: -4, scope: 'smiSty', days: '1T2+1' }] },
+    { text: 'Vapnet hamnar fel i handen: −3 med det i 1T4+1 rundor till.', effects: [{ kind: 'cl', mod: -3, scope: 'vapen', rounds: '1T4+2' }] },
+    {
+      text: 'En nysning: nästa runda kan du bara parera, med −2.',
+      effects: [{ kind: 'endastParera', rounds: 2 }, { kind: 'cl', mod: -2, scope: 'parering', rounds: 2 }],
+    },
+    { text: 'Svettiga händer: vapnet flyger 1T3 rutor bort.', effects: [{ kind: 'tappaVapen', distance: '1T3' }] },
+    { text: 'Helt ur balans: alla anfall och pareringar misslyckas i den här och 1T3 rundor till.', effects: [{ kind: 'misslyckas', scope: 'strid', rounds: '1T3+1' }] },
+    { text: 'Du snubblar och faller. Det tar den här och nästa runda att resa sig.', effects: [{ kind: 'liggande', rounds: 2 }] },
+    { text: 'Du faller handlöst. Det tar tre rundor att hämta sig.', effects: [{ kind: 'liggande', rounds: 3 }] },
+    { text: 'En rustningsdel lossnar och faller av.', effects: [{ kind: 'tappaRustning' }] },
+    { text: 'Du vrickar foten: −2 på förflyttningen i 1T6 dagar.', effects: [{ kind: 'förflyttning', mod: -2, days: '1T6' }] },
+    { text: 'Ett jongleringsnummer som inte imponerar: motståndaren får +5 på nästa anfall mot dig.', effects: [{ kind: 'motståndarBonus', mod: 5, uses: 1 }] },
+    { text: 'Vapnet faller ner vid dina fötter.', effects: [{ kind: 'tappaVapen', distance: '0' }] },
+    { text: 'Du tappar greppet och kan inte göra något nästa runda.', effects: [{ kind: 'ingenHandling', rounds: 2 }] },
+    { text: 'Vapnet faller på din fot (1 KP).', effects: [{ kind: 'tappaVapen', distance: '0' }, { kind: 'skada', kp: 1, loc: 'ben' }] },
+    { text: 'Hugget träffar närmsta vän.', effects: [{ kind: 'vän' }] },
+    { text: 'Ohyggligt klumpigt: nästa fientliga anfall lyckas automatiskt och kan inte pareras.', effects: [{ kind: 'utsatt', noParry: true }] },
+    { text: 'Du sväljer tungan och faller. Du kvävs om ingen hjälper dig inom 15 rundor.', effects: [{ kind: 'liggande', rounds: 15 }, { kind: 'kvävs', rounds: 15 }] },
+    { text: 'Rejäl klantighet.', effects: [{ kind: 'tvåGånger' }] },
+  ],
+  sköld: [
+    { text: 'Skölden spricker mitt itu och går inte att laga.', effects: [{ kind: 'sköldSönder' }] },
+    { text: 'Skölden spricker från kant till kant.', effects: [{ kind: 'sköldSönder' }] },
+    { text: 'Du river dig på en spik i skölden: −5 på nästa parering.', effects: [{ kind: 'cl', mod: -5, scope: 'parering', uses: 1 }] },
+    {
+      text: 'En vindby: nästa runda kan du bara parera, med −10.',
+      effects: [{ kind: 'endastParera', rounds: 2 }, { kind: 'cl', mod: -10, scope: 'parering', rounds: 2 }],
+    },
+    { text: 'Skölden sitter snett: −3 på pareringar i två rundor till.', effects: [{ kind: 'cl', mod: -3, scope: 'parering', rounds: 3 }] },
+    {
+      text: 'Skölden är i vägen: −5 på nästa anfall och nästa parering.',
+      effects: [{ kind: 'cl', mod: -5, scope: 'anfall', uses: 1 }, { kind: 'cl', mod: -5, scope: 'parering', uses: 1 }],
+    },
+    { text: 'Skölden fastnar i utrustningen. Den här och nästa runda går åt att få loss den.', effects: [{ kind: 'ingenHandling', rounds: 2 }] },
+    { text: 'Du tappar en sko: alla anfall och pareringar misslyckas i den här och 1T3 rundor till.', effects: [{ kind: 'misslyckas', scope: 'strid', rounds: '1T3+1' }] },
+    { text: 'Du snubblar. Det tar den här och nästa runda att resa sig.', effects: [{ kind: 'liggande', rounds: 2 }] },
+    { text: 'Yrsel: −2 på anfall och pareringar i 1T4+1 rundor.', effects: [{ kind: 'cl', mod: -2, scope: 'strid', rounds: '1T4+1' }] },
+    { text: 'En rustningsdel lossnar och faller av.', effects: [{ kind: 'tappaRustning' }] },
+    { text: 'Du vrickar foten: −2 på förflyttningen i 1T6 dagar.', effects: [{ kind: 'förflyttning', mod: -2, days: '1T6' }] },
+    { text: 'Du grubblar över pareringen: −5 på allt nästa runda.', effects: [{ kind: 'cl', mod: -5, scope: 'alla', rounds: 2 }] },
+    { text: 'Sköldremmarna brister och skölden faller vid dina fötter.', effects: [{ kind: 'tappaSköld', distance: '0' }] },
+    {
+      text: 'Du faller över skölden och sköldarmen hoppar ur led resten av striden.',
+      effects: [{ kind: 'liggande', rounds: 1 }, { kind: 'sköldarmUr' }],
+    },
+    { text: 'Klantig rörelse: motståndaren får +5 på nästa anfall mot dig.', effects: [{ kind: 'motståndarBonus', mod: 5, uses: 1 }] },
+    { text: 'Skölden flyger 1T3 rutor bort.', effects: [{ kind: 'tappaSköld', distance: '1T3' }] },
+    { text: 'Du knuffar omkull närmsta vän med skölden.', effects: [{ kind: 'vän' }] },
+    { text: 'Skölden skymmer sikten: nästa anfall mot dig lyckas automatiskt.', effects: [{ kind: 'utsatt', noParry: false }] },
+    { text: 'Rejäl klantighet.', effects: [{ kind: 'tvåGånger' }] },
+  ],
+  avstånd: [
+    { text: 'Vapnet knäcks.', effects: [{ kind: 'vapenSönder' }] },
+    { text: 'Strängen (slungan, kastvapnet) går av.', effects: [{ kind: 'vapenSönder' }] },
+    { text: 'Du tappar fokus och gör ingenting den här och nästa runda.', effects: [{ kind: 'ingenHandling', rounds: 2 }] },
+    { text: 'Avståndsbedömningen sviker: −4 på avståndsanfall i 1T2 timmar.', effects: [{ kind: 'cl', mod: -4, scope: 'avstånd', rounds: '1T2*720' }] },
+    { text: 'Du stirrar efter projektilen hela nästa runda.', effects: [{ kind: 'ingenHandling', rounds: 2 }] },
+    { text: 'Självförtroendet rasar: nästa runda går åt till att samla sig.', effects: [{ kind: 'ingenHandling', rounds: 2 }] },
+    { text: 'En loppa i rustningen: −4 på allt i tre rundor.', effects: [{ kind: 'cl', mod: -4, scope: 'alla', rounds: 3 }] },
+    { text: 'Du fumlar med pilen den här och nästa runda.', effects: [{ kind: 'ingenHandling', rounds: 2 }] },
+    { text: 'Det här och de två följande anfallen missar.', effects: [{ kind: 'misslyckas', scope: 'anfall', uses: 3 }] },
+    { text: 'Ur balans: −5 på allt nästa runda.', effects: [{ kind: 'cl', mod: -5, scope: 'alla', rounds: 2 }] },
+    { text: 'Vapnet faller vid dina fötter.', effects: [{ kind: 'tappaVapen', distance: '0' }] },
+    { text: 'Du skjuter utan att sikta, och gör om det nästa runda: −15.', effects: [{ kind: 'cl', mod: -15, scope: 'avstånd', rounds: 2 }] },
+    { text: 'Du skär dig på vapnet: −2 i ett dygn.', effects: [{ kind: 'cl', mod: -2, scope: 'alla', days: 1 }] },
+    { text: 'Svett i ögonen: nästa anfall missar.', effects: [{ kind: 'misslyckas', scope: 'anfall', uses: 1 }] },
+    { text: 'Vapnet faller vid dina fötter (ett kastvapen flyger 1T6 rutor).', effects: [{ kind: 'tappaVapen', distance: '0' }] },
+    { text: 'Projektilen (kastvapnet) hamnar fel och du står handfallen nästa runda.', effects: [{ kind: 'ingenHandling', rounds: 2 }] },
+    { text: 'Du skadar dig själv på vapnet och missar grovt.', effects: [{ kind: 'skada', kp: 1, loc: 'svärdsarm' }] },
+    { text: 'Skottet träffar närmsta vän i skottlinjen.', effects: [{ kind: 'vän', perfect: false }] },
+    {
+      text: 'Du skjuter dig själv i foten (1 KP) och har halv förflyttning i 1T6+3 dagar.',
+      effects: [{ kind: 'skada', kp: 1, loc: 'ben' }, { kind: 'förflyttning', mod: 'halv', days: '1T6+3' }],
+    },
+    { text: 'Rejäl klantighet.', effects: [{ kind: 'tvåGånger' }] },
+  ],
+  obeväpnad: [
+    { text: 'Du snubblar: nästa anfall eller parering misslyckas.', effects: [{ kind: 'misslyckas', scope: 'strid', uses: 1 }] },
+    { text: 'Kläderna rivs upp och hindrar dig: −3 på anfall och pareringar tills du lägger en runda på att rätta till dem.', effects: [{ kind: 'cl', mod: -3, scope: 'strid', untilFixed: true }] },
+    { text: 'Sträckning: −3 på färdigheter med den kroppsdelen i 1T2 dagar.', effects: [{ kind: 'cl', mod: -3, scope: 'strid', days: '1T2' }] },
+    {
+      text: 'Stel som en pinne: nästa runda kan du bara parera, med −5.',
+      effects: [{ kind: 'endastParera', rounds: 2 }, { kind: 'cl', mod: -5, scope: 'parering', rounds: 2 }],
+    },
+    {
+      text: 'Hungern gnager: nästa runda kan du varken anfalla eller parera.',
+      effects: [{ kind: 'ingenHandling', rounds: 2 }, { kind: 'ingenParering', rounds: 2 }],
+    },
+    { text: 'Anfall är bästa försvar: du får inte parera de två följande rundorna.', effects: [{ kind: 'ingenParering', rounds: 3 }] },
+    { text: 'Ett finger i ögat: nästa runda kan du bara parera.', effects: [{ kind: 'endastParera', rounds: 2 }] },
+    { text: 'Ett ögonblick av tvivel: −5 på nästa anfall eller parering.', effects: [{ kind: 'cl', mod: -5, scope: 'strid', uses: 1 }] },
+    { text: 'Allt rätt fast tvärtom: −10 på nästa anfall eller parering.', effects: [{ kind: 'cl', mod: -10, scope: 'strid', uses: 1 }] },
+    { text: 'En rustningsdel lossnar och faller av.', effects: [{ kind: 'tappaRustning' }] },
+    { text: 'Du ramlar framstupa. Det tar den här och nästa runda att resa sig.', effects: [{ kind: 'liggande', rounds: 2 }] },
+    { text: 'Distraherad: alla som anfaller dig nästa runda får +3.', effects: [{ kind: 'motståndarBonus', mod: 3, rounds: 2 }] },
+    { text: 'Motståndaren får självförtroende: +3 på sina två nästa anfall mot dig.', effects: [{ kind: 'motståndarBonus', mod: 3, uses: 2 }] },
+    { text: 'Du vrickar foten: −2 på förflyttningen i 1T6 dagar.', effects: [{ kind: 'förflyttning', mod: -2, days: '1T6' }] },
+    { text: 'Nackspärr: −6 på SMI-färdigheter i 1T20 rundor.', effects: [{ kind: 'cl', mod: -6, scope: 'smi', rounds: '1T20' }] },
+    { text: 'Ryggskott: −10 på SMI-färdigheter tills någon masserar dig.', effects: [{ kind: 'cl', mod: -10, scope: 'smi', untilRest: true }] },
+    { text: 'Självförtroendet knäcks: −2 på anfall och pareringar tills du slår ett perfekt slag.', effects: [{ kind: 'cl', mod: -2, scope: 'strid', untilPerfect: true }] },
+    { text: 'Ett perfekt knytnävsslag – på närmsta vän.', effects: [{ kind: 'vän', perfect: true }] },
+    { text: 'Du beundrar motståndaren: nästa fientliga anfall mot dig lyckas automatiskt.', effects: [{ kind: 'utsatt', noParry: false }] },
+    { text: 'Rejäl klantighet.', effects: [{ kind: 'tvåGånger' }] },
+  ],
+};

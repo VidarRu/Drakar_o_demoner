@@ -8,6 +8,9 @@ import { ATTR_KEYS, type Attrs } from '../types';
 
 export * from './check';
 export * from './derived';
+export * from './fear';
+export * from './fumble';
+export * from './outcomes';
 export * from './tables';
 
 /**

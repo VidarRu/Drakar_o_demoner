@@ -97,7 +97,8 @@ describe('spelmotor', () => {
         }
       }
       expect(['explore', 'dead']).toContain(g.state.mode);
-      expect(g.state.mode === 'dead' ? !g.player.alive : !wolf.alive).toBe(true);
+      // Vargen kan dö, fly eller ge upp efter ett misslyckat moralslag.
+      expect(g.state.mode === 'dead' ? !g.player.alive : !wolf.alive || wolf.fled || !wolf.hostile).toBe(true);
     }
   });
 

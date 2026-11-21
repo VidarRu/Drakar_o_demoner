@@ -658,7 +658,9 @@ export class CreatorUi {
       const on = d.equipped.armor.includes(id);
       armorChecks.append(this.check(equipmentName(id), on, () => this.update(() => (d.equipped.armor = on ? d.equipped.armor.filter((x) => x !== id) : [...d.equipped.armor, id]))));
     }
-    box.append(wl, sl, el('p', 'note', 'Avståndsvapen kan köpas men används först när avståndsstriden byggs in.'), armorChecks);
+    const ol = el('label', '', 'Vapen i andra handen (Två vapen) ');
+    ol.append(select(weapons.map((id) => [id, equipmentName(id)]), d.equipped.offhand ?? '', (v) => this.update(() => (d.equipped.offhand = v || undefined)), 'Inget'));
+    box.append(wl, sl, ol, el('p', 'note', 'Med ett vapen i varje hand slår du först ett slag i Två vapen varje gång du anfaller: lyckas det anfaller du med båda. Avståndsvapen kan köpas men används först när avståndsstriden byggs in.'), armorChecks);
 
     const looks = el('section', 'box');
     looks.append(el('h3', '', 'Utseende och bakgrund'));
@@ -677,6 +679,7 @@ export class CreatorUi {
   private unequip(id: string) {
     const e = this.d.equipped;
     if (e.weapon === id) e.weapon = undefined;
+    if (e.offhand === id) e.offhand = undefined;
     if (e.shield === id) e.shield = undefined;
     e.armor = e.armor.filter((x) => x !== id);
   }

@@ -48,6 +48,7 @@ export const CREATURES = list<CreatureDef>([
     naturalArmor: 1,
     move: 16,
     hostile: true,
+    humanoid: false,
     sight: 6,
   },
   {
@@ -59,6 +60,8 @@ export const CREATURES = list<CreatureDef>([
     weapon: 'kortsvard',
     move: 10,
     hostile: true,
+    humanoid: true,
+    darkvision: true,
     sight: 6,
     silver: '2T6',
   },
@@ -73,6 +76,11 @@ export const CREATURES = list<CreatureDef>([
     shield: 'vanlig_skold',
     move: 10,
     hostile: true,
+    humanoid: true,
+    darkvision: true,
+    leader: true,
+    // En hövding som slåss till slutet: boken undantar hjältar och ledare av det slaget från moralen.
+    noMorale: true,
     sight: 7,
     silver: '6T6+20',
     deathFlag: 'hovding_dod',
@@ -86,6 +94,7 @@ export const CREATURES = list<CreatureDef>([
     weapon: 'klubba',
     move: 10,
     hostile: false,
+    humanoid: true,
     npc: 'vardshusvard',
   },
   {
@@ -93,11 +102,12 @@ export const CREATURES = list<CreatureDef>([
     name: 'Smeden Ylva',
     sprite: 'smed',
     attrs: { ...human, STY: 15 },
-    skills: { enhandskross: 12 },
+    skills: { enhandskross: 12, 'hantverk:smide': 16 },
     weapon: 'klubba',
     armor: ['harnesk_lader'],
     move: 10,
     hostile: false,
+    humanoid: true,
     npc: 'smed',
   },
   {
@@ -109,6 +119,7 @@ export const CREATURES = list<CreatureDef>([
     weapon: 'dolk',
     move: 9,
     hostile: false,
+    humanoid: true,
     npc: 'gumma',
   },
 ]);
@@ -140,7 +151,7 @@ export const NPCS = list<NpcDef>([
     persona:
       'Ylva är byns smed: fåordig, rak och stolt över sitt hantverk. Hon har föga tålamod med skrävlare men respekterar den som slåss för byn.',
     knowledge:
-      'Hon har en färdig ringbrynjeskjorta till salu för 1 500 silvermynt. Svartalfernas hövding bär ett bredsvärd och sköld och är farligare än sina underhuggare. Grottan ligger österut längs stigen.',
+      'Hon har en färdig ringbrynjeskjorta till salu för 1 500 silvermynt. Hon lagar slitna vapen, sköldar och rustningar för en tjugondel av priset per skadat ställe. Svartalfernas hövding bär ett bredsvärd och sköld och är farligare än sina underhuggare. Grottan ligger österut längs stigen.',
     greeting: 'Hm. Behöver du något, eller står du bara i vägen för värmen?',
     topics: [
       {
@@ -152,7 +163,7 @@ export const NPCS = list<NpcDef>([
         reply: 'Småttingarna är fega en och en. Hövdingen är det inte. Gå inte in dit sårad.',
       },
     ],
-    intents: ['kop_ringbrynja', 'anfall'],
+    intents: ['kop_ringbrynja', 'laga_utrustning', 'anfall'],
   },
   {
     id: 'gumma',

@@ -330,3 +330,79 @@ export const PSY_RECOVERY = {
   /** Timmar per återvunnen PSY-poäng under kroppslig aktivitet. */
   activeHours: 3,
 };
+
+// ------------------------------------------------------------------ detaljerad strid (Bok II s. 15–22)
+
+/** Turordning: krigarens Stridsvana, Blixtrande reflexer och tekniken Initiativbonus. */
+export const INITIATIVE_MODS = {
+  stridsvana: 5,
+  initiativbonus: 5,
+  /** Hoppspark och rundspark. */
+  spark: -2,
+};
+
+/** Husregel: varje parering efter den första i rundan får −5, −10 och så vidare. */
+export const PARRY_PENALTY = -5;
+/** Husregel: chans att vapnet tappar 1 BV varje gång det används. */
+export const WEAR_CHANCE = 0.02;
+/** Husregel: rustningsdelar har BV = abs × 2. */
+export const ARMOR_BV_FACTOR = 2;
+/** Husregel: smeden lagar för 5 % av priset per återställd BV-poäng. */
+export const REPAIR_PERCENT = 5;
+
+/** Blödning: −1 KP från totala KP var sjätte runda per kroppsdel som nått 0. */
+export const BLEED_INTERVAL = 6;
+
+/** Skadeeffekter på totala KP. */
+export const WOUND_LIMITS = {
+  /** CL halveras. */
+  halfCl: 2,
+  /** Inga färdigheter alls. */
+  noSkills: 1,
+  /** Medvetslös i 1T4 timmar. */
+  unconscious: 0,
+};
+
+/** Svårt PSY-slag för att strida vidare när en arm eller ett ben nått 0 KP. */
+export const LIMB_PSY_CHECK = 'Svårt' as const;
+
+/** Modifikation för att använda ett enhandsvapen med två händer. */
+export const TWO_HAND_BONUS = '1T2';
+/** Kättingvapen och piskor: 18–20 på anfallet är en miss med risk för fummel. */
+export const ENTANGLING_MISS = 18;
+
+/** Kritiska arm- och benskador (1T10), vid dubbla kroppsdelens KP i skada. */
+export interface CriticalLimb {
+  max: number;
+  value: {
+    id: 'brutet' | 'led' | 'nerver' | 'senor' | 'krossat';
+    text: string;
+    /** Bestående modifikation på CL för färdigheter som kräver kroppsdelen. */
+    cl: number;
+    /** Kroppsdelen kan aldrig användas igen. */
+    lost: boolean;
+    /** Förflyttning efteråt om det är ett ben. */
+    legMove?: number;
+  };
+}
+export const CRITICAL_LIMB: CriticalLimb[] = [
+  { max: 3, value: { id: 'brutet', text: 'Benet är brutet och måste spjälkas. Läker med −3 på CL.', cl: -3, lost: false } },
+  { max: 5, value: { id: 'led', text: 'Leden är förstörd och går aldrig att böja igen: −4 på CL.', cl: -4, lost: false, legMove: 6 } },
+  { max: 7, value: { id: 'nerver', text: 'Nerverna är av. Kroppsdelen är förlamad för alltid.', cl: 0, lost: true } },
+  { max: 9, value: { id: 'senor', text: 'Muskler och senor är av. Läker med −5 på CL.', cl: -5, lost: false } },
+  { max: 10, value: { id: 'krossat', text: 'Benet är krossat och kroppsdelen måste amputeras.', cl: 0, lost: true } },
+];
+
+/** Modifikationer på moralslaget (1T20 mot PSY + modifikationer, husregel för riktningen). */
+export const MORALE_MODS = {
+  /** Per stridskamrat. */
+  kamrat: 1,
+  /** Per stridskamrat som har flytt. */
+  flydd: -2,
+  /** Per motståndare. */
+  motståndare: -1,
+  flankerad: -2,
+  ledareSårad: -5,
+  ledareBorta: -10,
+  halvaKp: -4,
+};

@@ -14,17 +14,20 @@
         <h4 id="minimap-name"></h4>
         <canvas id="minimap-canvas"></canvas>
       </div>
-      <aside id="sheet"></aside>
+      <aside id="status"></aside>
       <div id="bottom">
-        <div id="combat" hidden>
-          <span id="combat-info"></span>
-          <button id="btn-parry">Parera</button>
-          <button id="btn-end">Avsluta tur</button>
-        </div>
+        <div id="combat" hidden></div>
         <div id="log"></div>
       </div>
-      <button id="btn-sheet" aria-label="Visa rollformulär">☰</button>
+      <button id="btn-sheet" aria-label="Visa status">☰</button>
     </div>
+
+    <section id="rollformular" hidden>
+      <div class="rf-wrap">
+        <button id="rf-close" aria-label="Stäng rollformuläret">✕</button>
+        <div id="rf-content"></div>
+      </div>
+    </section>
 
     <section id="dialog" hidden>
       <img id="dialog-portrait" alt="" />
