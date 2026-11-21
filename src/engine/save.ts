@@ -1,7 +1,7 @@
 import type { GameState } from './types';
 
-/** Version 4: speltid, läkning och erfarenhetspoäng. Äldre sparningar kan inte läsas. */
-const KEY = 'dod-save-v4';
+/** Version 5: magi, avståndsstrid, örter, gifter och handel. Äldre sparningar kan inte läsas. */
+const KEY = 'dod-save-v5';
 
 export function saveGame(state: GameState) {
   try {
@@ -16,7 +16,7 @@ export function loadGame(): GameState | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const state = JSON.parse(raw) as GameState;
-    return state.version === 4 ? state : null;
+    return state.version === 5 ? state : null;
   } catch {
     return null;
   }

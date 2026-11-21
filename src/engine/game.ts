@@ -32,6 +32,9 @@ import {
 import type { Actor, Attrs, Character, GameState } from './types';
 
 export const FOV_RADIUS = 8;
+
+/** Vyer som spelmotorn kan be gränssnittet öppna. */
+export type UiView = 'training' | 'shop';
 const LOG_LIMIT = 300;
 
 /** Visuell effekt som gränssnittet kan visa (t.ex. skadesiffror). */
@@ -163,7 +166,7 @@ export class Game {
       },
     );
     const state: GameState = {
-      version: 4,
+      version: 5,
       time: time.START_TIME,
       character: char,
       mapId,
@@ -175,6 +178,7 @@ export class Game {
       flags: {},
       dropped: [],
       fearMet: [],
+      trade: {},
       log: [],
       nextId: 1,
     };
@@ -203,7 +207,14 @@ export class Game {
             darkvision: !!def.darkvision,
             silver: def.silver ? roll(def.silver, rng) : 0,
           },
-          { npc: def.npc, deathFlag: def.deathFlag, leader: def.leader, noMorale: def.noMorale, fear: def.fear },
+          {
+            npc: def.npc,
+            deathFlag: def.deathFlag,
+            leader: def.leader,
+            noMorale: def.noMorale,
+            fear: def.fear,
+            ...(def.ranged ? { ranged: def.ranged.weapon, rangedAmmo: def.ranged.ammo } : {}),
+          },
         ),
       );
     }
@@ -330,6 +341,7 @@ export class Game {
     p.x = to.x;
     p.y = to.y;
     c.movesLeft--;
+    p.movedLast = (p.movedLast ?? 0) + 1;
     this.updateFov();
     if (!c.acted[p.id] && this.state.dropped.some((d) => d.x === p.x && d.y === p.y) && combat.pickUp(this)) {
       c.acted[p.id] = true;
@@ -339,24 +351,65 @@ export class Game {
     return true;
   }
 
-  canAttack(targetId: string): boolean {
-    const t = this.actor(targetId);
-    const p = this.player;
-    return (
-      this.isPlayerTurn() &&
-      !this.state.combat!.acted[p.id] &&
-      !!t &&
-      t.alive &&
-      t.hostile &&
-      combat.canAttackNow(p) &&
-      combat.inReach(this, p, t)
-    );
+  /** Rollpersonen har ett avståndsvapen i handen. */
+  holdsRanged(): boolean {
+    return !!combat.rangedInfo(this.player);
   }
 
+  /** Varför rollpersonen inte kan anfalla målet just nu, eller null. */
+  attackProblem(targetId: string): string | null {
+    const t = this.actor(targetId);
+    const p = this.player;
+    if (!this.isPlayerTurn()) return 'Det är inte din tur.';
+    if (this.state.combat!.acted[p.id]) return 'Du har redan gjort din handling.';
+    if (!t || !t.alive || !t.hostile) return 'Inget fientligt mål.';
+    if (this.holdsRanged()) return combat.shootProblem(this, p, t);
+    if (!combat.canAttackNow(p)) return 'Du kan inte anfalla nu.';
+    return combat.inReach(this, p, t) ? null : 'Målet är utom räckhåll.';
+  }
+
+  canAttack(targetId: string): boolean {
+    return this.attackProblem(targetId) === null;
+  }
+
+  /** Anfaller i närstrid, eller skjuter och kastar med ett avståndsvapen. */
   playerAttack(targetId: string): boolean {
     if (!this.canAttack(targetId)) return false;
-    combat.playerAttack(this, this.actor(targetId)!);
-    this.state.combat && (this.state.combat.acted[this.player.id] = true);
+    const t = this.actor(targetId)!;
+    if (this.holdsRanged()) combat.shoot(this, this.player, t);
+    else combat.playerAttack(this, t);
+    if (this.state.combat) {
+      this.state.combat.acted[this.player.id] = true;
+      if (this.holdsRanged()) this.state.combat.movesLeft = 0;
+    }
+    combat.finishTurn(this);
+    this.changed();
+    return true;
+  }
+
+  /** Laddar om armborstet eller stavslungan en runda (tar hela turen). */
+  canReload(): boolean {
+    return this.isPlayerTurn() && !this.state.combat!.acted[this.player.id] && (this.player.reload ?? 0) > 0;
+  }
+
+  reload(): boolean {
+    if (!this.canReload()) return false;
+    combat.reloadStep(this, this.player);
+    this.state.combat!.acted[this.player.id] = true;
+    combat.finishTurn(this);
+    this.changed();
+    return true;
+  }
+
+  /** Söker skydd mot skyttar (Normalt SMI-slag) och gör inget annat i rundan. */
+  canTakeCover(): boolean {
+    return this.isPlayerTurn() && !this.state.combat!.acted[this.player.id] && combat.participants(this).some((a) => a.hostile && !!a.ranged && !combat.isOut(a));
+  }
+
+  takeCover(): boolean {
+    if (!this.canTakeCover()) return false;
+    combat.takeCover(this, this.player);
+    this.state.combat!.acted[this.player.id] = true;
     combat.finishTurn(this);
     this.changed();
     return true;
@@ -388,7 +441,7 @@ export class Game {
     if (!this.canBandage()) return false;
     const p = this.player;
     const loc = p.bleeding[0];
-    const check = skillCheck(this.skillFv(p, 'forsta_hjalpen'), this.rng, combat.woundPenalty(p));
+    const check = skillCheck(this.skillFv(p, 'forsta_hjalpen'), this.rng, combat.skillMod(this, p, 'forsta_hjalpen'));
     if (check.success) {
       p.bleeding = p.bleeding.filter((l) => l !== loc);
       this.gainExperience(p, 'forsta_hjalpen', check);
@@ -459,18 +512,18 @@ export class Game {
     combat.kill(this, a);
   }
 
-  private uiListeners: ((name: 'training') => void)[] = [];
-  onUi(fn: (name: 'training') => void) {
+  private uiListeners: ((name: UiView, arg?: string) => void)[] = [];
+  onUi(fn: (name: UiView, arg?: string) => void) {
     this.uiListeners.push(fn);
   }
-  /** Ber gränssnittet öppna en vy (t.ex. träningen efter en veckas vila). */
-  openUi(name: 'training') {
-    for (const fn of this.uiListeners) fn(name);
+  /** Ber gränssnittet öppna en vy (träningen efter en veckas vila, eller en handlares bod). */
+  openUi(name: UiView, arg?: string) {
+    for (const fn of this.uiListeners) fn(name, arg);
   }
 
   /** Absorbering på en kroppsdel: rustningsdelen som täcker den plus naturligt skydd. */
   armorAt(a: Actor, loc: HitLocation): number {
-    return a.naturalArmor + (combat.armorPiece(a, loc)?.abs ?? 0);
+    return a.naturalArmor + (combat.armorPiece(a, loc)?.abs ?? 0) + combat.magicArmor(a);
   }
 
   /** Tar på en rustningsdel och tar av de delar som täcker samma kroppsdelar. */
@@ -500,7 +553,7 @@ export class Game {
   /** Färdighetsslag för rollpersonen, med logg och erfarenhetskryss. */
   playerCheck(skill: string, modifier = 0): Check {
     const p = this.player;
-    const check = skillCheck(this.skillFv(p, skill), this.rng, modifier + combat.woundPenalty(p));
+    const check = skillCheck(this.skillFv(p, skill), this.rng, modifier + combat.skillMod(this, p, skill));
     this.gainExperience(p, skill, check);
     this.log(`${skill} (${describe(check)}): ${check.result}.`);
     return check;

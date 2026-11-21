@@ -3,7 +3,9 @@ import { NPCS } from '../content';
 import { ARMOR, SHIELDS } from '../data/armor';
 import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
-import { activeHostiles, damageExpr, effectiveMove, isOut } from '../engine/combat';
+import { HERBS } from '../data/herbs';
+import { activeHostiles, ammoLeft, damageExpr, effectiveMove, isOut, rangedInfo } from '../engine/combat';
+import { carriedWeight, loadMod } from '../engine/inventory';
 import type { Game } from '../engine/game';
 import { INTENTS } from '../engine/intents';
 import { HIT_LOCATIONS, type HitLocation } from '../engine/rules';
@@ -39,11 +41,24 @@ const LOC_SHORT: Record<HitLocation, string> = {
   'höger ben': 'H. ben',
 };
 
+/** Raden för avståndsvapnet i statuspanelen: räckvidd, laddning och ammunition. */
+function ammoRow(g: Game, p: Actor, kv: (k: string, v: string) => HTMLElement): HTMLElement[] {
+  const r = rangedInfo(p);
+  if (!r) return [];
+  const parts = [`${r.range} rutor`];
+  if (r.ammo) parts.push(`${ammoLeft(g, p, r)} ${r.ammo.item}`);
+  if (p.reload) parts.push(`laddar ${p.reload} SR`);
+  return [kv(`${r.name} (${g.skillFv(p, r.skill)})`, `${r.damage} · ${parts.join(' · ')}`)];
+}
+
 /** Statuspanel, rollformulär, logg och stridspanel. */
 export class Hud {
   private logCount = -1;
 
-  constructor(private g: Game) {
+  constructor(
+    private g: Game,
+    private open: { pack: () => void; magic: () => void } = { pack: () => {}, magic: () => {} },
+  ) {
     $('hud').hidden = false;
     $('btn-sheet').onclick = () => $('status').classList.toggle('open');
     $('rf-close').onclick = () => this.toggleSheet(false);
@@ -52,9 +67,11 @@ export class Hud {
     };
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') this.toggleSheet(false);
-      if ((e.key === 'r' || e.key === 'R') && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
-        this.toggleSheet($('rollformular').hidden);
-      }
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      if (!$('panel').hidden || !$('dialog').hidden) return;
+      if (e.key === 'r' || e.key === 'R') this.toggleSheet($('rollformular').hidden);
+      if (e.key === 'p' || e.key === 'P') this.open.pack();
+      if ((e.key === 'm' || e.key === 'M') && this.g.state.character.spells.length) this.open.magic();
     });
     g.onChange(() => this.render());
     this.render();
@@ -116,6 +133,7 @@ export class Hud {
     const gear: HTMLElement[] = [];
     for (const slot of ['weapon', 'offhand'] as const) {
       if (slot === 'offhand' && !p.offhand) continue;
+      if (slot === 'weapon' && rangedInfo(p)) continue;
       const w = g.weaponOf(p, slot);
       const bv = w.bvKey && p.bv[w.bvKey] !== undefined ? ` · BV ${p.bv[w.bvKey]}` : '';
       gear.push(kv(`${w.name} (${g.skillFv(p, w.skill)})`, `${damageExpr(p, w)}${bv}`));
@@ -135,6 +153,7 @@ export class Hud {
     for (const label of new Set(p.effects.map((e) => e.label))) states.push(label);
     for (const inj of p.injuries) states.push(`${inj.loc}: ${inj.text}`);
     for (const ph of ch.phobias ?? []) states.push(`Fobi (${ph.level}): ${ph.source}`);
+    for (const po of p.poisons ?? []) states.push(`Förgiftad: ${HERBS[po.herb]?.name ?? po.herb} (STY ${po.sty})`);
 
     box.append(
       who,
@@ -142,7 +161,9 @@ export class Hud {
       doll,
       el('h3', '', 'Utrustning'),
       ...gear,
-      kv('Förflyttning', `${effectiveMove(p)} rutor`),
+      ...ammoRow(g, p, kv),
+      kv('Förflyttning', `${effectiveMove(p, g)} rutor`),
+      kv('Börda', `${carriedWeight(g)} / ${p.attrs.STY} kg${loadMod(g, p) ? ` (${loadMod(g, p) ?? 'för tungt'})` : ''}`),
       kv('PSY-poäng', `${p.psy} / ${p.attrs.PSY}`),
       kv('Silvermynt', String(p.silver)),
       kv('Tid', clockText(g.state.time)),
@@ -178,6 +199,8 @@ export class Hud {
       if (p.bleeding.length) panel.append(button('Lägg förband', () => g.bandage(), '', !g.canBandage()));
       if (g.canSelfMedicine()) panel.append(button('Läkekonst', () => g.selfMedicine()));
       panel.append(button('Sov 8 timmar', () => g.sleep(8), '', !g.canRest()));
+      panel.append(button('Packning (P)', () => this.open.pack()));
+      if (g.state.character.spells.length) panel.append(button('Magi (M)', () => this.open.magic()));
       panel.classList.remove('fighting');
       return;
     }
@@ -199,7 +222,7 @@ export class Hud {
       'span',
       'info',
       mine
-        ? `Runda ${c.round} · Din tur · ${c.movesLeft} steg kvar${acted ? ' · handlingen är gjord' : ' · klicka på en fiende för att anfalla'}`
+        ? `Runda ${c.round} · Din tur · ${c.movesLeft} steg kvar${acted ? ' · handlingen är gjord' : g.holdsRanged() ? ' · stå still och klicka på en fiende för att skjuta' : ' · klicka på en fiende för att anfalla'}`
         : `Runda ${c.round} · ${current?.name ?? 'Fienden'} agerar…`,
     );
 
@@ -214,6 +237,10 @@ export class Hud {
     controls.append(info, aim);
     if (p.bleeding.length) controls.append(button('Lägg förband', () => g.bandage(), '', !g.canBandage()));
     if (g.canFix()) controls.append(button('Rätta till', () => g.fix()));
+    if ((p.reload ?? 0) > 0) controls.append(button(`Ladda om (${p.reload} SR)`, () => g.reload(), '', !g.canReload()));
+    if (g.canTakeCover()) controls.append(button('Sök skydd', () => g.takeCover()));
+    controls.append(button('Packning', () => this.open.pack(), '', !mine));
+    if (g.state.character.spells.length) controls.append(button('Magi', () => this.open.magic(), '', !mine || acted));
     controls.append(button('Avsluta tur', () => g.endTurn(), 'primary', !mine));
     if (!activeHostiles(g).length) controls.append(el('span', 'info', 'Inga fiender kvar.'));
     panel.append(order, controls);

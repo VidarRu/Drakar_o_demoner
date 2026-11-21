@@ -10,7 +10,9 @@ export * from './check';
 export * from './derived';
 export * from './fear';
 export * from './fumble';
+export * from './magic';
 export * from './outcomes';
+export * from './poison';
 export * from './tables';
 
 /**

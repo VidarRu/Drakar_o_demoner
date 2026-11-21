@@ -1,5 +1,6 @@
 import type { HitLocation } from './rules/tables';
 import type { Scope } from './rules/outcomes';
+import type { PoisonStage } from './rules/poison';
 
 export type AttrKey = 'STY' | 'STO' | 'FYS' | 'SMI' | 'INT' | 'PSY' | 'KAR';
 export const ATTR_KEYS: AttrKey[] = ['STY', 'STO', 'FYS', 'SMI', 'INT', 'PSY', 'KAR'];
@@ -44,6 +45,8 @@ export interface CreatureDef {
   noMorale?: boolean;
   /** Skräckslå: [automatiskt, aktivt]. null = kan inte. */
   fear?: [number | null, number | null];
+  /** Avståndsvapen som varelsen använder på håll, och hur många skott eller kast den har. */
+  ranged?: { weapon: string; ammo: number };
   /** Silver som varelsen bär på (tärningsuttryck). */
   silver?: string;
   /** Flagga som sätts när varelsen dör. */
@@ -52,8 +55,28 @@ export interface CreatureDef {
   npc?: string;
 }
 
+/** Varor som en handlare säljer: vapen, rustningar, sköldar, droger eller en kategori ur utrustningslistan. */
+export type ShopGoods =
+  | 'närstridsvapen'
+  | 'avståndsvapen'
+  | 'rustningar'
+  | 'sköldar'
+  | 'läkedroger'
+  | 'droger'
+  | 'gifter'
+  | 'verktyg'
+  | 'behållare'
+  | 'kläder'
+  | 'äventyr'
+  | 'tjuvverktyg'
+  | 'diverse'
+  | 'mat'
+  | 'instrument';
+
 export interface NpcDef {
   id: string;
+  /** Handlare: vad hen säljer (och köper). */
+  shop?: { goods: ShopGoods[] };
   /** Personlighet och roll – skickas till språkmodellen. */
   persona: string;
   /** Vad personen känner till om världen. */
@@ -82,7 +105,36 @@ export interface ActiveEffect {
     | 'bärsärk'
     | 'skräckMod'
     | 'dödsfara'
-    | 'armUr';
+    | 'armUr'
+    // ------------------------------------------------ magi, örter och avståndsstrid (steg 6)
+    /** Extra absorbering på hela kroppen (SKYDD, LÄDERHUD). */
+    | 'skydd'
+    /** FÖRTROLLA eller FÖRBANNA VAPEN: mod på CL och skada med vapnet i `slot`. */
+    | 'vapenMagi'
+    | 'mörkersyn'
+    | 'orädd'
+    /** SKÖLD: nästa fysiska anfall pareras automatiskt. */
+    | 'luftsköld'
+    /** Läker `mod` KP när tiden har gått ut (örter som verkar efter en stund). */
+    | 'läkning'
+    /** Kan inte lägga besvärjelser (stum eller förlamad efter en snedtändning). */
+    | 'stum'
+    /** Ser ingenting: räknas som mörker. */
+    | 'blind'
+    /** Har sökt skydd eller kastat sig ned: `mod` på avståndsanfall mot hen den här rundan. */
+    | 'täckning'
+    /** Nästa besvärjelse kostar halva PSY (Ruriksört). */
+    | 'halvPsy'
+    /** Febern från en infektion är nedsatt (Malmros). */
+    | 'febernedsatt'
+    /** Fångad i ÖRTRANKOR: `mod` är rankornas motståndsvärde mot STY. */
+    | 'rankor'
+    /** Ändrad risk att sår från nästa strid infekteras (gånger `mod`). */
+    | 'infektionsrisk'
+    /** Kroppsdelen `loc` går inte att använda en tid (gift). */
+    | 'lem'
+    /** En kroppsfunktion är utslagen (gift); bara texten visas. */
+    | 'funktion';
   /** Kort text till rollformuläret och loggen. */
   label: string;
   mod?: number;
@@ -102,6 +154,56 @@ export interface ActiveEffect {
   untilRest?: boolean;
   /** Varar så länge den här aktören finns kvar (skräckkällan). */
   sourceId?: string;
+  /** Besvärjelsen som gav effekten och dess effektgrad (för SKINGRA). */
+  spell?: string;
+  grade?: number;
+  /** Varar efter striden (magi, örter och gifter). */
+  persist?: boolean;
+  /** Giftet (drogens id) som gav effekten; den försvinner när giftet är nedbrutet. */
+  poison?: string;
+  /** Kroppsdelen som effekten gäller. */
+  loc?: HitLocation;
+}
+
+/** Ett gift som verkar i kroppen (Bok II s. 50–51). */
+export interface Poisoning {
+  /** Drogen (src/data/herbs.ts). */
+  herb: string;
+  /** Giftets STY just nu. Sjunker med 1 för varje dygn som offret klarar motståndsslaget. */
+  sty: number;
+  /** Det svåraste stadium som giftet når, enligt motståndsslaget. */
+  stage: PoisonStage;
+  /** Speltiden då giftet kom in i kroppen. */
+  start: number;
+  /** Stadier som redan har börjat verka. */
+  applied: PoisonStage[];
+  /** Kroppsdelen som giftet kom in genom (gifter genom sår). */
+  loc?: HitLocation;
+  /** Dagen då motståndsslaget senast slogs. */
+  lastDay: number;
+}
+
+/** En dos av en drog. Kvaliteten avgörs när den bereds (Bok II: fel beredning gör den verkningslös). */
+export interface HerbDose {
+  id: string;
+  quality: 'normal' | 'verkningslös' | 'skadlig' | 'dubbel';
+}
+
+/** En besvärjelse som håller på att läggas och verkar i början av nästa runda. */
+export interface PendingSpell {
+  caster: string;
+  spell: string;
+  grade: number;
+  /** Extra E för räckvidd och varaktighet. */
+  extraRange: number;
+  extraDuration: number;
+  target?: string;
+  x: number;
+  y: number;
+  /** Rundor kvar tills besvärjelsen verkar (läsning ur formelsamlingen tar längre tid). */
+  rounds: number;
+  /** Självmordsattack: CL är S oavsett effektgrad, och magikern dör efteråt. */
+  suicide?: boolean;
 }
 
 export type WeaponSlot = 'weapon' | 'offhand';
@@ -194,6 +296,17 @@ export interface Actor {
   initiative: number;
   /** Snabbslående: agerar alltid först. */
   firstAlways?: boolean;
+  /** Rundor kvar att ladda om avståndsvapnet. */
+  reload?: number;
+  /** Avståndsvapen som en varelse använder på håll, och hur många skott eller kast den har. */
+  ranged?: string;
+  rangedAmmo?: number;
+  /** Rutor som figuren förflyttade sig under sin senaste tur (springer den är den ett rörligt mål). */
+  movedLast?: number;
+  /** Gifter som verkar i kroppen. */
+  poisons?: Poisoning[];
+  /** Gift som är stryket på vapnet och verkar vid nästa träff som skadar. */
+  weaponPoison?: HerbDose;
 }
 
 export interface CombatState {
@@ -214,6 +327,10 @@ export interface CombatState {
   scared: string[];
   /** Runda 0: de som lyckades med Dra vapen och får en gratis tur innan den vanliga turordningen. */
   freeRound?: string[];
+  /** Besvärjelser som verkar i början av nästa runda (magi går före slagväxling). */
+  pending?: PendingSpell[];
+  /** Pilar och lod som rollpersonen har skjutit, för att plocka upp efter striden. */
+  fired?: Record<string, number>;
 }
 
 /** Ett föremål som ligger på marken (tappat i strid). */
@@ -228,8 +345,17 @@ export interface DroppedItem {
 
 export type Mode = 'explore' | 'combat' | 'dialog' | 'dead';
 
+/** En handlares pris den här dagen (Köpslå) och vad hen har inne. */
+export interface TradeState {
+  day: number;
+  /** Rabatt i procent efter Köpslå (positiv = billigare för rollpersonen). */
+  pct?: number;
+  /** Droger som handlaren har på lager den här dagen. */
+  herbs?: string[];
+}
+
 export interface GameState {
-  version: 4;
+  version: 5;
   /** Speltid i sekunder sedan dag 1 klockan 00:00. */
   time: number;
   /** Rollformuläret för rollpersonen. */
@@ -244,6 +370,8 @@ export interface GameState {
   dropped: DroppedItem[];
   /** Skräckkällor (varelsetyper) som rollpersonen har mött förut. */
   fearMet: string[];
+  /** Handeln per handlare (spelledarpersonens npc-id). */
+  trade: Record<string, TradeState>;
   log: string[];
   nextId: number;
 }
@@ -268,8 +396,16 @@ export interface Character {
   techniques: string[];
   /** FV per färdighetsnyckel, t.ex. "smyga" eller "hantverk:smide". */
   skills: Record<string, number>;
-  /** Skicklighetsvärde per besvärjelse. */
-  spells: Record<string, number>;
+  /** Besvärjelserna i formelsamlingen. S räknas fram ur FV i skolan (husregel). */
+  spells: string[];
+  /** Besvärjelser som magikern har i minnet och kan lägga direkt. */
+  memorized: string[];
+  /** Pilar, lod och slungkulor (styck). */
+  ammo: Record<string, number>;
+  /** Doser av örter och droger. */
+  herbs: HerbDose[];
+  /** Kvarvarande BV för vapen, sköldar och rustningar som ligger i packningen. */
+  itemBv?: Record<string, number>;
   /** Startkapitalet i silvermynt och vad som är kvar efter inköpen. */
   capital: number;
   silver: number;
