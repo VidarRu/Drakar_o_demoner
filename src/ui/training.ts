@@ -2,7 +2,7 @@ import { SKILLS } from '../data/skills';
 import { skillName } from '../engine/creation';
 import type { Game } from '../engine/game';
 import { bLevel } from '../engine/rules';
-import { baseCost, canConvert, raiseCost, raiseSkill, selfTrain, skillCap } from '../engine/time';
+import { baseCost, canConvert, needsTeacher, raiseCost, raiseSkill, selfTrain, skillCap } from '../engine/time';
 import { $, el } from './hud';
 
 /** Kostnad för en veckas kost och logi medan man tränar. */
@@ -56,23 +56,24 @@ export class TrainingUi {
       const def = SKILLS[k.split(':')[0]];
       const cost = raiseCost(g, p, k);
       const capped = fv + 1 > skillCap(g, p, k);
+      const teacher = needsTeacher(k);
       const tr = el('tr');
       const raise = el('button', '', 'Höj');
-      raise.disabled = !canConvert(p) || capped || (p.ep[k] ?? 0) + bonus < cost;
-      raise.title = capped ? 'FV kan inte bli högre än grundegenskapen' : `Grundkostnad ${baseCost(g, k)} EP`;
+      raise.disabled = !canConvert(p) || capped || teacher || (p.ep[k] ?? 0) + bonus < cost;
+      raise.title = teacher ? 'Magiskolor höjs bara med lärare eller i ett magibibliotek' : capped ? 'FV kan inte bli högre än grundegenskapen' : `Grundkostnad ${baseCost(g, k)} EP`;
       raise.onclick = () => {
         raiseSkill(g, k);
         this.render();
       };
       const train = el('button', '', `Träna en vecka (${WEEK_COST} sm)`);
-      train.disabled = p.silver < WEEK_COST || capped;
+      train.disabled = p.silver < WEEK_COST || capped || teacher;
       train.onclick = () => {
         p.silver -= WEEK_COST;
         selfTrain(g, k);
         this.render();
       };
       const fvText = def.category === 'B' ? `${fv} (B${bLevel(fv)})` : String(fv);
-      tr.append(el('td', '', skillName(k)), el('td', '', fvText), el('td', '', String(p.ep[k] ?? '')), el('td', '', capped ? 'tak' : `${cost} EP`));
+      tr.append(el('td', '', skillName(k)), el('td', '', fvText), el('td', '', String(p.ep[k] ?? '')), el('td', '', teacher ? 'lärare' : capped ? 'tak' : `${cost} EP`));
       const c1 = el('td');
       c1.append(raise);
       const c2 = el('td');

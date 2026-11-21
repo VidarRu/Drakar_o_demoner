@@ -140,12 +140,73 @@ Dessa val gjordes när striden byggdes. Vidar har godkänt dem eller ändrat dem
 - **Ensamträning:** en vecka i taget; ett Normalt grundegenskapsslag ger 1 EP. Kost och logi kostar 70 sm i veckan. Träning med lärare finns inte än.
 - **Fobier:** efter en veckas vila slås ett Normalt PSY-slag för varje fobi. Lyckas det blir den ett steg lindrigare.
 
-## Magi
+## Magi (byggt i steg 6)
 
-- **Fråga Vidar först.** Vidar har egna husregler för magi som gör att den fungerar rimligare. De som är kända står nedan. Innan resten av magin byggs (steg 6) ska Vidar tillfrågas om det som saknas, till exempel effektgrader, PSY-kostnad och antalet startbesvärjelser, och svaren föras in här.
-- **Att lägga en besvärjelse:** man väljer besvärjelse och effektgrad och slår sedan mot sin chans att lyckas i besvärjelsen.
-- **Skicklighetsvärde (husregel):** S i en besvärjelse är FV i magiskolan minus besvärjelsens skolvärde, plus baschansen för INT (samma som vanliga färdigheter får av sin grundegenskap). Exempel: Elementarmagi 15 och Eld (skolvärde 6) ger 15 − 6 = 9, och med INT 15 tillkommer +3, alltså S 12.
-- **Att lära sig besvärjelser (husregel):** det kostar inga EP. Man hittar en besvärjelse i spelet, memorerar den och kan den sedan. S följer av formeln ovan och växer när FV i skolan stiger.
-- **Startbesvärjelser:** en magiker väljer ett antal besvärjelser från början. Antalet bestäms när magin byggs.
-- **Magiskolans FV** höjs genom träning med lärare eller genom egna studier i ett magibibliotek.
-- **Elementarerna** följer i steg 6 tillsammans med resten av magin.
+Vidar svarade på frågorna om magin i steg 6. Husreglerna markeras som husregel; resten följer Bok III.
+
+- **Att lägga en besvärjelse:** man väljer besvärjelse och effektgrad (E) och slår sedan mot sin chans att lyckas. Alla besvärjelser bygger på PSY.
+- **Skicklighetsvärde (husregel):** S i en besvärjelse är FV i magiskolan minus besvärjelsens skolvärde, plus baschansen för INT (samma som vanliga färdigheter får av sin grundegenskap). Exempel: Elementarmagi 15 och Eld (skolvärde 6) ger 15 − 6 = 9, och med INT 15 tillkommer +3, alltså S 12. Allmänna besvärjelser räknas mot den skola man har högst FV i.
+- **Effektgrad (husregel):** högsta E är FV i skolan. CL minskar med 1 (inte 2 som i boken) för varje E utöver den första. Extra E kan läggas på räckvidd eller varaktighet; de räknas in i CL, PSY och högsta E.
+- **PSY:** varje E kostar 1 PSY. Misslyckas besvärjelsen går 1 PSY åt; ett perfekt slag kostar hälften (avrundat nedåt, minst 1); ett fummel kostar allt. Når PSY 0 dör magikern, som i boken. Spelet låter inte magikern lägga en besvärjelse som skulle ta hen till 0, utom som självmordsattack.
+- **Självmordsattack:** som i boken. Magikern kan spendera sina kvarvarande PSY plus halva sin PSY, CL blir S oavsett E, och magikern dör efteråt.
+- **Snedtändning (husregel):** ett fummel slår 1T20 på Snedtändningstabellen utan att lägga till E. Tabellen står med egna ord i `src/engine/rules/magic.ts`. Tolkningar: vid hjärnskada faller lika många besvärjelser ur minnet (de finns kvar i formelsamlingen); vid total minnesförlust kan man inte använda färdigheter eller magi under tiden.
+- **Startbesvärjelser (husregel):** en ny magiker väljer (INT + PSY) / 4 besvärjelser, avrundat nedåt, ur sin skola och de allmänna, med skolvärde högst FV i skolan. De kostar inga EP. Guiden köper inte längre S med EP.
+- **Att lära sig besvärjelser (husregel):** det kostar inga EP. Man hittar en besvärjelse i spelet och skriver in den i formelsamlingen (`learnSpell`). Det kräver FV i skolan minst skolvärdet. S växer när FV i skolan stiger.
+- **Minnet och formelsamlingen:** som i boken. Man har högst (INT + PSY) / 4 besvärjelser i minnet, och högst FV i skolan från varje skola; en ritual tar tre platser. Att memorera tar 20 minuter per skolvärdespoäng (en timme för ritualer) och kräver lugn och ro. Startbesvärjelserna ligger i minnet. Besvärjelser som inte är i minnet läses ur formelsamlingen: en kvick tar 1T6 SR och en vanlig 1T6 minuter, så i strid går bara kvicka. Blir magikern medvetslös glömmer hen allt i minnet om ett Normalt PSY-slag misslyckas.
+- **Tid i strid:** att lägga en besvärjelse tar hela turen, och man får inte ha flyttat sig. Kvicka besvärjelser verkar direkt. Andra verkar i början av nästa runda (magi går före slagväxling). Blir magikern skadad innan dess bryts koncentrationen: 1 PSY går åt och inget händer.
+- **Järn:** som i boken. Metallrustning, ett vapen av järn i handen eller mer än 0,5 kg järn i packningen hindrar magin. Tolkning: trästav, klubbor, piska, slungor, blåsrör och bågar är inte av järn; sköldar räknas inte heller som järn. Järnföremålen i utrustningslistan står i `IRON_ITEMS`.
+- **Magiskt motstånd:** besvärjelser som påverkar psyket (KÄNNA FIENDSKAP, KÄNSLOLÄSNING) måste övervinna målets PSY med magikerns kvarvarande PSY på motståndstabellen. Fysiska besvärjelser (F) och besvärjelser på föremål gör inte det.
+- **Besvärjelser som verkar i spelet:** BLIXT, ELD, FROST, ENERGISTRÅLE, EXPLOSION, ELCHOCK, KALLA HANDEN, KNÄCKA, SKÖLD, FÖRTROLLA VAPEN, FÖRBANNA VAPEN, ÖRTRANKOR, HELA, NEUTRALISERA GIFT, SKYDD, LÄDERHUD, MÖRKERSYN, ORÄDD, SKINGRA, KÄNNA FIENDSKAP och KÄNSLOLÄSNING. De andra kan läras men inte läggas än. Tolkningar:
+  - BLIXT träffar den närmaste varelsen magikern ser.
+  - ELD och FROST drar skadan från totala KP, och rustningen på bröstkorgen tar emot den. Bara en sfär används.
+  - EXPLOSION gör full skada inom E meter (E / 1,5 rutor, avrundat nedåt; E1 träffar bara mittrutan) och 1 mindre per ruta längre bort, även på magikern. Alla som ser den bländas nästa runda (räknas som mörker).
+  - SKÖLD parerar nästa fysiska anfall, även en pil, fram till slutet av nästa runda.
+  - KNÄCKA tar skölden om målet har en, annars vapnet.
+  - LÄDERHUD ger +2 i absorbering; KAR −2 räknas inte än.
+- **Magiskolans FV** höjs bara genom träning med lärare eller egna studier i ett magibibliotek. Inget av det finns i Gråvad, så träningsvyn höjer inte magiskolor.
+- **Elementarerna** och följeslagare väntar till ett senare steg.
+
+## Avståndsstrid (byggt i steg 6)
+
+Reglerna följer Bok II s. 16–17 och Bok III s. 33 och 38.
+
+- **Att skjuta eller kasta** tar hela turen, och man måste stå still. Det måste finnas minst en ruta mellan skytten och målet. En ruta är 1,5 meter, så räckvidden i rutor är meter / 1,5; kastvapen når STY rutor.
+- **Modifikationer:** −5 mellan halva och tre fjärdedels räckvidd, −10 längre bort; +10 mot orörligt mål; −5 för att sikta på en kroppsdel; ljus och mörker som i närstrid. Ett mål som springer halverar CL (avrundat uppåt) före de andra modifikationerna. Tolkning: målet springer om det flyttade mer än halva sin förflyttning under sin senaste tur.
+- **Träffområde** slås på avståndstabellen.
+- **Parering:** projektiler kan inte pareras. Kastvapen kan pareras med sköld av den som ser kastet (inte bakifrån).
+- **Sköldar och projektiler:** träffar projektilen en kroppsdel som skölden täcker, och skytten inte står bakom, tar skölden träffen. Skölden tappar BV om skadan är högre än dess BV.
+- **Skada:** kastvapen får skadebonus, projektilvapen inte.
+- **Laddning:** stavslungan, armborsten och arbalesten måste laddas om efter varje skott (1, 3, 6 och 12 SR). Att ladda tar hela turen. Efter striden är vapnet laddat.
+- **Ammunition:** pilar, armborstlod och arbalestlod förbrukas och köps tio i taget. Slungan klarar sig med stenar men får +2 med slungkulor. Tolkning: hälften av det som sköts hittas igen efter striden.
+- **Någon i vägen:** står någon i skottlinjen träffas hen i stället med 50 % chans (bokens riktvärde).
+- **Miss:** projektilen fortsätter 50 % längre än avståndet till målet (inom räckvidden) och kan träffa någon i banan, 1 % per STO-poäng. Kastvapen hamnar där de landar och plockas upp genom att gå dit.
+- **Söka skydd:** rollpersonen kan lägga sin tur på att söka skydd när en fiende med avståndsvapen deltar. Normalt SMI-slag. Med ett hinder intill dras differensvärdet från skyttarnas CL resten av rundan; annars kastar hen sig ned och får −1 per ruta till skytten. Varelserna söker inte skydd än.
+- **Blåsrör** gör ingen skada. Pilen tränger in om 1T8 är högre än rustningens abs, och då verkar giftet på den.
+- **Fummel** slås på fummeltabellen för avståndsvapen. "Närmsta vän" slås om så länge det inte finns följeslagare.
+- **Varelser med avståndsvapen** skjuter på håll så länge de har ammunition och slåss med sitt närstridsvapen när man är intill dem. Svartalfsskytten i grottan har en kortbåge och åtta pilar.
+
+## Bärförmåga och handel (byggt i steg 6)
+
+- **Bördan** räknas som i Bok III: allt i packningen, halva vikten för rustning man bär, inga kläder, och 200 mynt per kg. Rustningsvikterna justeras efter kroppsbyggnaden. Avdraget gäller förflyttning, SMI (och därmed initiativet) och SMI-baserade färdigheter, men aldrig under 1. Över STY × 5 går inga SMI-färdigheter, och över STY × 6 kan man inte röra sig.
+- **Byta vapen** i strid tar handlingen men inte förflyttningen. Rustning byts bara utanför strid. Ett projektilvapen kräver båda händerna, så skölden läggs undan. Slitage (BV) följer med föremålet när det läggs i packningen.
+- **Handlare:** Bertil säljer mat, kläder och utrustning, Ylva vapen, ammunition, rustningar och sköldar, och Asta läkeörter och allmänna droger. Priserna följer Bok III.
+- **Köpslå** (Bok I): en gång per handlare och dag, FV mot handlarens FV på motståndstabellen. Vinner rollpersonen blir priserna differensvärdet × 5 % bättre den dagen. Tolkning: rabatten blir högst 50 %.
+- **Sälja (tolkning):** handlaren köper det hen själv säljer, för halva listpriset, och Köpslå höjer det med samma procent.
+
+## Örter och gifter (byggt i steg 6)
+
+Alla droger i Bok II finns som data i `src/data/herbs.ts`, med egna beskrivningar.
+
+- **Pris och lager:** priset är vanligheten upphöjd till tre. En handlare har drogen inne om 1T10 blir högre än vanligheten; lagret slås om varje dag.
+- **Beredning:** är 2 × vanligheten högre än FV hos den som bereder drogen slås ett dolt slag. Misslyckat ger en verkningslös drog, fummel en skadlig (gifter blir verkningslösa) och perfekt en dubbelt så bra. Asta bereder det hon säljer med Örtkunskap 15. Tolkning: en skadlig läkedrog gör 1T6 i skada.
+- **Leta örter:** en dag (tio timmar) med Örtkunskap, CL = FV − vanligheten men minst 1. Lyckat ger 1T4 doser och perfekt 4T4; ett "särskilt slag" finns inte i spelet. Bara läkeörter som växer i trakten går att hitta; allmänna droger och gifter kräver ett laboratorium. Lönnmördare drar 10 från vanligheten för extremt okända droger.
+- **Använda en drog** tar handlingen i strid. Läkedroger som läker efter en stund verkar när tiden har gått. Droger vars verkan spelet inte känner till (t.ex. benbrott, sträckningar, brännskador) beskrivs men gör inget än.
+- **Gifter genom sår** stryks på vapnet, vilket tar en timme, och verkar vid nästa träff som ger skada.
+- **Gifternas verkan** följer Bok II: FYS mot giftets STY på motståndstabellen ger lindrig, måttlig, allvarlig eller dödlig verkan, och stadierna kommer efter (20 − STY) SR, minuter, timmar och dygn. Varje dygn slås FYS mot STY igen, och lyckas det sjunker STY med 1. Vid 0 är giftet borta och dess tillfälliga verkan försvinner. Tolkningar:
+  - Avdragen på SMI, INT, PSY och STY gäller färdigheter som bygger på grundegenskapen.
+  - Muskelgiftets timslag (spasmer) slås inte.
+  - Blodgiftets "1 KP per minut tills koma" räknas som medvetslöshet direkt.
+  - Medvetslös av gift ligger rollpersonen tills giftet är borta, och tiden går under tiden.
+  - Gifter med egen verkan (t.ex. jägarbane, kråkmossa, krigarfasa) verkar om motståndsslaget misslyckas, när den lindriga verkan skulle ha börjat.
+- **Motgift och NEUTRALISERA GIFT** sänker giftets STY; örtugsblomma häver ismossans gift helt.
+

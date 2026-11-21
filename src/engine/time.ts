@@ -268,7 +268,7 @@ export function raiseSkill(g: Game, skill: string): boolean {
   const cost = raiseCost(g, a, skill);
   const own = a.ep[skill] ?? 0;
   const bonus = ch.bonusEp ?? 0;
-  if (!canConvert(a) || fv + 1 > skillCap(g, a, skill) || own + bonus < cost) return false;
+  if (!canConvert(a) || fv + 1 > skillCap(g, a, skill) || own + bonus < cost || needsTeacher(skill)) return false;
   const fromOwn = Math.min(own, cost);
   a.ep[skill] = own - fromOwn;
   if (!a.ep[skill]) delete a.ep[skill];
@@ -279,8 +279,17 @@ export function raiseSkill(g: Game, skill: string): boolean {
   return true;
 }
 
+/**
+ * Magiskolor höjs bara med lärare eller genom studier i ett magibibliotek (Bok III och husregel).
+ * Inget av det finns i Gråvad.
+ */
+export function needsTeacher(skill: string): boolean {
+  return skill.startsWith('magiskola:');
+}
+
 /** Ensamträning en vecka: ett Normalt grundegenskapsslag ger 1 EP. */
 export function selfTrain(g: Game, skill: string): boolean {
+  if (needsTeacher(skill)) return false;
   const a = g.player;
   const def = SKILLS[skill.split(':')[0]];
   const attr = def?.attr && def.attr !== 'spec' ? def.attr : 'INT';

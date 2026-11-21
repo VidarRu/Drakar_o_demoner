@@ -300,6 +300,13 @@ describe('örter och gifter', () => {
     expect(poisonOnsets(25).lindrig).toBe(5);
   });
 
+  it('alla droger i Bok II finns med', () => {
+    const list = Object.values(HERBS);
+    expect(list.length).toBe(91);
+    expect(list.filter((h) => h.kind === 'gift').length).toBe(33);
+    for (const h of list) if (h.kind === 'gift') expect(h.poison).toBeDefined();
+  });
+
   it('priset är vanligheten upphöjt till tre', () => {
     expect(herbPrice(HERBS.honungslilja)).toBe(729);
     expect(herbPrice(HERBS.cepirbuske)).toBe(1);

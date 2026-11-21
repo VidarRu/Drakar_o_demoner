@@ -397,7 +397,8 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       return;
     }
     case 'explosion': {
-      const radius = Math.ceil(grade / 1.5);
+      // Inom E meter: en ruta är 1,5 meter, så E1 träffar bara mittrutan.
+      const radius = Math.floor(grade / 1.5);
       const base = e.perGrade * grade;
       for (const x of g.state.actors.filter((a) => a.alive && !a.fled)) {
         const d = distance(s.x, s.y, x.x, x.y);
