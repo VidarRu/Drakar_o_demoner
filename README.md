@@ -32,18 +32,22 @@ Utan AI-nyckel används förskriven dialog, så spelet går att spela helt grati
 
 | Mapp | Innehåll |
 | --- | --- |
-| `src/engine/` | Regelmotorn: tärningar, färdighetsslag, strid, karta, siktlinje, sparning. Ingen grafik. |
-| `src/content/` | Allt spelinnehåll som data: vapen, rustningar, yrken, varelser, personer, kartor. |
+| `src/engine/` | Spelmotorn: strid, karta, siktlinje, sparning. Ingen grafik. |
+| `src/engine/rules/` | Regelkärnan enligt Drakar och Demoner (1991): färdighetsslag, motståndsslag och alla tabeller. |
+| `src/data/` | Regeldata: raser, yrken, färdigheter, vapen, rustningar, sköldar, varelser, besvärjelser, utrustning. |
+| `src/content/` | Äventyrsinnehåll: kartor, personer, uppdrag och de varelser och vapen som äventyret använder. |
+| `docs/regelbeslut.md` | Tolkningar, val mellan motsägelser i böckerna och husregler. |
 | `src/game/` | Kartvyn (Phaser 3). Grafiken ritas i kod i `src/game/art/`: marken som en bild per karta, väggar, berg och träd radvis snett uppifrån. |
 | `src/ui/` | Rollformulär, logg, stridspanel och samtalsruta. |
 | `src/ai/`, `api/` | Dialog via språkmodell, med förskriven reservdialog. |
 | `tests/` | Tester för regelmotorn och innehållet. |
 
-Nytt innehåll läggs till i `src/content/index.ts`. Regelvärden (skadebonus, förflyttning
-m.m.) ligger samlade i `src/engine/rules.ts`.
+Nytt äventyrsinnehåll läggs till i `src/content/index.ts`. Regelvärden ligger i
+`src/engine/rules/` och `src/data/`, och alla tolkningar och husregler står i
+`docs/regelbeslut.md`.
 
-**Obs:** regelvärdena och innehållet är provisoriska och ska stämmas av mot regelboken.
-Lägg inte in text eller bilder ur regelboken i repot – den är upphovsrättsskyddad.
+**Obs:** lägg inte in text eller bilder ur regelböckerna i repot – de är upphovsrättsskyddade.
+Datan innehåller bara regelvärden och egna korta beskrivningar.
 
 ## Det här finns
 
