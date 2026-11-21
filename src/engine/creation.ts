@@ -23,7 +23,8 @@ import {
   SKILL_BASE_COST,
   SOCIAL_CLASS,
   SPECIAL_ABILITY_BP,
-  spellBaseCost,
+  memoryCapacity,
+  spellSkill,
   START_BP,
   START_CAPITAL,
   stoPrice,
@@ -33,6 +34,11 @@ import {
   type SwordHand,
 } from './rules';
 import { ATTR_KEYS, type AttrKey, type Attrs, type Character } from './types';
+import { AMMUNITION } from './rules/tables';
+
+/** Föremål som är ammunition och räknas styck (10 per förpackning). */
+const AMMO_ITEMS = new Set(Object.values(AMMUNITION).map((a) => a.item));
+const AMMO_PACK = 10;
 
 /**
  * Skapa rollperson med bakgrundspoäng (Bok I, Hur du skapar en rollperson).
@@ -81,8 +87,8 @@ export interface Draft {
   techniques: string[];
   /** Önskat FV efter köp, per färdighetsnyckel. */
   targets: Record<string, number>;
-  /** Önskat skicklighetsvärde per besvärjelse. */
-  spells: Record<string, number>;
+  /** Startbesvärjelser (husregel: (INT + PSY) / 4 st, S räknas fram ur FV i skolan). */
+  spells: string[];
   /** Färdighet eller besvärjelse med halverad kostnad (God känsla för yrket). */
   halfCost?: string;
   /** Köpt utrustning: id → antal. */
@@ -109,7 +115,7 @@ export function newDraft(): Draft {
     extraSkills: [],
     techniques: [],
     targets: {},
-    spells: {},
+    spells: [],
     bought_items: {},
     equipped: { armor: [] },
     appearance: '',
@@ -472,15 +478,23 @@ export function availableSpells(d: Draft): string[] {
     .map((s) => s.id);
 }
 
-export function spellCost(d: Draft, id: string): number {
-  const target = d.spells[id] ?? 0;
-  return target > 0 ? costFor(d, `spell:${id}`, 0, target, spellBaseCost(SPELLS[id].sv)) : 0;
+/** Husregel: en ny magiker väljer lika många besvärjelser som ryms i minnet, (INT + PSY) / 4. */
+export function startSpellCount(d: Draft): number {
+  if (!profession(d).spellsAtStart) return 0;
+  const a = finalAttrs(d);
+  return memoryCapacity(a.INT, a.PSY);
+}
+
+/** Skicklighetsvärdet i en startbesvärjelse (husregel: FV i skolan − skolvärdet + BC för INT). */
+export function startSpellSkill(d: Draft, id: string): number {
+  const school = allProfSkills(d).find((k) => baseId(k) === 'magiskola');
+  if (!school) return 0;
+  return spellSkill(skillValue(d, school), SPELLS[id].sv, finalAttrs(d).INT);
 }
 
 export function epSpent(d: Draft): number {
   let sum = 0;
   for (const key of Object.keys(d.targets)) sum += skillCost(d, key);
-  for (const id of Object.keys(d.spells)) sum += spellCost(d, id);
   return sum;
 }
 
@@ -551,10 +565,8 @@ export function stepErrors(d: Draft, step: Step): string[] {
         if (t > skillBase(d, key) && t > maxPurchase(d, key)) errors.push(`${skillName(key)} får högst köpas till ${maxPurchase(d, key)}.`);
       }
       const allowed = new Set(availableSpells(d));
-      for (const [id, s] of Object.entries(d.spells)) {
-        if (s > 0 && !allowed.has(id)) errors.push(`${SPELLS[id].name} kan inte läras från start.`);
-        if (s > maxStartFv(d)) errors.push(`${SPELLS[id].name} får högst köpas till S${maxStartFv(d)}.`);
-      }
+      for (const id of d.spells) if (!allowed.has(id)) errors.push(`${SPELLS[id].name} kan inte läras från start.`);
+      if (d.spells.length > startSpellCount(d)) errors.push(`Högst ${startSpellCount(d)} startbesvärjelser.`);
       break;
     }
     case 'utrustning': {
@@ -638,8 +650,19 @@ export function finalize(d: Draft): Character {
     skills[own] = Math.max(skills[own] ?? 0, fv);
     skills.kunskap_om_magi = Math.max(skills.kunskap_om_magi ?? 0, fv);
   }
-  const spells: Record<string, number> = {};
-  for (const [id, s] of Object.entries(d.spells)) if (s > 0) spells[id] = s;
+  const spells = d.spells.filter((id) => SPELLS[id]);
+  // Startbesvärjelserna ligger i minnet, högst FV i skolan från varje skola.
+  const school = allProfSkills(d).find((k) => baseId(k) === 'magiskola');
+  const memorized = school ? spells.slice(0, Math.max(0, skills[school] ?? 0)) : [];
+  // Pilar, lod och slungkulor räknas styck i stället för som föremål.
+  const ammo: Record<string, number> = {};
+  const inventory: string[] = [];
+  for (const [id, n] of Object.entries(d.bought_items)) {
+    for (let i = 0; i < n; i++) {
+      if (AMMO_ITEMS.has(id)) ammo[id] = (ammo[id] ?? 0) + AMMO_PACK;
+      else inventory.push(id);
+    }
+  }
   const a = ability(d);
   const kpFactor = a?.effect.kind === 'kpFactor' ? a.effect.factor : 1;
   const r = race(d);
@@ -660,9 +683,12 @@ export function finalize(d: Draft): Character {
     techniques: [...d.techniques],
     skills,
     spells,
+    memorized,
+    ammo,
+    herbs: [],
     capital,
     silver: capital - equipmentCost(d),
-    inventory: Object.entries(d.bought_items).flatMap(([id, n]) => Array.from({ length: n }, () => id)),
+    inventory,
     equipped: { weapon: d.equipped.weapon, offhand: d.equipped.offhand, shield: d.equipped.shield, armor: [...d.equipped.armor] },
     appearance: d.appearance.trim(),
   };

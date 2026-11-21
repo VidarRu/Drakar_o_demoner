@@ -43,7 +43,8 @@ import {
   slug,
   socialClass,
   socialTotal,
-  spellCost,
+  startSpellCount,
+  startSpellSkill,
   startCapital,
   startingSkills,
   stepErrors,
@@ -210,7 +211,7 @@ export class CreatorUi {
     d.profession = id;
     d.profSkills = [];
     d.targets = {};
-    d.spells = {};
+    d.spells = [];
     d.techniques = [];
     if (d.abilityDice !== undefined && ability(d)?.magicianOnly) d.abilityChoice = undefined;
   }
@@ -580,18 +581,31 @@ export class CreatorUi {
     const spells = availableSpells(d);
     if (profession(d).spellsAtStart) {
       const box = el('section', 'box');
-      box.append(el('h3', '', 'Besvärjelser'));
+      const max = startSpellCount(d);
+      d.spells = d.spells.filter((id) => spells.includes(id));
+      box.append(
+        el('h3', '', `Besvärjelser (${d.spells.length} av ${max})`),
+        el(
+          'p',
+          'note',
+          'Husregel: välj (INT + PSY) / 4 besvärjelser ur din skola och de allmänna. De kostar inga EP. S = FV i skolan − skolvärdet + baschansen för INT, och växer när skolans FV stiger.',
+        ),
+      );
       if (!spells.length) box.append(el('p', 'note', 'Höj magiskolans FV för att kunna lära dig besvärjelser (FV måste vara minst skolvärdet).'));
       const st = el('table', 'skill-table');
       for (const id of spells) {
         const sp = SPELLS[id];
-        const s = d.spells[id] ?? 0;
+        const chosen = d.spells.includes(id);
         const tr = el('tr');
         const cell = el('td');
-        const set = (v: number) => this.update(() => (v <= 0 ? delete d.spells[id] : (d.spells[id] = v)));
-        cell.append(stepper(`S${s}`, () => set(s - 1), () => set(s + 1), s > 0, s < maxStartFv(d)));
+        const box2 = el('input');
+        box2.type = 'checkbox';
+        box2.checked = chosen;
+        box2.disabled = !chosen && d.spells.length >= max;
+        box2.onchange = () => this.update(() => (d.spells = chosen ? d.spells.filter((x) => x !== id) : [...d.spells, id]));
+        cell.append(box2);
         tr.title = sp.desc;
-        tr.append(el('td', '', `${sp.name} (SV ${sp.sv}, ${sp.school})`), cell, el('td', '', String(spellCost(d, id) || '')));
+        tr.append(cell, el('td', '', `${sp.name} (SV ${sp.sv}, ${sp.school})${sp.effect ? '' : ' – verkar inte i spelet än'}`), el('td', '', `S${startSpellSkill(d, id)}`));
         st.append(tr);
       }
       box.append(st);
@@ -601,7 +615,7 @@ export class CreatorUi {
     if (ability(d)?.effect.kind === 'halfCost') {
       const box = el('section', 'box');
       box.append(el('h3', '', 'God känsla för yrket: halverad kostnad för'));
-      const opts = [...d.profSkills.map((k) => [k, skillName(k)] as [string, string]), ...Object.keys(d.spells).map((id) => [`spell:${id}`, SPELLS[id].name] as [string, string])];
+      const opts = d.profSkills.map((k) => [k, skillName(k)] as [string, string]);
       box.append(select(opts, d.halfCost ?? '', (v) => this.update(() => (d.halfCost = v || undefined)), 'Välj…'));
       body.append(box);
     }

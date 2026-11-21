@@ -304,6 +304,45 @@ export const RANGED_MODS = {
   'Mellan tre fjärdedels och hel räckvidd': -10,
 } as const;
 
+/** Avståndsstrid (Bok II s. 16–17, Bok III s. 33). En ruta är 1,5 meter. */
+export const RANGED = {
+  metersPerSquare: 1.5,
+  /** Det måste finnas minst en ruta mellan skytten och målet. */
+  minDistance: 2,
+  /** Ett mål som springer eller flyger: CL halveras (uppåt) före andra modifikationer. */
+  runningShare: 0.5,
+  /** En miss fortsätter 50 % längre än avståndet till målet. */
+  missOvershoot: 1.5,
+  /** Chansen att träffa någon som står i vägen när man skjuter förbi (riktvärde). */
+  blockChance: 0.5,
+  /** Chansen per STO-poäng att en vilsen projektil träffar någon i banan. */
+  strayPerSto: 0.01,
+  /** Att kasta sig ned i stället för att söka skydd: −1 per ruta mellan skytten och målet. */
+  dropPerSquare: -1,
+  /** Tolkning: hälften av de avfyrade pilarna och loden går att plocka upp efter striden. */
+  recoverShare: 0.5,
+};
+
+/** Ammunition till projektilvapnen. Slungan klarar sig med stenar men får +2 med slungkulor. */
+export const AMMUNITION: Record<string, { item: string; perPack: number; optional?: boolean; cl?: number }> = {
+  liten_bage: { item: 'pilar', perPack: 10 },
+  kortbage: { item: 'pilar', perPack: 10 },
+  langbage: { item: 'pilar', perPack: 10 },
+  sammansatt_bage: { item: 'pilar', perPack: 10 },
+  latt_armborst: { item: 'armborstlod', perPack: 10 },
+  tungt_armborst: { item: 'armborstlod', perPack: 10 },
+  arbalest: { item: 'arbalestlod', perPack: 10 },
+  slunga: { item: 'slungkulor', perPack: 10, optional: true, cl: 2 },
+  stavslunga: { item: 'slungkulor', perPack: 10, optional: true, cl: 2 },
+};
+
+/** Handel (Bok I Köpslå). Säljpriset är en tolkning: halva listpriset. */
+export const TRADE = {
+  /** Varje poäng i differensvärde på motståndsslaget ger 5 % rabatt. */
+  haggleStep: 5,
+  sellShare: 0.5,
+};
+
 /** −2 på CL per förlorad KP i en kroppsdel som färdigheten kräver. */
 export const LOCATION_WOUND_PENALTY = -2;
 

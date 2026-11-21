@@ -226,3 +226,29 @@ export const TREASURES: Record<string, { name: string; gm?: string; sm?: string;
 
 /** Ett juvelsmyckes värde i sm. */
 export const JEWEL_VALUE = '1T100*10';
+
+/** Föremål av järn som räknas när en magiker bär mer än 0,5 kg järn (Bok III s. 8). */
+export const IRON_ITEMS = new Set([
+  'barbar_smedja',
+  'barbart_stad',
+  'flacktang',
+  'grov_spik',
+  'hacka',
+  'handyxa_verktyg',
+  'jarnborrar',
+  'jarnkilar',
+  'kniv',
+  'kofot',
+  'normalt_stad',
+  'skogsyxa',
+  'skara',
+  'slagga',
+  'smaspik',
+  'spade',
+  'metallskrin',
+  'jarngryta',
+  'kedja',
+  'kraftig_kedja',
+  'hastskor',
+  'hanglas',
+]);

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   ability,
   availableSpells,
+  startSpellCount,
+  startSpellSkill,
   bpLeft,
   epBudget,
   epSpent,
@@ -159,11 +161,18 @@ describe('skapa rollperson med bakgrundspoäng', () => {
     expect(spells).toContain('eld');
     expect(spells).toContain('antimagi');
     expect(spells).not.toContain('hela');
-    d.spells = { eld: 7 };
+    // Husregel: (INT + PSY) / 4 = (14 + 15) / 4 = 7 startbesvärjelser utan EP-kostnad.
+    expect(startSpellCount(d)).toBe(7);
+    // S = FV 6 − skolvärde 6 + BC för INT 14 (+3) = S3.
+    expect(startSpellSkill(d, 'eld')).toBe(3);
+    d.spells = ['eld', 'antimagi'];
     expect(stepErrors(d, 'fardigheter')).toEqual([]);
     const c = finalize(d);
     expect(c.skills['kanna_magi:elementarmagi']).toBe(6);
-    expect(c.spells.eld).toBe(7);
+    expect(c.spells).toEqual(['eld', 'antimagi']);
+    expect(c.memorized).toEqual(['eld', 'antimagi']);
+    d.spells = ['eld', 'antimagi', 'skingra', 'varseblivning', 'ljus', 'laga', 'morker', 'skold'];
+    expect(stepErrors(d, 'fardigheter').join()).toMatch(/Högst 7/);
     d.profSkills = d.profSkills.filter((k) => !k.startsWith('magiskola'));
     expect(profSkillErrors(d).join()).toMatch(/måste välja en magiskola/);
   });

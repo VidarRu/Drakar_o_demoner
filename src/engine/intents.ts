@@ -165,6 +165,15 @@ export const INTENTS: Record<string, Intent> = {
       return `Spelaren köper ringbrynjeskjortan för ${MAIL_COST} silvermynt och tar på sig den (absorberar ${ARMOR[MAIL].abs} på bröstkorg och mage).`;
     },
   },
+  handla: {
+    label: () => 'Handla',
+    available: () => true,
+    ends: true,
+    apply: (g, npc) => {
+      g.openUi('shop', npc.id);
+      return `Spelaren handlar med ${npc.name}.`;
+    },
+  },
   anfall: {
     label: () => 'Dra vapen och anfall!',
     available: () => true,

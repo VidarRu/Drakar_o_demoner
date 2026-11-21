@@ -6,12 +6,14 @@ import { WorldScene } from './game/WorldScene';
 import { mountCreator } from './ui/creation';
 import { $, DialogUi, Hud } from './ui/hud';
 import { Minimap } from './ui/minimap';
+import { mountPanels } from './ui/panels';
 import { TrainingUi } from './ui/training';
 
 function launch(game: Game) {
   $('start').hidden = true;
   const dialog = new DialogUi(game);
-  new Hud(game);
+  const panels = mountPanels(game);
+  new Hud(game, { pack: () => panels.pack.open(), magic: () => panels.magic.open() });
   new Minimap(game);
   new TrainingUi(game);
   game.onChange(() => {

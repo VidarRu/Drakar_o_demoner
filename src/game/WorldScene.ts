@@ -184,7 +184,14 @@ export class WorldScene extends Phaser.Scene {
         this.onTalk(target);
       }
     } else if (g.isPlayerTurn()) {
-      if (target?.hostile) {
+      if (target?.hostile && g.holdsRanged()) {
+        // Med ett avståndsvapen går man inte fram till målet: man står still och skjuter.
+        const problem = g.attackProblem(target.id);
+        if (problem) {
+          g.log(problem);
+          g.changed();
+        } else g.playerAttack(target.id);
+      } else if (target?.hostile) {
         if (!g.canAttack(target.id)) {
           const path = g.pathTo(t.x, t.y, true);
           if (path) await this.walk(path, (step) => g.combatStep(step));

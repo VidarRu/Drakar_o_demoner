@@ -66,6 +66,24 @@ export const RANGED_WEAPONS: RangedWeaponDef[] = [
   ranged({ id: 'kastyxa', name: 'Kastyxa', kind: 'kast', group: 'kastvapen', damage: '1T6+2', styReq: 11, range: 'STY', weight: 3, price: 90 }),
 ];
 
+/**
+ * Vapen utan järn som en magiker kan hålla och ändå lägga besvärjelser (Bok III s. 8).
+ * Tolkning: trä, läder och rep; bågar räknas hit men pilarna ligger i kogret.
+ */
+export const NON_IRON_WEAPONS = new Set([
+  'trastav',
+  'klubba',
+  'stor_traklubba',
+  'piska',
+  'slunga',
+  'stavslunga',
+  'blasror',
+  'liten_bage',
+  'kortbage',
+  'langbage',
+  'sammansatt_bage',
+]);
+
 /** Obeväpnade anfall med Slagsmål (Bok II). Näven ger två anfall per runda. */
 export const UNARMED = {
   nave: { name: 'Knytnäve', damage: '1T3', attacks: 2 },

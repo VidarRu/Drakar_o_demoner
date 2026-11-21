@@ -7,6 +7,7 @@ export * from './abilities';
 export * from './armor';
 export * from './creatures';
 export * from './equipment';
+export * from './herbs';
 export * from './professions';
 export * from './races';
 export * from './skills';

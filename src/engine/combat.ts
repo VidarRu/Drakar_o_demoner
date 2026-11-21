@@ -1,15 +1,23 @@
 import { NATURAL_WEAPONS } from '../content';
 import { ARMOR, SHIELDS } from '../data/armor';
 import { SKILLS } from '../data/skills';
-import type { ArmorDef, MeleeWeaponDef } from '../data/types';
+import type { ArmorDef, MeleeWeaponDef, RangedWeaponDef } from '../data/types';
 import { WEAPONS, weaponSkill } from '../data/weapons';
+import { loadMod, loadPenalty, smiBlocked } from './inventory';
+import { breakConcentration, forgetOnKnockout, resolvePending } from './magic';
+import { poisonOnHit, updatePoisons } from './poison';
 import { die, maxRoll, roll } from './dice';
 import type { Game } from './game';
 import { advanceTime, amputate, rollInfections, woundKind } from './time';
-import { distance, findPath, lineOfSight, tileAt, walkable } from './map';
+import { distance, findPath, lineOfSight, projectilePath, tileAt, walkable } from './map';
 import {
+  AMMUNITION,
   ARMOR_BV_FACTOR,
   attributeCheck,
+  BLIND_CL,
+  RANGED,
+  RANGED_MODS,
+  resistance,
   BLEED_INTERVAL,
   CRITICAL_LIMB,
   damageBonus,
@@ -83,12 +91,17 @@ function consume(a: Actor, e: ActiveEffect) {
   if (e.uses <= 0) a.effects = a.effects.filter((x) => x !== e);
 }
 
-function scopeMatches(scope: Scope | undefined, kind: 'anfall' | 'parering', skill: string, slot?: string, effectSlot?: string): boolean {
-  const attr = SKILLS[skill.split(':')[0]]?.attr;
+const RANGED_GROUPS = new Set(['bagar', 'armborst', 'slunga', 'kastvapen', 'blasror']);
+
+function scopeMatches(scope: Scope | undefined, kind: 'anfall' | 'parering' | 'annan', skill: string, slot?: string, effectSlot?: string): boolean {
+  const spell = skill.startsWith('spell:');
+  const attr = spell ? 'PSY' : SKILLS[skill.split(':')[0]]?.attr;
+  const combat = kind !== 'annan';
   switch (scope) {
     case 'alla':
-    case 'strid':
       return true;
+    case 'strid':
+      return combat;
     case 'anfall':
       return kind === 'anfall';
     case 'parering':
@@ -99,14 +112,43 @@ function scopeMatches(scope: Scope | undefined, kind: 'anfall' | 'parering', ski
       return attr === 'SMI';
     case 'smiSty':
       return attr === 'SMI' || attr === 'STY';
+    case 'avstånd':
+      return RANGED_GROUPS.has(skill);
+    case 'int':
+      return attr === 'INT';
+    case 'psy':
+      return attr === 'PSY';
+    case 'sty':
+      return attr === 'STY';
+    case 'magi':
+      return spell;
+    case 'ejMagi':
+      return !spell;
     default:
       return false;
   }
 }
 
+/** Effekter som ger avdrag på färdighetsslag: febern räknas inte medan Malmros verkar. */
+function clEffects(a: Actor): ActiveEffect[] {
+  const noFever = hasEffect(a, 'febernedsatt');
+  return a.effects.filter((e) => e.kind === 'cl' && !(noFever && e.label.startsWith('Infektion i')));
+}
+
+/**
+ * Modifikationen på ett färdighetsslag utanför anfall och parering: skador, börda, feber,
+ * gifter och andra effekter. Används för Första hjälpen, Dra vapen, Köpslå och liknande.
+ */
+export function skillMod(g: Game, a: Actor, skill: string): number {
+  let mod = woundPenalty(a) + loadPenalty(g, a, skill);
+  for (const e of clEffects(a)) if (!e.half && scopeMatches(e.scope, 'annan', skill)) mod += e.mod ?? 0;
+  if (hasEffect(a, 'blind')) mod += BLIND_CL;
+  return mod;
+}
+
 /** Kan aktören göra någonting alls den här rundan? */
 export function canAct(a: Actor): boolean {
-  return a.alive && !a.fled && !a.unconscious && !hasEffect(a, 'ingenHandling') && !hasEffect(a, 'liggande');
+  return a.alive && !a.fled && !a.unconscious && !hasEffect(a, 'ingenHandling') && !hasEffect(a, 'liggande') && !hasEffect(a, 'rankor');
 }
 
 /** Ute ur striden: död, medvetslös, utslagen eller flydd. */
@@ -128,6 +170,7 @@ export function limbUsable(a: Actor, loc: HitLocation): boolean {
   if (!a.detailed) return true;
   if (a.disabled.includes(loc) || a.locKp[loc] <= 0) return false;
   if (loc === shieldArm(a) && hasEffect(a, 'armUr')) return false;
+  if (a.effects.some((e) => e.kind === 'lem' && e.loc === loc)) return false;
   return true;
 }
 
@@ -146,9 +189,15 @@ export function woundPenalty(a: Actor, locs: HitLocation[] = []): number {
 }
 
 /** Förflyttning den här rundan, med skador och effekter. */
-export function effectiveMove(a: Actor): number {
+export function effectiveMove(a: Actor, g?: Game): number {
   if (!canAct(a)) return 0;
   let m = a.move;
+  // Bördan minskar förflyttningen, men aldrig under 1. Över STY × 6 orkar man inte röra sig.
+  if (g) {
+    const load = loadMod(g, a);
+    if (load === null) return 0;
+    if (load) m = Math.max(1, m + load);
+  }
   if (a.detailed) {
     if (LEGS.some((l) => !limbUsable(a, l))) m = 0;
     else if (LEGS.some((l) => a.locKp[l] <= a.locMax[l] / 2)) m = Math.floor(m / 2);
@@ -249,9 +298,20 @@ export function damageExpr(a: Actor, w: WeaponInfo): string {
   return parts.join('+');
 }
 
+/** FÖRTROLLA och FÖRBANNA VAPEN: summan av effekterna på vapnet i en hand. */
+export function weaponMagic(a: Actor, slot: string): number {
+  return a.effects.filter((e) => e.kind === 'vapenMagi' && e.slot === slot).reduce((n, e) => n + (e.mod ?? 0), 0);
+}
+
 function rollDamage(g: Game, a: Actor, w: WeaponInfo, perfect: boolean): number {
   const expr = damageExpr(a, w);
-  return perfect ? maxRoll(expr) : Math.max(0, roll(expr, g.rng));
+  const magic = weaponMagic(a, w.slot);
+  return Math.max(0, (perfect ? maxRoll(expr) : roll(expr, g.rng)) + magic);
+}
+
+/** Extra absorbering på hela kroppen från SKYDD och LÄDERHUD. */
+export function magicArmor(a: Actor): number {
+  return a.effects.filter((e) => e.kind === 'skydd').reduce((n, e) => n + (e.mod ?? 0), 0);
 }
 
 /** Rustningsdelen som skyddar en kroppsdel (den med högst abs som inte är sönder). */
@@ -289,7 +349,7 @@ function itemName(a: Actor, key: string): string {
 }
 
 /** Tar bort ett föremål ur rollpersonens utrustning (sönder eller tappat). */
-function unequip(g: Game, a: Actor, key: string) {
+export function unequip(g: Game, a: Actor, key: string) {
   const ch = g.state.character;
   const isPlayer = a.id === g.state.playerId;
   const remove = (id: string | undefined) => {
@@ -391,7 +451,8 @@ function isDark(g: Game, x: number, y: number): boolean {
  * Varelser med mörkersyn får inga avdrag.
  */
 export function lightMod(g: Game, viewer: Actor, target: Actor): number {
-  if (viewer.darkvision) return 0;
+  if (hasEffect(viewer, 'blind')) return MELEE_MODS.Mörker;
+  if (viewer.darkvision || hasEffect(viewer, 'mörkersyn')) return 0;
   if (!isDark(g, target.x, target.y) && !isDark(g, viewer.x, viewer.y)) return 0;
   const p = g.player;
   const lit = p.alive && distance(p.x, p.y, target.x, target.y) <= TORCH_RANGE;
@@ -421,13 +482,31 @@ function computeCl(
   situational: [string, number][],
   slot?: string,
   halve?: string,
+  preHalve?: string,
 ): Cl | null {
   if (arms.some((loc) => !limbUsable(a, loc))) return null;
+  const attr = SKILLS[skill.split(':')[0]]?.attr;
+  if (attr === 'SMI' && smiBlocked(g, a)) return null;
   const fv = g.skillFv(a, skill);
   const notes: string[] = [];
   const used: ActiveEffect[] = [];
   let mod = 0;
   let dark = false;
+  // Rörligt mål: CL halveras (uppåt) innan andra modifikationer läggs på.
+  if (preHalve) {
+    mod -= Math.floor(fv / 2);
+    notes.push(preHalve);
+  }
+  const load = loadPenalty(g, a, skill);
+  if (load) {
+    mod += load;
+    notes.push(`${signed(load)} börda`);
+  }
+  const magic = slot ? weaponMagic(a, slot) : 0;
+  if (magic && (slot === 'shield' ? kind === 'parering' : kind === 'anfall')) {
+    mod += magic;
+    notes.push(`${signed(magic)} ${magic > 0 ? 'förtrollat' : 'förbannat'}`);
+  }
   for (const [label, v] of situational) {
     if (!v) continue;
     mod += v;
@@ -440,8 +519,8 @@ function computeCl(
     notes.push(`${signed(wound)} skador`);
   }
   let halfSmi = false;
-  for (const e of a.effects) {
-    if (e.kind !== 'cl' || !scopeMatches(e.scope, kind, skill, slot, e.slot)) continue;
+  for (const e of clEffects(a)) {
+    if (!scopeMatches(e.scope, kind, skill, slot, e.slot)) continue;
     if (e.half) halfSmi = true;
     else {
       mod += e.mod ?? 0;
@@ -517,7 +596,7 @@ export function attackOnce(g: Game, att: Actor, def: Actor, slot: WeaponSlot) {
   face(att, def.x, def.y);
 
   const situational: [string, number][] = [];
-  const orörlig = def.unconscious || hasEffect(def, 'ingenHandling');
+  const orörlig = def.unconscious || hasEffect(def, 'ingenHandling') || hasEffect(def, 'rankor');
   if (orörlig) situational.push(['orörligt mål', MELEE_MODS['Målet orörligt']]);
   else if (hasEffect(def, 'liggande')) situational.push(['liggande mål', MELEE_MODS['Målet ligger ned']]);
   const flank = flankMod(att, def);
@@ -577,6 +656,7 @@ export function attackOnce(g: Game, att: Actor, def: Actor, slot: WeaponSlot) {
     return;
   }
 
+  if (airShield(g, def, `${head}: träff`)) return;
   const parry = exposed?.noParry ? null : tryParry(g, def, att, w);
   if (parry) {
     if (parry.check.result === 'fummel') {
@@ -615,7 +695,7 @@ interface Parry {
  * −10 och så vidare; skölden ger en extra parering utan avdrag. Det alternativ som ger högst CL
  * används.
  */
-function tryParry(g: Game, def: Actor, att: Actor, aw: WeaponInfo): Parry | null {
+function tryParry(g: Game, def: Actor, att: Actor, aw: WeaponInfo, onlyShield = false): Parry | null {
   const c = g.state.combat;
   if (!def.detailed || !canUseSkills(def) || hasEffect(def, 'ingenParering')) return null;
   const prone = hasEffect(def, 'liggande');
@@ -632,6 +712,7 @@ function tryParry(g: Game, def: Actor, att: Actor, aw: WeaponInfo): Parry | null
     ['fler pareringar', p],
   ];
   for (const slot of ['weapon', 'offhand'] as const) {
+    if (onlyShield) break;
     if (slot === 'offhand' && !def.offhand) continue;
     const w = weaponInfo(def, slot);
     // Obeväpnad kan bara parera obeväpnade anfall. Liggande kan bara strida med korta vapen.
@@ -671,20 +752,34 @@ function tryParry(g: Game, def: Actor, att: Actor, aw: WeaponInfo): Parry | null
 }
 
 /** Träff: träffområde, skada, rustning och sårverkan. */
-function hit(g: Game, att: Actor, def: Actor, w: WeaponInfo, opts: { perfect?: boolean; damage?: number; aim?: HitLocation | null }) {
+function hit(
+  g: Game,
+  att: Actor,
+  def: Actor,
+  w: WeaponInfo,
+  opts: { perfect?: boolean; damage?: number; aim?: HitLocation | null; table?: 'närstrid' | 'avstånd'; shieldFrom?: Actor },
+) {
   const perfect = !!opts.perfect;
   const dmg = opts.damage ?? rollDamage(g, att, w, perfect);
   if (!def.detailed) {
-    const abs = perfect ? 0 : def.naturalArmor;
+    const abs = perfect ? 0 : def.naturalArmor + magicArmor(def);
     const dealt = Math.max(0, dmg - abs);
     g.log(dealt > 0 ? `${def.name} tar ${dealt} i skada${abs ? ` (${dmg} − ${abs} i skydd)` : ''}.` : `Skyddet tar hela skadan.`);
     g.emit(def.id, dealt > 0 ? `-${dealt}` : '0', 'damage');
+    if (dealt > 0) poisonOnHit(g, att, def, null);
     wound(g, def, dealt, null);
     return;
   }
-  const loc = opts.aim ?? lookup(HIT_TABLE.närstrid, die(20, g.rng))!;
+  const loc = opts.aim ?? lookup(HIT_TABLE[opts.table ?? 'närstrid'], die(20, g.rng))!;
+  // Sköldar och projektiler (Bok III s. 38): skölden tar träffen om den täcker kroppsdelen och vetter mot skytten.
+  if (opts.shieldFrom && shieldCovers(def, loc) && flankMod(opts.shieldFrom, def) < MELEE_MODS['Anfall bakifrån']) {
+    g.log(`Projektilen fastnar i ${def.name}s ${SHIELDS[def.shield!].name.toLowerCase()} (${loc}).`);
+    g.emit(def.id, 'Skölden', 'miss');
+    if (def.bv.shield !== undefined && dmg > def.bv.shield) wearItem(g, def, 'shield', 'tar skada');
+    return;
+  }
   const piece = armorPiece(def, loc);
-  const abs = perfect ? 0 : def.naturalArmor + (piece?.abs ?? 0);
+  const abs = perfect ? 0 : def.naturalArmor + (piece?.abs ?? 0) + magicArmor(def);
   const dealt = Math.max(0, dmg - abs);
   const absText = abs ? ` (${dmg} − ${abs} för ${piece ? piece.name.toLowerCase() : 'skyddet'})` : '';
   g.log(dealt > 0 ? `Träff i ${loc}: ${dealt} i skada${absText}.` : `Träff i ${loc}, men ${piece?.name.toLowerCase() ?? 'skyddet'} tar hela skadan.`);
@@ -693,7 +788,17 @@ function hit(g: Game, att: Actor, def: Actor, w: WeaponInfo, opts: { perfect?: b
   if (!perfect && piece && dmg > piece.abs) wearItem(g, def, piece.id, 'tar skada');
   const kind = woundKind(w.id, w.natural, w.unarmed);
   if (dealt > 0 && kind && def.kind === 'player') def.combatWounds.push({ loc, dmg: dealt, kind });
+  if (dealt > 0) poisonOnHit(g, att, def, loc);
   wound(g, def, dealt, loc);
+}
+
+/** Kroppsdelar som skölden täcker: 'sköldarm' och 'sköldben' är på sköldsidan. */
+export function shieldCovers(a: Actor, loc: HitLocation): boolean {
+  const s = a.shield ? SHIELDS[a.shield] : undefined;
+  if (!s || !limbUsable(a, shieldArm(a)) || (a.bv.shield ?? 1) <= 0) return false;
+  const arm = shieldArm(a);
+  const leg: HitLocation = arm === 'vänster arm' ? 'vänster ben' : 'höger ben';
+  return s.covers.some((c) => (c === 'sköldarm' ? arm : c === 'sköldben' ? leg : c) === loc);
 }
 
 // ------------------------------------------------------------------ skador
@@ -701,12 +806,15 @@ function hit(g: Game, att: Actor, def: Actor, w: WeaponInfo, opts: { perfect?: b
 /** Drar skada från en kroppsdel (om någon) och från totala KP, och avgör följderna. */
 export function wound(g: Game, a: Actor, dmg: number, loc: HitLocation | null) {
   if (dmg <= 0 || !a.alive) return;
+  const awake = !a.unconscious;
   a.kp -= dmg;
+  breakConcentration(g, a);
   if (loc && a.detailed) {
     a.locKp[loc] -= dmg;
     checkLocation(g, a, loc);
   }
   if (a.alive) checkTotal(g, a);
+  if (awake && a.unconscious && a.alive) forgetOnKnockout(g, a);
 }
 
 function checkLocation(g: Game, a: Actor, loc: HitLocation) {
@@ -780,6 +888,16 @@ export function kill(g: Game, a: Actor) {
     a.silver = 0;
   }
   if (a.weapon && WEAPONS[a.weapon]) g.state.dropped.push({ item: a.weapon, slot: 'weapon', owner: a.id, x: a.x, y: a.y, bv: a.bv.weapon });
+  if (a.ranged && WEAPONS[a.ranged]) {
+    g.state.dropped.push({ item: a.ranged, slot: 'weapon', owner: a.id, x: a.x, y: a.y });
+    const ammo = AMMUNITION[a.ranged];
+    if (ammo && (a.rangedAmmo ?? 0) > 0 && p.alive) {
+      const ch = g.state.character;
+      ch.ammo[ammo.item] = (ch.ammo[ammo.item] ?? 0) + a.rangedAmmo!;
+      g.log(`Du tar ${a.rangedAmmo} ${ammo.item} från ${a.name}.`);
+      a.rangedAmmo = 0;
+    }
+  }
   if (a.shield) g.state.dropped.push({ item: a.shield, slot: 'shield', owner: a.id, x: a.x, y: a.y, bv: a.bv.shield });
 }
 
@@ -855,10 +973,13 @@ function applyOutcome(g: Game, a: Actor, o: Outcome, label: string, ctx: Outcome
     case 'flyr':
       addEffect(a, { kind: 'flyr', label, random: o.random, ...dur(o), sourceId: ctx.source?.id });
       return;
-    case 'medvetslös':
+    case 'medvetslös': {
+      const awake = !a.unconscious;
       a.unconscious = true;
       addEffect(a, { kind: 'medvetslös', label, ...dur(o) });
+      if (awake) forgetOnKnockout(g, a);
       return;
+    }
     case 'motståndarBonus':
       addEffect(a, { kind: 'motståndarBonus', label, mod: o.mod, ...dur(o) });
       return;
@@ -955,6 +1076,10 @@ function applyOutcome(g: Game, a: Actor, o: Outcome, label: string, ctx: Outcome
 
 /** Rollpersonen slår på Skräcktabellen för en varelse (automatiskt eller aktivt skräckslag). */
 export function scare(g: Game, victim: Actor, source: Actor, value: number) {
+  if (hasEffect(victim, 'orädd')) {
+    g.log(`${source.name} försöker injaga skräck, men ${victim.name} är orädd.`);
+    return;
+  }
   const mods: number[] = [];
   if (g.state.fearMet.includes(source.defId)) mods.push(-2);
   for (const e of victim.effects) if (e.kind === 'skräckMod') mods.push(e.mod ?? 0);
@@ -1032,7 +1157,7 @@ export function activeHostiles(g: Game): Actor[] {
 function rollInitiative(g: Game, c: CombatState) {
   const rolls = c.order
     .map((id) => g.actor(id)!)
-    .map((a) => ({ a, value: roll(INITIATIVE_DIE, g.rng) + a.attrs.SMI + a.initiative, tie: g.rng() }));
+    .map((a) => ({ a, value: roll(INITIATIVE_DIE, g.rng) + Math.max(1, a.attrs.SMI + (loadMod(g, a) ?? 0)) + a.initiative, tie: g.rng() }));
   rolls.sort((l, r) => Number(!!r.a.firstAlways) - Number(!!l.a.firstAlways) || r.value - l.value || r.tie - l.tie);
   c.order = rolls.map((r) => r.a.id);
   c.initiative = Object.fromEntries(rolls.map((r) => [r.a.id, r.value]));
@@ -1063,7 +1188,7 @@ export function startCombat(g: Game, enemies: Actor[]) {
   // Husregel: rollpersonerna slår Dra vapen. De som lyckas får en gratis tur före första rundan.
   const drawn = party(g).filter((a) => {
     if (!canUseSkills(a)) return false;
-    const check = skillCheck(g.skillFv(a, 'dra_vapen'), g.rng, woundPenalty(a));
+    const check = skillCheck(g.skillFv(a, 'dra_vapen'), g.rng, skillMod(g, a, 'dra_vapen'));
     g.log(`${a.name} slår Dra vapen (${short(check)}): ${check.success ? 'gratis handling före första rundan!' : 'misslyckas'}.`);
     if (check.success) g.gainExperience(a, 'dra_vapen', check);
     return check.success;
@@ -1123,6 +1248,9 @@ function newRound(g: Game): boolean {
   c.parries = {};
   for (const a of participants(g)) tick(g, a);
   if (g.state.mode !== 'combat') return false;
+  // Magi går före slagväxling: besvärjelser från förra rundan verkar nu.
+  resolvePending(g);
+  if (g.state.mode !== 'combat') return false;
   if (!activeHostiles(g).length) {
     endCombat(g, 'Striden är över.');
     return false;
@@ -1154,12 +1282,16 @@ export function tick(g: Game, a: Actor) {
           return;
         }
         if (e.kind === 'liggande' && a.id === g.state.playerId) g.log(`${a.name} reser sig.`);
+        onExpire(g, a, e);
         continue;
       }
     }
     keep.push(e);
   }
   a.effects = keep;
+  breakFree(g, a);
+  updatePoisons(g, a);
+  if (!a.alive) return;
   if (a.unconscious && !hasEffect(a, 'medvetslös') && a.kp > 0 && (!a.detailed || a.locKp.huvud > 0) && !hasEffect(a, 'dödsfara')) {
     a.unconscious = false;
     g.log(`${a.name} vaknar.`);
@@ -1185,7 +1317,8 @@ export function nextTurn(g: Game) {
     const a = g.actor(c.order[c.turn])!;
     if (!a.alive || a.fled) continue;
     if (c.round === 0 && !c.freeRound?.includes(a.id)) continue;
-    c.movesLeft = effectiveMove(a);
+    c.movesLeft = effectiveMove(a, g);
+    a.movedLast = 0;
     // Neutrala deltar i turordningen men står still.
     if (!a.hostile && a.kind !== 'player') {
       c.acted[a.id] = true;
@@ -1243,13 +1376,28 @@ export function endCombat(g: Game, message: string) {
   }
   for (const a of g.state.actors) {
     a.effects = a.effects.filter(
-      (e) => e.days !== undefined || e.untilRest || e.untilPerfect || e.kind === 'skräckMod' || (e.rounds !== undefined && e.rounds > 100 && e.kind === 'cl'),
+      (e) =>
+        e.persist ||
+        e.days !== undefined ||
+        e.untilRest ||
+        e.untilPerfect ||
+        e.kind === 'skräckMod' ||
+        (e.rounds !== undefined && e.rounds > 100 && e.kind === 'cl'),
     );
   }
   g.state.combat = null;
   if (g.state.mode === 'combat') g.state.mode = 'explore';
   g.log(message);
   if (!p.alive) return;
+  p.reload = 0;
+  // Tolkning: hälften av pilarna och loden som sköts går att leta upp efteråt.
+  for (const [item, n] of Object.entries(c?.fired ?? {})) {
+    const found = Math.floor(n * RANGED.recoverShare);
+    if (!found) continue;
+    const ch = g.state.character;
+    ch.ammo[item] = (ch.ammo[item] ?? 0) + found;
+    g.log(`${p.name} letar upp ${found} av ${n} ${item === 'pilar' ? 'pilar' : 'lod och kulor'} efter striden.`);
+  }
   if (p.unconscious || hasEffect(p, 'dödsfara')) {
     if (p.bleeding.length || hasEffect(p, 'dödsfara') || p.critical.some((l) => l === 'bröstkorg' || l === 'mage')) {
       g.log(`${p.name} ligger medvetslös och ingen kommer till hjälp.`);
@@ -1285,6 +1433,7 @@ function stepTowards(g: Game, a: Actor, target: Actor, stop: () => boolean) {
     a.x = step.x;
     a.y = step.y;
     c.movesLeft--;
+    a.movedLast = (a.movedLast ?? 0) + 1;
   }
 }
 
@@ -1303,6 +1452,7 @@ function flee(g: Game, a: Actor, from: Actor, random: boolean): boolean {
     a.x = best.x;
     a.y = best.y;
     c.movesLeft--;
+    a.movedLast = (a.movedLast ?? 0) + 1;
     moved = true;
   }
   return moved;
@@ -1361,6 +1511,19 @@ export function autoTurn(g: Game) {
     return;
   }
 
+  // Varelser med avståndsvapen skjuter på håll så länge de har ammunition, och laddar om emellan.
+  if (!isPlayer && a.ranged && (a.rangedAmmo ?? 0) > 0 && !inReach(g, a, t)) {
+    if ((a.reload ?? 0) > 0) {
+      reloadStep(g, a);
+      finishTurn(g);
+      return;
+    }
+    if (!shootProblem(g, a, t)) {
+      shoot(g, a, t);
+      if (g.state.mode === 'combat') finishTurn(g);
+      return;
+    }
+  }
   if (!inReach(g, a, t)) stepTowards(g, a, t, () => inReach(g, a, t));
   if (inReach(g, a, t) && canAttackNow(a) && !c.acted[a.id]) attackOnce(g, a, t, 'weapon');
   if (g.state.mode === 'combat') finishTurn(g);
@@ -1375,11 +1538,12 @@ export function pickUp(g: Game): boolean {
   for (const d of here) {
     ch.inventory.push(d.item);
     const own = d.owner === p.id;
-    if (d.slot === 'weapon' && (p.weapon === 'nave' || !WEAPONS[p.weapon]) && WEAPONS[d.item]?.kind === 'närstrid') {
+    if (d.slot === 'weapon' && (p.weapon === 'nave' || !WEAPONS[p.weapon]) && WEAPONS[d.item] && !(WEAPONS[d.item].kind === 'projektil' && (p.shield || p.offhand))) {
       p.weapon = d.item;
       ch.equipped.weapon = d.item;
-      p.bv.weapon = d.bv ?? (WEAPONS[d.item] as MeleeWeaponDef).bv ?? 0;
-      if ((WEAPONS[d.item] as MeleeWeaponDef).bv === null) delete p.bv.weapon;
+      const w = WEAPONS[d.item];
+      if (w.kind === 'närstrid' && w.bv !== null) p.bv.weapon = d.bv ?? w.bv;
+      else delete p.bv.weapon;
     } else if (d.slot === 'offhand' && own && !p.offhand) {
       p.offhand = d.item;
       ch.equipped.offhand = d.item;
@@ -1398,4 +1562,281 @@ export function pickUp(g: Game): boolean {
   }
   g.state.dropped = g.state.dropped.filter((d) => !here.includes(d));
   return true;
+}
+
+// ------------------------------------------------------------------ magiska skydd
+
+/** SKÖLD: luften parerar nästa fysiska anfall automatiskt. Returnerar true om anfallet stoppades. */
+function airShield(g: Game, def: Actor, head: string): boolean {
+  const e = def.effects.find((x) => x.kind === 'luftsköld');
+  if (!e) return false;
+  def.effects = def.effects.filter((x) => x !== e);
+  g.log(`${head}, men luften framför ${def.name} hårdnar och parerar (SKÖLD).`);
+  g.emit(def.id, 'Parerat', 'miss');
+  return true;
+}
+
+/** ÖRTRANKOR: den insnärjde försöker varje runda bryta sig loss med STY mot rankornas motståndsvärde. */
+function breakFree(g: Game, a: Actor) {
+  const e = a.effects.find((x) => x.kind === 'rankor');
+  if (!e || a.unconscious) return;
+  const knife = ['dolk', 'parerdolk', 'kniv'].includes(a.weapon) ? 5 : 0;
+  const check = resistance(a.attrs.STY + knife, e.mod ?? 0, g.rng);
+  if (check.success) {
+    a.effects = a.effects.filter((x) => x !== e);
+    g.log(`${a.name} sliter sig loss ur rankorna (STY ${a.attrs.STY + knife} mot ${e.mod}, T20: ${check.roll} mot ${check.target}).`);
+  } else g.log(`${a.name} sitter fast i rankorna (T20: ${check.roll} mot ${check.target}).`);
+}
+
+// ------------------------------------------------------------------ avståndsstrid (Bok II s. 16–17, Bok III s. 33)
+
+export interface RangedInfo {
+  id: string;
+  name: string;
+  kind: 'projektil' | 'kast';
+  damage: string;
+  skill: string;
+  /** Räckvidd i rutor. */
+  range: number;
+  reload: number;
+  /** Ammunitionen som förbrukas, och om vapnet går att använda utan den. */
+  ammo?: { item: string; optional?: boolean; cl?: number };
+}
+
+/** Avståndsvapnet som aktören använder: rollpersonens vapen i handen, eller varelsens avståndsvapen. */
+export function rangedInfo(a: Actor): RangedInfo | null {
+  const id = a.kind === 'player' ? a.weapon : a.ranged;
+  const w = id ? WEAPONS[id] : undefined;
+  if (!w || w.kind === 'närstrid') return null;
+  const r = w as RangedWeaponDef;
+  const range = r.range === 'STY' ? a.attrs.STY : Math.floor(r.range / RANGED.metersPerSquare);
+  return { id: r.id, name: r.name, kind: r.kind, damage: r.damage, skill: r.group, range, reload: r.reload, ammo: AMMUNITION[r.id] };
+}
+
+/** Pilar och lod som rollpersonen har kvar till vapnet. */
+export function ammoLeft(g: Game, a: Actor, r: RangedInfo): number {
+  if (a.kind !== 'player') return a.rangedAmmo ?? 0;
+  if (r.kind === 'kast') return 1;
+  if (!r.ammo) return 1;
+  return g.state.character.ammo[r.ammo.item] ?? 0;
+}
+
+/** Varför aktören inte kan skjuta eller kasta på målet just nu, eller null om det går. */
+export function shootProblem(g: Game, a: Actor, t: Actor): string | null {
+  const r = rangedInfo(a);
+  if (!r) return 'Du har inget avståndsvapen i handen.';
+  if (!canUseSkills(a) || hasEffect(a, 'endastParera')) return 'Du kan inte anfalla nu.';
+  const arms = r.kind === 'projektil' ? [a.swordArm, shieldArm(a)] : [a.swordArm];
+  if (a.detailed && arms.some((l) => !limbUsable(a, l))) return r.kind === 'projektil' ? 'Det krävs två hela armar.' : 'Svärdsarmen går inte att använda.';
+  if ((a.reload ?? 0) > 0) return `${r.name} måste laddas om (${a.reload} SR kvar).`;
+  if (r.kind === 'projektil' && r.ammo && !r.ammo.optional && ammoLeft(g, a, r) <= 0) return 'Ammunitionen är slut.';
+  if (a.kind !== 'player' && ammoLeft(g, a, r) <= 0) return 'Ammunitionen är slut.';
+  const d = distance(a.x, a.y, t.x, t.y);
+  if (d < RANGED.minDistance) return 'Det måste finnas minst en ruta mellan dig och målet.';
+  if (d > r.range) return `Målet är utom räckhåll (${r.range} rutor).`;
+  if (!lineOfSight(g.map, a.x, a.y, t.x, t.y)) return 'Du har inte fri sikt.';
+  if ((a.movedLast ?? 0) > 0) return 'Man måste stå stilla för att sikta.';
+  return null;
+}
+
+/** Modifikation för avståndet: −5 mellan halva och tre fjärdedels räckvidd, −10 längre. */
+function rangeMod(d: number, range: number): number {
+  if (d > (range * 3) / 4) return RANGED_MODS['Mellan tre fjärdedels och hel räckvidd'];
+  if (d > range / 2) return RANGED_MODS['Mellan halva och tre fjärdedels räckvidd'];
+  return 0;
+}
+
+/** Ett mål som springer: det förflyttade sig mer än halva sin förflyttning under sin senaste tur. */
+function isRunning(t: Actor): boolean {
+  return (t.movedLast ?? 0) > Math.floor(t.move / 2);
+}
+
+/** Avfyrar ett projektilvapen eller kastar ett kastvapen. Står still och gör inget annat i rundan. */
+export function shoot(g: Game, a: Actor, target: Actor) {
+  const r = rangedInfo(a)!;
+  const c = g.state.combat;
+  const ch = g.state.character;
+  const isPlayer = a.id === g.state.playerId;
+  face(a, target.x, target.y);
+
+  // Ammunition: pilar och lod förbrukas; slungan tar slungkulor (+2) om det finns, annars stenar.
+  let ammoBonus = 0;
+  if (!isPlayer) a.rangedAmmo = (a.rangedAmmo ?? 0) - 1;
+  else if (r.kind === 'projektil' && r.ammo && (ch.ammo[r.ammo.item] ?? 0) > 0) {
+    ch.ammo[r.ammo.item]--;
+    ammoBonus = r.ammo.cl ?? 0;
+    if (c) (c.fired ??= {})[r.ammo.item] = (c.fired[r.ammo.item] ?? 0) + 1;
+  }
+
+  const d = distance(a.x, a.y, target.x, target.y);
+  const situational: [string, number][] = [];
+  if (target.unconscious || hasEffect(target, 'ingenHandling')) situational.push(['orörligt mål', RANGED_MODS['Målet orörligt']]);
+  const band = rangeMod(d, r.range);
+  if (band) situational.push(['avstånd', band]);
+  const aim = isPlayer && target.detailed ? (c?.aim ?? null) : null;
+  if (aim) situational.push([`siktar på ${aim}`, RANGED_MODS['Sikte på viss kroppsdel']]);
+  const light = lightMod(g, a, target);
+  if (light) situational.push([light === -15 ? 'mörker' : 'fackelsken', light]);
+  if (ammoBonus) situational.push(['slungkulor', ammoBonus]);
+  const cover = target.effects.find((e) => e.kind === 'täckning');
+  if (cover) situational.push(['skydd', cover.half ? RANGED.dropPerSquare * (d - 1) : (cover.mod ?? 0)]);
+  const running = isRunning(target) && !target.unconscious ? 'halverad mot rörligt mål' : undefined;
+
+  const arms = r.kind === 'projektil' ? [a.swordArm, shieldArm(a)] : [a.swordArm];
+  const x = computeCl(g, a, 'anfall', r.skill, a.detailed ? arms : [], situational, 'weapon', undefined, running);
+  a.reload = r.reload;
+  if (!x) {
+    g.log(`${a.name} kan inte använda ${r.name.toLowerCase()}.`);
+    return;
+  }
+  for (const e of x.used) consume(a, e);
+  let check = rollCl(g, x);
+  if (autoFail(a, 'anfall')) check = forceFail(check);
+  const verb = r.kind === 'kast' ? 'kastar' : 'skjuter';
+  const head = `${a.name} ${verb} mot ${target.name} med ${r.name.toLowerCase()} (T20: ${check.roll} mot ${x.cl}${x.notes.length ? `, ${x.notes.join(', ')}` : ''})`;
+  const w = rangedWeapon(a, r);
+  let landing = { x: target.x, y: target.y };
+
+  if (check.result === 'fummel') {
+    g.log(`${head}: fummel!`);
+    g.emit(a.id, 'Fummel!', 'miss');
+    fumble(g, a, 'avstånd', 'weapon');
+    return;
+  }
+  g.gainExperience(a, r.skill, check);
+  const path = projectilePath(g.map, a.x, a.y, target.x, target.y, Math.min(r.range, Math.ceil(d * RANGED.missOvershoot)));
+
+  if (check.success) {
+    // Står någon i vägen är det ungefär hälften så stor chans att den träffas i stället.
+    let victim = target;
+    for (const pt of path) {
+      if (pt.x === target.x && pt.y === target.y) break;
+      const other = g.actorAt(pt.x, pt.y);
+      if (other && other !== a && g.rng() < RANGED.blockChance) {
+        victim = other;
+        g.log(`${head}: ${other.name} står i vägen och träffas i stället!`);
+        break;
+      }
+    }
+    landing = { x: victim.x, y: victim.y };
+    if (victim === target) g.log(`${head}: träff!`);
+    if (airShield(g, victim, head)) return finishThrow(g, a, r, landing);
+    // Kastvapen kan pareras med sköld av den som ser kastet. Projektiler kan inte pareras.
+    if (r.kind === 'kast' && victim.shield && flankMod(a, victim) < MELEE_MODS['Anfall bakifrån'] && check.result !== 'perfekt') {
+      const parry = tryParry(g, victim, a, w, true);
+      if (parry?.check.success) {
+        g.log(`${victim.name} parerar med ${parry.name} (${parry.text}).`);
+        g.emit(victim.id, 'Parerat', 'miss');
+        return finishThrow(g, a, r, landing);
+      }
+      if (parry?.check.result === 'fummel') fumble(g, victim, parry.table, parry.slot);
+    }
+    if (r.id === 'blasror') blowpipe(g, a, victim);
+    else hit(g, a, victim, w, { perfect: check.result === 'perfekt', aim: victim === target ? aim : null, table: 'avstånd', shieldFrom: r.kind === 'projektil' ? a : undefined });
+    return finishThrow(g, a, r, landing);
+  }
+
+  // En miss fortsätter i en rät linje och kan träffa någon annan i banan: 1 % per STO-poäng.
+  g.log(`${head}: miss.`);
+  g.emit(target.id, 'Miss', 'miss');
+  for (const pt of path) {
+    landing = pt;
+    const other = g.actorAt(pt.x, pt.y);
+    if (!other || other === a || other === target) continue;
+    if (g.rng() < other.attrs.STO * RANGED.strayPerSto) {
+      g.log(`Den vilsna projektilen träffar ${other.name}!`);
+      if (r.id !== 'blasror') hit(g, a, other, w, { table: 'avstånd' });
+      break;
+    }
+  }
+  finishThrow(g, a, r, landing);
+}
+
+/** Ett WeaponInfo för skadan från ett avståndsvapen. Kastvapen får skadebonus, projektiler inte. */
+function rangedWeapon(a: Actor, r: RangedInfo): WeaponInfo {
+  return {
+    slot: 'weapon',
+    id: r.id,
+    name: r.name,
+    damage: r.damage,
+    skill: r.skill,
+    sb: r.kind === 'kast',
+    natural: false,
+    unarmed: false,
+    twoHanded: r.kind === 'projektil',
+    twoHandBonus: false,
+    reach: 0,
+    entangling: false,
+    noParryWear: true,
+    bvKey: null,
+  };
+}
+
+/** Blåsröret skadar inte självt: pilen tränger in om 1T8 är högre än rustningen, och då verkar giftet. */
+function blowpipe(g: Game, a: Actor, t: Actor) {
+  const loc = t.detailed ? lookup(HIT_TABLE.avstånd, die(20, g.rng))! : null;
+  const abs = (loc ? (armorPiece(t, loc)?.abs ?? 0) : 0) + t.naturalArmor + magicArmor(t);
+  const n = die(8, g.rng);
+  if (n > abs) {
+    g.log(`Pilen tränger in${loc ? ` i ${loc}` : ''} (1T8: ${n} mot abs ${abs}).`);
+    poisonOnHit(g, a, t, loc);
+  } else g.log(`Pilen fastnar i skyddet (1T8: ${n} mot abs ${abs}).`);
+}
+
+/** Ett kastvapen lämnar handen och hamnar där det landade. */
+function finishThrow(g: Game, a: Actor, r: RangedInfo, at: { x: number; y: number }) {
+  if (r.kind !== 'kast' || a.id !== g.state.playerId || WEAPONS[a.weapon]?.kind !== 'kast') return;
+  throwAway(g, a, at);
+}
+
+function throwAway(g: Game, a: Actor, at: { x: number; y: number }) {
+  const ch = g.state.character;
+  const item = a.weapon;
+  g.state.dropped.push({ item, slot: 'weapon', owner: a.id, x: at.x, y: at.y });
+  const i = ch.inventory.indexOf(item);
+  if (i >= 0) ch.inventory.splice(i, 1);
+  // Har rollpersonen fler likadana tar hen nästa direkt; annars blir handen tom.
+  if (ch.inventory.includes(item)) return;
+  a.weapon = 'nave';
+  ch.equipped.weapon = undefined;
+}
+
+/** Laddar om ett armborst eller en stavslunga en runda. */
+export function reloadStep(g: Game, a: Actor) {
+  if (!a.reload) return;
+  a.reload--;
+  const r = rangedInfo(a);
+  g.log(a.reload > 0 ? `${a.name} laddar om ${r?.name.toLowerCase() ?? ''} (${a.reload} SR kvar).` : `${a.name} har laddat ${r?.name.toLowerCase() ?? ''}.`);
+}
+
+/**
+ * Söka skydd (Bok II s. 16): ett Normalt SMI-slag. Bakom skydd dras differensvärdet från
+ * skyttens CL; finns inget skydd intill kastar man sig ned och får −1 per ruta till skytten.
+ */
+export function takeCover(g: Game, a: Actor) {
+  const nearCover = DIRS.some(([dx, dy]) => {
+    const t = tileAt(g.map, a.x + dx, a.y + dy);
+    return !!t && t.opaque;
+  });
+  const check = attributeCheck(Math.max(1, a.attrs.SMI + (loadMod(g, a) ?? 0)), g.rng, 'Normalt');
+  if (!check.success) {
+    g.log(`${a.name} försöker söka skydd men hinner inte (Normalt SMI-slag, ${short(check)}).`);
+    return;
+  }
+  if (nearCover) {
+    addEffect(a, { kind: 'täckning', label: 'Bakom skydd', mod: -Math.max(1, check.diff), rounds: 1 });
+    g.log(`${a.name} söker skydd (Normalt SMI-slag, ${short(check)}): −${Math.max(1, check.diff)} för skyttar den här rundan.`);
+  } else {
+    addEffect(a, { kind: 'täckning', label: 'Ligger ned i skydd', half: true, rounds: 1 });
+    addEffect(a, { kind: 'liggande', label: 'Har kastat sig ned', rounds: 1 });
+    g.log(`${a.name} kastar sig ned (Normalt SMI-slag, ${short(check)}): −1 för varje ruta till skytten den här rundan.`);
+  }
+}
+
+/** När en effekt tar slut: örter som läker efter en stund verkar nu. */
+export function onExpire(g: Game, a: Actor, e: ActiveEffect) {
+  if (e.kind === 'läkning' && a.alive && e.mod) {
+    if (a.id === g.state.playerId) g.heal(e.mod);
+    g.log(`${e.label}: ${a.name} läker ${e.mod} KP.`);
+  } else if (e.spell && a.id === g.state.playerId) g.log(`${e.label} upphör.`);
 }

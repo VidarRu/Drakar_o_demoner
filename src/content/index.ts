@@ -66,6 +66,21 @@ export const CREATURES = list<CreatureDef>([
     silver: '2T6',
   },
   {
+    id: 'svartalf_skytt',
+    name: 'Svartalfsskytt',
+    sprite: 'svartalf',
+    attrs: { STY: 9, STO: 7, FYS: 11, SMI: 12, INT: 9, PSY: 11, KAR: 7 },
+    skills: { bagar: 8, dolkar: 5, upptacka_fara: 10, smyga: 8 },
+    weapon: 'dolk',
+    ranged: { weapon: 'kortbage', ammo: 8 },
+    move: 10,
+    hostile: true,
+    humanoid: true,
+    darkvision: true,
+    sight: 8,
+    silver: '2T6',
+  },
+  {
     id: 'svartalfshovding',
     name: 'Svartalfshövdingen Grukk',
     sprite: 'hovding',
@@ -90,7 +105,7 @@ export const CREATURES = list<CreatureDef>([
     name: 'Värdshusvärden Bertil',
     sprite: 'vard',
     attrs: { ...human, STO: 15 },
-    skills: { enhandskross: 9 },
+    skills: { enhandskross: 9, kopsla: 12 },
     weapon: 'klubba',
     move: 10,
     hostile: false,
@@ -102,7 +117,7 @@ export const CREATURES = list<CreatureDef>([
     name: 'Smeden Ylva',
     sprite: 'smed',
     attrs: { ...human, STY: 15 },
-    skills: { enhandskross: 12, 'hantverk:smide': 16 },
+    skills: { enhandskross: 12, 'hantverk:smide': 16, kopsla: 10 },
     weapon: 'klubba',
     armor: ['harnesk_lader'],
     move: 10,
@@ -115,7 +130,7 @@ export const CREATURES = list<CreatureDef>([
     name: 'Kloka gumman Asta',
     sprite: 'gumma',
     attrs: { ...human, STY: 7, PSY: 16 },
-    skills: { dolkar: 6, lakekonst: 15 },
+    skills: { dolkar: 6, lakekonst: 15, ortkunskap: 15, drogkunskap: 12, kopsla: 13 },
     weapon: 'dolk',
     move: 9,
     hostile: false,
@@ -130,7 +145,7 @@ export const NPCS = list<NpcDef>([
     persona:
       'Bertil är en rund, pratglad värdshusvärd i byn Gråvad. Han är godmodig men snål, orolig för sina gäster och sin handel, och pratar gärna om mat och öl.',
     knowledge:
-      'Svartalfer har slagit sig ner i en grotta öster om byn, längs stigen genom skogen. Deras hövding Grukk leder plundringståg mot resande. Vargar stryker runt i skogen. Bertil erbjuder 500 silvermynt till den som gör slut på hövdingen. En plats i sovsalen kostar 10 silvermynt per natt, och man kan hyra den en hel vecka för att vila upp sig och träna. Smeden Ylva säljer rustningar och kloka gumman Asta vid dammen sköter om sår.',
+      'Svartalfer har slagit sig ner i en grotta öster om byn, längs stigen genom skogen. Deras hövding Grukk leder plundringståg mot resande. Vargar stryker runt i skogen. Bertil erbjuder 500 silvermynt till den som gör slut på hövdingen. En plats i sovsalen kostar 10 silvermynt per natt, och man kan hyra den en hel vecka för att vila upp sig och träna. Bertil säljer mat, kläder och utrustning för resan. Smeden Ylva säljer vapen, rustningar och sköldar, och kloka gumman Asta vid dammen sköter om sår och säljer örter.',
     greeting: 'Välkommen till Gyllene Galten, främling! Du ser ut som någon som kan hantera ett vapen.',
     topics: [
       {
@@ -144,14 +159,15 @@ export const NPCS = list<NpcDef>([
           'Gråvad är inte mycket för världen, men Ylva i smedjan kan sitt hantverk och gumman Asta nere vid dammen lappar ihop den som fått stryk.',
       },
     ],
-    intents: ['uppdrag_anta', 'overtala_beloning', 'uppdrag_beloning', 'overnatta', 'vila_vecka', 'anfall'],
+    shop: { goods: ['mat', 'äventyr', 'behållare', 'kläder', 'diverse', 'verktyg'] },
+    intents: ['uppdrag_anta', 'overtala_beloning', 'uppdrag_beloning', 'overnatta', 'vila_vecka', 'handla', 'anfall'],
   },
   {
     id: 'smed',
     persona:
       'Ylva är byns smed: fåordig, rak och stolt över sitt hantverk. Hon har föga tålamod med skrävlare men respekterar den som slåss för byn.',
     knowledge:
-      'Hon har en färdig ringbrynjeskjorta till salu för 1 500 silvermynt. Hon lagar slitna vapen, sköldar och rustningar för en tjugondel av priset per skadat ställe. Svartalfernas hövding bär ett bredsvärd och sköld och är farligare än sina underhuggare. Grottan ligger österut längs stigen.',
+      'Hon säljer vapen, pilar, rustningar och sköldar och köper begagnade vapen för halva priset. Hon har en färdig ringbrynjeskjorta till salu för 1 500 silvermynt. Hon lagar slitna vapen, sköldar och rustningar för en tjugondel av priset per skadat ställe. Svartalfernas hövding bär ett bredsvärd och sköld och är farligare än sina underhuggare. Grottan ligger österut längs stigen.',
     greeting: 'Hm. Behöver du något, eller står du bara i vägen för värmen?',
     topics: [
       {
@@ -163,14 +179,15 @@ export const NPCS = list<NpcDef>([
         reply: 'Småttingarna är fega en och en. Hövdingen är det inte. Gå inte in dit sårad.',
       },
     ],
-    intents: ['kop_ringbrynja', 'laga_utrustning', 'anfall'],
+    shop: { goods: ['närstridsvapen', 'avståndsvapen', 'rustningar', 'sköldar'] },
+    intents: ['kop_ringbrynja', 'laga_utrustning', 'handla', 'anfall'],
   },
   {
     id: 'gumma',
     persona:
       'Asta är byns kloka gumma: gammal, skarpögd och lite kuslig. Hon talar i gåtor och ordspråk men menar väl.',
     knowledge:
-      'Hon kan förbinda sår för 5 silvermynt, och vårda sår och infektioner med Läkekonst en gång om dagen för samma pris. Hon vet att vargarna i skogen flyr ogärna och att svartalferna fruktar eld och dagsljus.',
+      'Hon kan förbinda sår för 5 silvermynt, och vårda sår och infektioner med Läkekonst en gång om dagen för samma pris. Hon säljer läkeörter och andra droger som hon har plockat i skogen; vilka hon har inne skiftar från dag till dag. Hon vet att vargarna i skogen flyr ogärna och att svartalferna fruktar eld och dagsljus.',
     greeting: 'Jaså, en vandrare. Jag såg dig i teet i morse. Du blöder snart, om du inte redan gör det.',
     topics: [
       {
@@ -178,7 +195,8 @@ export const NPCS = list<NpcDef>([
         reply: 'Skogen minns allt. Vargarna är hungriga i år. Håll dig på stigen, så räcker det med att vara rädd.',
       },
     ],
-    intents: ['forbind', 'vard', 'anfall'],
+    shop: { goods: ['läkedroger', 'droger'] },
+    intents: ['forbind', 'vard', 'handla', 'anfall'],
   },
 ]);
 
@@ -196,12 +214,14 @@ export const MAPS = list<MapDef>([
     id: 'gravad',
     name: 'Gråvad',
     start: { char: '@', tile: ',' },
+    habitats: ['överallt', 'skog', 'ängar', 'åkerkanter', 'snårskog'],
     spawns: {
       i: { tile: '_', creature: 'vardshusvard' },
       s: { tile: '_', creature: 'smed' },
       o: { tile: '.', creature: 'gumma' },
       w: { tile: '.', creature: 'varg' },
       g: { tile: ':', creature: 'svartalf' },
+      b: { tile: ':', creature: 'svartalf_skytt' },
       C: { tile: ':', creature: 'svartalfshovding' },
     },
     rows: [
@@ -209,7 +229,7 @@ export const MAPS = list<MapDef>([
       'T..........T....TT......T...%%%%%%%%%%%%%%%T',
       'T.#######.......T....T......%%::::%%%%:::%%T',
       'T.#_____#..........TT....T..%:::g::%%::::%%T',
-      'T.#_i___#....T..........T...%::::::::g:C:%%T',
+      'T.#_i___#....T..........T...%::::::::b:C:%%T',
       'T.#_____#.........T.........%%::::%%%::::%%T',
       'T.###+###......T......w..T..%%%:%%%%%%%%%%%T',
       'T....,..............T.......%%%:%%%%%%%%%%%T',

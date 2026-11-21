@@ -270,7 +270,40 @@ export interface SpellDef {
   /** Varelsebesvärjelser lärs separat för varje grupp av varelser. */
   perCreatureGroup?: boolean;
   desc: string;
+  /** Vad besvärjelsen gör i spelet. Saknas den kan besvärjelsen läras men inte användas än. */
+  effect?: SpellEffect;
+  /** Vem besvärjelsen kan riktas mot: magikern själv, en fiende, valfri varelse eller närmaste varelse. */
+  aim?: 'själv' | 'fiende' | 'valfri' | 'närmast';
+  /** Försöker påverka målets psyke: en ovillig varelse gör motstånd med PSY. */
+  resisted?: boolean;
 }
+
+/** Besvärjelsernas verkan som spelmotorn (src/engine/magic.ts) känner till. */
+export type SpellEffect =
+  /** Skada per E. Rustningen skyddar fullt, inte alls eller till hälften om den är av metall. */
+  | { kind: 'skada'; dice: string; detailedDice?: string; armor: 'ingen' | 'full' | 'halvMetall'; loc: boolean }
+  /** Skada per E på alla inom E meter, sedan 1 mindre per ruta. Alla som ser den bländas. */
+  | { kind: 'explosion'; perGrade: number }
+  /** Svårt FYS-slag: misslyckas det kan offret inte handla, annars −4 på CL rundan ut. */
+  | { kind: 'köld' }
+  /** Sänker BV på målets vapen eller sköld. */
+  | { kind: 'knäcka'; base: number; perGrade: number }
+  /** Parerar nästa fysiska anfall automatiskt. */
+  | { kind: 'luftsköld' }
+  /** +1 (FÖRTROLLA) eller −1 (FÖRBANNA) på CL och skada per E. */
+  | { kind: 'vapen'; sign: 1 | -1 }
+  | { kind: 'läka'; dice: string }
+  | { kind: 'motgift'; dice: string }
+  /** Extra absorbering på hela kroppen: per E, eller ett fast värde. */
+  | { kind: 'skydd'; perGrade?: number; fixed?: number }
+  | { kind: 'mörkersyn' }
+  | { kind: 'orädd' }
+  /** Upphäver en besvärjelse på målet om E övervinner dess E. */
+  | { kind: 'skingra' }
+  /** Avslöjar om målet är fientligt inställt. */
+  | { kind: 'fiendskap' }
+  /** Snärjer ett mål med en E per 10 STO. */
+  | { kind: 'rankor' };
 
 export interface ItemDef {
   id: string;

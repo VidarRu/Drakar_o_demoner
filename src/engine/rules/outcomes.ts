@@ -19,7 +19,14 @@ export type Scope =
   | 'smi'
   /** SMI- och STY-baserade färdigheter. */
   | 'smiSty'
-  | 'avstånd';
+  | 'avstånd'
+  /** Färdigheter som bygger på en viss grundegenskap (gifter). Besvärjelser bygger på PSY. */
+  | 'int'
+  | 'psy'
+  | 'sty'
+  /** Alla besvärjelser, eller allt utom besvärjelser. */
+  | 'magi'
+  | 'ejMagi';
 
 /** Hur länge en följd varar. Rundor räknas med den pågående rundan som den första. */
 export interface Duration {

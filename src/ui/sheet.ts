@@ -5,6 +5,7 @@ import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
 import { SKILL_LIST, SKILLS } from '../data/skills';
 import { SPELLS } from '../data/spells';
+import { spellS } from '../engine/magic';
 import type { MeleeWeaponDef, RangedWeaponDef } from '../data/types';
 import { WEAPONS } from '../data/weapons';
 import { armorBv, armorPiece, damageExpr, effectiveMove } from '../engine/combat';
@@ -240,7 +241,7 @@ function back(g: Game): HTMLElement {
     }
     return r;
   };
-  const move = effectiveMove(p);
+  const move = effectiveMove(p, g);
   const nm = el('div', 'rf-stat rf-nm');
   nm.append(el('span', ''), el('small', '', 'Normal'), el('small', '', 'Maximal'));
   const left2 = el('div', 'col');
@@ -291,7 +292,8 @@ function back(g: Game): HTMLElement {
   weapons.classList.add('rf-weapons');
 
   // Besvärjelser.
-  const spells = Object.entries(ch.spells).map(([id, sv]) => [SPELLS[id]?.name ?? id, p.ep[id] ? String(p.ep[id]) : '', String(sv)]);
+  // Husregel: S räknas fram ur FV i skolan. Besvärjelser i minnet märks med en stjärna.
+  const spells = ch.spells.map((id) => [`${SPELLS[id]?.name ?? id}${ch.memorized.includes(id) ? ' *' : ''}`, '', `S${spellS(p, id)}`]);
   const spellBox = box('Besvärjelser', ['erf', 'S'], lined(spells, 3, 16));
   spellBox.classList.add('rf-spells');
 

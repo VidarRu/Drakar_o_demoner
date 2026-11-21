@@ -4,6 +4,8 @@ import { WEAPONS } from '../data/weapons';
 import { ARMOR } from '../data/armor';
 import { die, roll } from './dice';
 import type { Game } from './game';
+import { onExpire } from './combat';
+import { advancePoisons } from './poison';
 import {
   AMPUTATION_WEEKS,
   attributeCheck,
@@ -107,8 +109,13 @@ export function advanceTime(g: Game, seconds: number, activity: Activity) {
   // Effekter som räknas i rundor går ned när mer än en runda har gått.
   if (seconds > 5) {
     const rounds = Math.floor(seconds / 5);
-    a.effects = a.effects.filter((e) => e.rounds === undefined || (e.rounds -= rounds) > 0);
+    a.effects = a.effects.filter((e) => {
+      if (e.rounds === undefined || (e.rounds -= rounds) > 0) return true;
+      onExpire(g, a, e);
+      return false;
+    });
   }
+  if (seconds > 5) advancePoisons(g, a);
   if (activity === 'sömn' && seconds >= RACES[g.state.character.race].sleepHours * HOUR) {
     a.epBlocked = [];
     a.effects = a.effects.filter((e) => !e.untilRest);
@@ -122,7 +129,10 @@ export function advanceTime(g: Game, seconds: number, activity: Activity) {
 /** Efter en strid: slå för infektion i varje kroppsdel som fått sår av eggvapen eller naturliga vapen. */
 export function rollInfections(g: Game, a: Actor) {
   const byLoc = new Map<HitLocation, number>();
-  for (const w of a.combatWounds) byLoc.set(w.loc, (byLoc.get(w.loc) ?? 0) + w.dmg * INFECTION[w.kind]);
+  // Örter och gifter kan ändra risken (Saltsopp halverar, Allvarsrönn tredubblar).
+  const factor = a.effects.filter((e) => e.kind === 'infektionsrisk').reduce((f, e) => f * (e.mod ?? 1), 1);
+  a.effects = a.effects.filter((e) => e.kind !== 'infektionsrisk');
+  for (const w of a.combatWounds) byLoc.set(w.loc, (byLoc.get(w.loc) ?? 0) + w.dmg * INFECTION[w.kind] * factor);
   a.combatWounds = [];
   if (!a.alive || a.kind !== 'player' || g.state.character.race === 'alv') return;
   for (const [loc, chance] of byLoc) {
@@ -258,7 +268,7 @@ export function raiseSkill(g: Game, skill: string): boolean {
   const cost = raiseCost(g, a, skill);
   const own = a.ep[skill] ?? 0;
   const bonus = ch.bonusEp ?? 0;
-  if (!canConvert(a) || fv + 1 > skillCap(g, a, skill) || own + bonus < cost) return false;
+  if (!canConvert(a) || fv + 1 > skillCap(g, a, skill) || own + bonus < cost || needsTeacher(skill)) return false;
   const fromOwn = Math.min(own, cost);
   a.ep[skill] = own - fromOwn;
   if (!a.ep[skill]) delete a.ep[skill];
@@ -269,8 +279,17 @@ export function raiseSkill(g: Game, skill: string): boolean {
   return true;
 }
 
+/**
+ * Magiskolor höjs bara med lärare eller genom studier i ett magibibliotek (Bok III och husregel).
+ * Inget av det finns i Gråvad.
+ */
+export function needsTeacher(skill: string): boolean {
+  return skill.startsWith('magiskola:');
+}
+
 /** Ensamträning en vecka: ett Normalt grundegenskapsslag ger 1 EP. */
 export function selfTrain(g: Game, skill: string): boolean {
+  if (needsTeacher(skill)) return false;
   const a = g.player;
   const def = SKILLS[skill.split(':')[0]];
   const attr = def?.attr && def.attr !== 'spec' ? def.attr : 'INT';

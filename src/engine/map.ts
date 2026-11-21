@@ -27,6 +27,8 @@ export interface MapDef {
   spawns: Record<string, { tile: string; creature: string }>;
   /** Tecknet för rollpersonens startruta och dess underlag. */
   start: { char: string; tile: string };
+  /** Växtplatser i trakten (för att leta örter), t.ex. "skog" eller "ängar". */
+  habitats?: string[];
 }
 
 export interface GameMap {
@@ -37,6 +39,7 @@ export interface GameMap {
   tiles: string[];
   spawns: { creature: string; x: number; y: number }[];
   start: { x: number; y: number };
+  habitats: string[];
 }
 
 export function parseMap(def: MapDef): GameMap {
@@ -61,7 +64,7 @@ export function parseMap(def: MapDef): GameMap {
       }
     });
   });
-  return { id: def.id, name: def.name, w, h, tiles, spawns, start };
+  return { id: def.id, name: def.name, w, h, tiles, spawns, start, habitats: def.habitats ?? [] };
 }
 
 export const idx = (map: GameMap, x: number, y: number) => y * map.w + x;
@@ -95,6 +98,40 @@ export function lineOfSight(map: GameMap, x0: number, y0: number, x1: number, y1
     }
   }
   return true;
+}
+
+/**
+ * Rutorna som en projektil passerar från (x0, y0) mot (x1, y1), förlängd till `length` rutor.
+ * Banan tar slut vid något som skymmer (väggar, träd, berg). Startrutan ingår inte.
+ */
+export function projectilePath(map: GameMap, x0: number, y0: number, x1: number, y1: number, length: number): Point[] {
+  const d = distance(x0, y0, x1, y1);
+  if (d === 0) return [];
+  const f = length / d;
+  const ex = x0 + Math.round((x1 - x0) * f);
+  const ey = y0 + Math.round((y1 - y0) * f);
+  const out: Point[] = [];
+  let x = x0;
+  let y = y0;
+  const dx = Math.abs(ex - x0);
+  const dy = Math.abs(ey - y0);
+  const sx = x0 < ex ? 1 : -1;
+  const sy = y0 < ey ? 1 : -1;
+  let err = dx - dy;
+  while ((x !== ex || y !== ey) && out.length < length) {
+    const e2 = 2 * err;
+    if (e2 > -dy) {
+      err -= dy;
+      x += sx;
+    }
+    if (e2 < dx) {
+      err += dx;
+      y += sy;
+    }
+    if (!inBounds(map, x, y) || tileAt(map, x, y).opaque) break;
+    out.push({ x, y });
+  }
+  return out;
 }
 
 /** Alla rutor som syns från (px, py) inom en radie. */
