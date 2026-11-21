@@ -123,6 +123,18 @@ export class WorldScene extends Phaser.Scene {
       o.fillStyle(0x7fc8ff, 0.22);
       for (const t of this.reach) o.fillRect(t.x * TILE + 1, t.y * TILE + 1, TILE - 2, TILE - 2);
     }
+    // Föremål som tappats i strid: en liten glänsande klinga på marken.
+    for (const d of g.state.dropped) {
+      if (!g.isVisible(d.x, d.y)) continue;
+      const cx = d.x * TILE + TILE / 2;
+      const cy = d.y * TILE + TILE / 2 + 4;
+      o.lineStyle(2, 0x2a2024, 1);
+      o.lineBetween(cx - 6, cy + 3, cx + 6, cy - 3);
+      o.lineStyle(1, 0xd8d4c8, 1);
+      o.lineBetween(cx - 6, cy + 3, cx + 6, cy - 3);
+      o.fillStyle(0xe3c476, 1);
+      o.fillRect(cx - 3, cy, 2, 2);
+    }
     for (const a of g.state.actors) {
       const s = this.sprites.get(a.id);
       if (!s || !s.visible || a.kp >= a.maxKp) continue;
@@ -228,6 +240,9 @@ export class WorldScene extends Phaser.Scene {
         this.sprites.set(a.id, s);
       }
       s.setVisible(a.id === g.player.id || g.isVisible(a.x, a.y));
+      // Medvetslösa ligger ner; utslagna sjunker ihop.
+      s.setAngle(a.unconscious ? 90 : 0);
+      s.setAlpha(a.unconscious || a.down ? 0.75 : 1);
       if (s.x !== tx || s.y !== ty) {
         if (tx !== s.x) s.setFlipX(tx < s.x);
         this.tweens.killTweensOf(s);

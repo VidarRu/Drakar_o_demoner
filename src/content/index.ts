@@ -48,6 +48,7 @@ export const CREATURES = list<CreatureDef>([
     naturalArmor: 1,
     move: 16,
     hostile: true,
+    humanoid: false,
     sight: 6,
   },
   {
@@ -59,6 +60,8 @@ export const CREATURES = list<CreatureDef>([
     weapon: 'kortsvard',
     move: 10,
     hostile: true,
+    humanoid: true,
+    darkvision: true,
     sight: 6,
     silver: '2T6',
   },
@@ -73,6 +76,11 @@ export const CREATURES = list<CreatureDef>([
     shield: 'vanlig_skold',
     move: 10,
     hostile: true,
+    humanoid: true,
+    darkvision: true,
+    leader: true,
+    // En hövding som slåss till slutet: boken undantar hjältar och ledare av det slaget från moralen.
+    noMorale: true,
     sight: 7,
     silver: '6T6+20',
     deathFlag: 'hovding_dod',
@@ -86,6 +94,7 @@ export const CREATURES = list<CreatureDef>([
     weapon: 'klubba',
     move: 10,
     hostile: false,
+    humanoid: true,
     npc: 'vardshusvard',
   },
   {
@@ -93,11 +102,12 @@ export const CREATURES = list<CreatureDef>([
     name: 'Smeden Ylva',
     sprite: 'smed',
     attrs: { ...human, STY: 15 },
-    skills: { enhandskross: 12 },
+    skills: { enhandskross: 12, 'hantverk:smide': 16 },
     weapon: 'klubba',
     armor: ['harnesk_lader'],
     move: 10,
     hostile: false,
+    humanoid: true,
     npc: 'smed',
   },
   {
@@ -105,10 +115,11 @@ export const CREATURES = list<CreatureDef>([
     name: 'Kloka gumman Asta',
     sprite: 'gumma',
     attrs: { ...human, STY: 7, PSY: 16 },
-    skills: { dolkar: 6 },
+    skills: { dolkar: 6, lakekonst: 15 },
     weapon: 'dolk',
     move: 9,
     hostile: false,
+    humanoid: true,
     npc: 'gumma',
   },
 ]);
@@ -119,7 +130,7 @@ export const NPCS = list<NpcDef>([
     persona:
       'Bertil är en rund, pratglad värdshusvärd i byn Gråvad. Han är godmodig men snål, orolig för sina gäster och sin handel, och pratar gärna om mat och öl.',
     knowledge:
-      'Svartalfer har slagit sig ner i en grotta öster om byn, längs stigen genom skogen. Deras hövding Grukk leder plundringståg mot resande. Vargar stryker runt i skogen. Bertil erbjuder 500 silvermynt till den som gör slut på hövdingen. En plats i sovsalen kostar 10 silvermynt per natt. Smeden Ylva säljer rustningar och kloka gumman Asta vid dammen sköter om sår.',
+      'Svartalfer har slagit sig ner i en grotta öster om byn, längs stigen genom skogen. Deras hövding Grukk leder plundringståg mot resande. Vargar stryker runt i skogen. Bertil erbjuder 500 silvermynt till den som gör slut på hövdingen. En plats i sovsalen kostar 10 silvermynt per natt, och man kan hyra den en hel vecka för att vila upp sig och träna. Smeden Ylva säljer rustningar och kloka gumman Asta vid dammen sköter om sår.',
     greeting: 'Välkommen till Gyllene Galten, främling! Du ser ut som någon som kan hantera ett vapen.',
     topics: [
       {
@@ -133,14 +144,14 @@ export const NPCS = list<NpcDef>([
           'Gråvad är inte mycket för världen, men Ylva i smedjan kan sitt hantverk och gumman Asta nere vid dammen lappar ihop den som fått stryk.',
       },
     ],
-    intents: ['uppdrag_anta', 'overtala_beloning', 'uppdrag_beloning', 'overnatta', 'anfall'],
+    intents: ['uppdrag_anta', 'overtala_beloning', 'uppdrag_beloning', 'overnatta', 'vila_vecka', 'anfall'],
   },
   {
     id: 'smed',
     persona:
       'Ylva är byns smed: fåordig, rak och stolt över sitt hantverk. Hon har föga tålamod med skrävlare men respekterar den som slåss för byn.',
     knowledge:
-      'Hon har en färdig ringbrynjeskjorta till salu för 1 500 silvermynt. Svartalfernas hövding bär ett bredsvärd och sköld och är farligare än sina underhuggare. Grottan ligger österut längs stigen.',
+      'Hon har en färdig ringbrynjeskjorta till salu för 1 500 silvermynt. Hon lagar slitna vapen, sköldar och rustningar för en tjugondel av priset per skadat ställe. Svartalfernas hövding bär ett bredsvärd och sköld och är farligare än sina underhuggare. Grottan ligger österut längs stigen.',
     greeting: 'Hm. Behöver du något, eller står du bara i vägen för värmen?',
     topics: [
       {
@@ -152,14 +163,14 @@ export const NPCS = list<NpcDef>([
         reply: 'Småttingarna är fega en och en. Hövdingen är det inte. Gå inte in dit sårad.',
       },
     ],
-    intents: ['kop_ringbrynja', 'anfall'],
+    intents: ['kop_ringbrynja', 'laga_utrustning', 'anfall'],
   },
   {
     id: 'gumma',
     persona:
       'Asta är byns kloka gumma: gammal, skarpögd och lite kuslig. Hon talar i gåtor och ordspråk men menar väl.',
     knowledge:
-      'Hon kan förbinda sår för 5 silvermynt. Hon vet att vargarna i skogen flyr ogärna och att svartalferna fruktar eld och dagsljus.',
+      'Hon kan förbinda sår för 5 silvermynt, och vårda sår och infektioner med Läkekonst en gång om dagen för samma pris. Hon vet att vargarna i skogen flyr ogärna och att svartalferna fruktar eld och dagsljus.',
     greeting: 'Jaså, en vandrare. Jag såg dig i teet i morse. Du blöder snart, om du inte redan gör det.',
     topics: [
       {
@@ -167,7 +178,7 @@ export const NPCS = list<NpcDef>([
         reply: 'Skogen minns allt. Vargarna är hungriga i år. Håll dig på stigen, så räcker det med att vara rädd.',
       },
     ],
-    intents: ['forbind', 'anfall'],
+    intents: ['forbind', 'vard', 'anfall'],
   },
 ]);
 

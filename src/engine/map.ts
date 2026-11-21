@@ -3,13 +3,15 @@ export interface TileDef {
   walkable: boolean;
   /** Skymmer sikten. */
   opaque: boolean;
+  /** Mörkt utan ljuskälla (grottor). */
+  dark?: boolean;
 }
 
 export const TILES: Record<string, TileDef> = {
   '.': { name: 'gräs', walkable: true, opaque: false },
   ',': { name: 'stig', walkable: true, opaque: false },
   _: { name: 'trägolv', walkable: true, opaque: false },
-  ':': { name: 'grottgolv', walkable: true, opaque: false },
+  ':': { name: 'grottgolv', walkable: true, opaque: false, dark: true },
   '+': { name: 'dörr', walkable: true, opaque: true },
   '#': { name: 'vägg', walkable: false, opaque: true },
   '%': { name: 'berg', walkable: false, opaque: true },

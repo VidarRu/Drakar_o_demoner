@@ -1,9 +1,11 @@
-import { CREATURES, MAPS, NATURAL_WEAPONS, PROFESSION_SPRITES } from '../content';
-import { ARMOR, SHIELDS } from '../data/armor';
+import { CREATURES, MAPS, PROFESSION_SPRITES } from '../content';
+import { ABILITY_BY_ID } from '../data/abilities';
+import { ARMOR } from '../data/armor';
 import { RACES } from '../data/races';
 import { SKILLS } from '../data/skills';
-import { WEAPONS, weaponSkill } from '../data/weapons';
-import { maxRoll, roll, type Rng } from './dice';
+import * as combat from './combat';
+import * as time from './time';
+import { roll, type Rng } from './dice';
 import {
   computeFov,
   distance,
@@ -15,11 +17,22 @@ import {
   type GameMap,
   type Point,
 } from './map';
-import { damageBonus, HIT_TABLE, improvementRoll, lookup, maxKp, movement, skillCheck, type Check, type HitLocation } from './rules';
-import type { Actor, Character, CombatState, GameState } from './types';
+import {
+  DAY,
+  HIT_LOCATIONS,
+  HOUR,
+  INITIATIVE_MODS,
+  locationKp,
+  maxKp,
+  movement,
+  skillCheck,
+  type Check,
+  type HitLocation,
+} from './rules';
+import type { Actor, Attrs, Character, GameState } from './types';
 
 export const FOV_RADIUS = 8;
-const LOG_LIMIT = 200;
+const LOG_LIMIT = 300;
 
 /** Visuell effekt som gränssnittet kan visa (t.ex. skadesiffror). */
 export interface Fx {
@@ -30,9 +43,73 @@ export interface Fx {
 
 const describe = (c: Check) => `T20: ${c.roll} mot ${c.target}`;
 
+interface ActorInit {
+  id: string;
+  defId: string;
+  name: string;
+  kind: Actor['kind'];
+  sprite: string;
+  x: number;
+  y: number;
+  attrs: Attrs;
+  skills: Record<string, number>;
+  weapon: string;
+  offhand?: string;
+  armor: string[];
+  naturalArmor: number;
+  shield?: string;
+  move: number;
+  hostile: boolean;
+  detailed: boolean;
+  sight: number;
+  darkvision: boolean;
+  silver: number;
+  swordArm?: HitLocation;
+}
+
+/** Skapar en figur med kroppspoäng per kroppsdel och fulla BV på utrustningen. */
+export function makeActor(init: ActorInit, extra: Partial<Actor> = {}): Actor {
+  const kp = maxKp(init.attrs);
+  const loc = locationKp(kp);
+  const a: Actor = {
+    ...init,
+    kp,
+    maxKp: kp,
+    locKp: { ...loc },
+    locMax: { ...loc },
+    bleeding: [],
+    bleedTimer: 0,
+    disabled: [],
+    critical: [],
+    injuries: [],
+    ep: {},
+    epBlocked: [],
+    psy: init.attrs.PSY,
+    infections: [],
+    combatWounds: [],
+    healHours: 0,
+    psyHours: 0,
+    restSeconds: 0,
+    medicineDay: 0,
+    bv: {},
+    swordArm: init.swordArm ?? 'höger arm',
+    alive: true,
+    unconscious: false,
+    down: false,
+    fled: false,
+    facing: { dx: 0, dy: 1 },
+    effects: [],
+    morale: [],
+    initiative: 0,
+    ...extra,
+  };
+  a.bv = combat.initialBv(a);
+  return a;
+}
+
 /**
  * Spelmotorn. Äger hela speltillståndet och alla regler; känner inte till grafik eller gränssnitt.
- * Gränssnittet anropar metoderna och lyssnar på ändringar.
+ * Gränssnittet anropar metoderna och lyssnar på ändringar. Striden ligger i combat.ts.
  */
 export class Game {
   readonly map: GameMap;
@@ -50,33 +127,44 @@ export class Game {
 
   static create(char: Character, rng: Rng = Math.random, mapId = 'gravad'): Game {
     const map = parseMap(MAPS[mapId]);
-    const player: Actor = {
-      id: 'player',
-      defId: 'player',
-      name: char.name,
-      kind: 'player',
-      sprite: PROFESSION_SPRITES[char.profession] ?? 'krigare',
-      x: map.start.x,
-      y: map.start.y,
-      attrs: { ...char.attrs },
-      kp: char.maxKp,
-      maxKp: char.maxKp,
-      skills: { ...char.skills },
-      marks: [],
-      weapon: char.equipped.weapon ?? 'nave',
-      armor: [...char.equipped.armor],
-      naturalArmor: 0,
-      shield: char.equipped.shield,
-      move: movement(char.attrs, RACES[char.race].move),
-      hostile: false,
-      sight: FOV_RADIUS,
-      alive: true,
-      silver: char.silver,
-      profession: char.profession,
-      stunned: false,
-    };
+    const race = RACES[char.race];
+    const ability = char.ability ? ABILITY_BY_ID[char.ability.id] : undefined;
+    const player = makeActor(
+      {
+        id: 'player',
+        defId: 'player',
+        name: char.name,
+        kind: 'player',
+        sprite: PROFESSION_SPRITES[char.profession] ?? 'krigare',
+        x: map.start.x,
+        y: map.start.y,
+        attrs: { ...char.attrs },
+        skills: { ...char.skills },
+        weapon: char.equipped.weapon ?? 'nave',
+        offhand: char.equipped.offhand,
+        armor: [...char.equipped.armor],
+        naturalArmor: 0,
+        shield: char.equipped.shield,
+        move: movement(char.attrs, race.move),
+        hostile: false,
+        detailed: true,
+        sight: FOV_RADIUS,
+        darkvision: !!race.darkvision,
+        silver: char.silver,
+        swordArm: char.swordHand === 'vänster' ? 'vänster arm' : 'höger arm',
+      },
+      {
+        profession: char.profession,
+        initiative:
+          (char.profession === 'krigare' ? INITIATIVE_MODS.stridsvana : 0) +
+          (ability?.passive?.initiative ?? 0) +
+          (char.techniques.includes('initiativbonus') ? INITIATIVE_MODS.initiativbonus : 0),
+        firstAlways: ability?.id === 'snabbslaende',
+      },
+    );
     const state: GameState = {
-      version: 2,
+      version: 4,
+      time: time.START_TIME,
       character: char,
       mapId,
       playerId: player.id,
@@ -85,38 +173,39 @@ export class Game {
       mode: 'explore',
       combat: null,
       flags: {},
+      dropped: [],
+      fearMet: [],
       log: [],
       nextId: 1,
     };
     for (const s of map.spawns) {
       const def = CREATURES[s.creature];
-      const hp = maxKp(def.attrs);
-      state.actors.push({
-        id: `a${state.nextId++}`,
-        defId: def.id,
-        name: def.name,
-        kind: def.npc ? 'npc' : 'monster',
-        sprite: def.sprite,
-        x: s.x,
-        y: s.y,
-        attrs: { ...def.attrs },
-        kp: hp,
-        maxKp: hp,
-        skills: { ...def.skills },
-        marks: [],
-        weapon: def.weapon,
-        armor: [...(def.armor ?? [])],
-        naturalArmor: def.naturalArmor ?? 0,
-        shield: def.shield,
-        move: def.move,
-        hostile: def.hostile,
-        sight: def.sight ?? 6,
-        alive: true,
-        silver: def.silver ? roll(def.silver, rng) : 0,
-        npc: def.npc,
-        deathFlag: def.deathFlag,
-        stunned: false,
-      });
+      state.actors.push(
+        makeActor(
+          {
+            id: `a${state.nextId++}`,
+            defId: def.id,
+            name: def.name,
+            kind: def.npc ? 'npc' : 'monster',
+            sprite: def.sprite,
+            x: s.x,
+            y: s.y,
+            attrs: { ...def.attrs },
+            skills: { ...def.skills },
+            weapon: def.weapon,
+            armor: [...(def.armor ?? [])],
+            naturalArmor: def.naturalArmor ?? 0,
+            shield: def.shield,
+            move: def.move,
+            hostile: def.hostile,
+            detailed: def.humanoid,
+            sight: def.sight ?? 6,
+            darkvision: !!def.darkvision,
+            silver: def.silver ? roll(def.silver, rng) : 0,
+          },
+          { npc: def.npc, deathFlag: def.deathFlag, leader: def.leader, noMorale: def.noMorale, fear: def.fear },
+        ),
+      );
     }
     const game = new Game(state, rng);
     game.log(`${char.name} anländer till ${map.name}.`);
@@ -134,7 +223,7 @@ export class Game {
   changed() {
     for (const fn of this.listeners) fn();
   }
-  private fx(actorId: string, text: string, kind: Fx['kind']) {
+  emit(actorId: string, text: string, kind: Fx['kind']) {
     for (const fn of this.fxListeners) fn({ actorId, text, kind });
   }
   log(text: string) {
@@ -175,117 +264,77 @@ export class Game {
     for (const i of this.visible) this.state.explored[i] = 1;
   }
 
-  private canSee(a: Actor, b: Actor): boolean {
+  canSee(a: Actor, b: Actor): boolean {
     return distance(a.x, a.y, b.x, b.y) <= a.sight && lineOfSight(this.map, a.x, a.y, b.x, b.y);
   }
 
   // ---------------------------------------------------------------- utforskning
 
-  /** Flyttar rollpersonen ett steg under utforskning. Returnerar false om steget inte gick. */
+  /** Flyttar rollpersonen ett steg under utforskning. Varje steg räknas som en stridsrunda. */
   stepPlayer(to: Point): boolean {
     if (this.state.mode !== 'explore') return false;
     const p = this.player;
-    if (distance(p.x, p.y, to.x, to.y) !== 1 || this.occupied(to.x, to.y)) return false;
+    if (!combat.canAct(p) || distance(p.x, p.y, to.x, to.y) !== 1 || this.occupied(to.x, to.y)) return false;
+    combat.face(p, to.x, to.y);
     p.x = to.x;
     p.y = to.y;
     this.updateFov();
-    this.checkAmbush();
+    combat.pickUp(this);
+    combat.tick(this, p);
+    time.advanceTime(this, 5, 'aktiv');
+    if (this.state.mode === 'explore') this.checkAmbush();
     this.changed();
     return true;
   }
 
   private hostilesAware(): Actor[] {
-    return this.state.actors.filter((a) => a.alive && a.hostile && this.canSee(a, this.player));
+    return this.state.actors.filter((a) => a.alive && a.hostile && !a.fled && this.canSee(a, this.player));
   }
 
   private checkAmbush() {
     const aware = this.hostilesAware();
-    if (aware.length) this.startCombat(aware);
+    if (aware.length) combat.startCombat(this, aware);
   }
 
   // ---------------------------------------------------------------- strid
 
-  startCombat(enemies: Actor[]) {
-    const p = this.player;
-    const order = [p, ...enemies]
-      .map((a) => ({ a, tie: this.rng() }))
-      .sort((l, r) => r.a.attrs.SMI - l.a.attrs.SMI || r.tie - l.tie)
-      .map((e) => e.a.id);
-    this.state.mode = 'combat';
-    this.state.combat = { round: 1, order, turn: -1, movesLeft: 0, acted: {}, parrying: {}, shieldUsed: {} };
-    const names = [...new Set(enemies.map((e) => e.name))].join(', ');
-    this.log(`⚔ Strid! ${names} går till anfall.`);
-    this.log(`— Runda 1 —`);
-    this.nextTurn();
-  }
-
-  isPlayerTurn(): boolean {
-    const c = this.state.combat;
-    return this.state.mode === 'combat' && !!c && c.order[c.turn] === this.state.playerId;
-  }
-
-  private nextTurn() {
-    const c = this.state.combat!;
-    for (;;) {
-      c.turn++;
-      if (c.turn >= c.order.length) {
-        if (!this.newRound(c)) return;
-        continue;
-      }
-      const a = this.actor(c.order[c.turn])!;
-      if (!a.alive) continue;
-      c.movesLeft = a.move;
-      if (a.stunned) {
-        a.stunned = false;
-        c.acted[a.id] = true;
-        this.log(`${a.name} återfår balansen och förlorar sin handling.`);
-      }
-      return;
-    }
-  }
-
-  /** Startar en ny runda. Returnerar false om striden tog slut. */
-  private newRound(c: CombatState): boolean {
-    const p = this.player;
-    const enemies = this.state.actors.filter(
-      (a) => a.alive && a.hostile && (this.canSee(a, p) || (c.order.includes(a.id) && distance(a.x, a.y, p.x, p.y) <= 10)),
-    );
-    if (!enemies.length) {
-      this.endCombat('Striden är över.');
+  /** Startar en strid med de fiender rollpersonen ser (knappen "Till strid"). */
+  startCombat(): boolean {
+    if (this.state.mode !== 'explore') return false;
+    const seen = this.state.actors.filter((a) => a.alive && a.hostile && !a.fled && this.isVisible(a.x, a.y));
+    if (!seen.length) {
+      this.log('Det finns inga fiender i sikte.');
+      this.changed();
       return false;
     }
-    for (const e of enemies) {
-      if (!c.order.includes(e.id)) {
-        c.order.push(e.id);
-        this.log(`${e.name} ansluter till striden!`);
-      }
-    }
-    c.order = c.order.filter((id) => this.actor(id)!.alive && (id === p.id || enemies.some((e) => e.id === id)));
-    c.round++;
-    c.turn = -1;
-    c.acted = {};
-    c.parrying = {};
-    c.shieldUsed = {};
-    this.log(`— Runda ${c.round} —`);
+    combat.startCombat(this, seen);
+    this.changed();
     return true;
   }
 
-  private endCombat(message: string) {
-    this.state.combat = null;
-    this.state.mode = 'explore';
-    this.log(message);
+  /** Rollpersonen styr sin tur själv (inte medvetslös, paralyserad, på flykt eller i bärsärkagång). */
+  isPlayerTurn(): boolean {
+    const c = this.state.combat;
+    if (this.state.mode !== 'combat' || !c || c.order[c.turn] !== this.state.playerId) return false;
+    const p = this.player;
+    return combat.canAct(p) && !combat.hasEffect(p, 'flyr') && !combat.hasEffect(p, 'bärsärk');
   }
 
-  /** Flyttar rollpersonen ett steg i strid. */
+  /** Flyttar rollpersonen ett steg i strid. Föremål på marken plockas upp om handlingen finns kvar. */
   combatStep(to: Point): boolean {
     if (!this.isPlayerTurn()) return false;
     const c = this.state.combat!;
     const p = this.player;
     if (c.movesLeft <= 0 || distance(p.x, p.y, to.x, to.y) !== 1 || this.occupied(to.x, to.y)) return false;
+    combat.face(p, to.x, to.y);
     p.x = to.x;
     p.y = to.y;
     c.movesLeft--;
     this.updateFov();
+    if (!c.acted[p.id] && this.state.dropped.some((d) => d.x === p.x && d.y === p.y) && combat.pickUp(this)) {
+      c.acted[p.id] = true;
+      c.movesLeft = 0;
+    }
     this.changed();
     return true;
   }
@@ -299,67 +348,88 @@ export class Game {
       !!t &&
       t.alive &&
       t.hostile &&
-      distance(p.x, p.y, t.x, t.y) <= 1
+      combat.canAttackNow(p) &&
+      combat.inReach(this, p, t)
     );
   }
 
   playerAttack(targetId: string): boolean {
     if (!this.canAttack(targetId)) return false;
-    this.resolveAttack(this.player, this.actor(targetId)!);
-    this.finishTurn();
+    combat.playerAttack(this, this.actor(targetId)!);
+    this.state.combat && (this.state.combat.acted[this.player.id] = true);
+    combat.finishTurn(this);
+    this.changed();
     return true;
   }
 
-  /** Rollpersonen avstår sitt anfall för att parera nästa träff. */
-  playerParry(): boolean {
-    if (!this.isPlayerTurn() || this.state.combat!.acted[this.player.id]) return false;
-    this.state.combat!.parrying[this.player.id] = true;
-    this.log(`${this.player.name} höjer garden och gör sig redo att parera.`);
-    this.finishTurn();
-    return true;
+  /** Väljer en kroppsdel att sikta på (−5 på CL), eller null för slumpvis träff. */
+  setAim(loc: HitLocation | null) {
+    if (this.state.combat) this.state.combat.aim = loc;
+    this.changed();
   }
 
   endTurn(): boolean {
     if (!this.isPlayerTurn()) return false;
-    this.finishTurn();
+    combat.finishTurn(this);
+    this.changed();
     return true;
   }
 
-  private finishTurn() {
-    const c = this.state.combat;
-    if (this.state.mode === 'combat' && c) {
-      c.acted[c.order[c.turn]] = true;
-      this.nextTurn();
-    }
-    this.changed();
+  /** Lägger förband på en blödande kroppsdel (Första hjälpen). I strid tar det hela handlingen. */
+  canBandage(): boolean {
+    const p = this.player;
+    if (!p.bleeding.length || !combat.canAct(p) || p.down || p.kp <= 1) return false;
+    if (!(['vänster arm', 'höger arm'] as HitLocation[]).every((a) => combat.limbUsable(p, a))) return false;
+    if (this.state.mode === 'combat') return this.isPlayerTurn() && !this.state.combat!.acted[p.id];
+    return this.state.mode === 'explore';
   }
 
-  /** Utför en fiendes hela tur. Anropas av gränssnittet tills det är rollpersonens tur igen. */
+  bandage(): boolean {
+    if (!this.canBandage()) return false;
+    const p = this.player;
+    const loc = p.bleeding[0];
+    const check = skillCheck(this.skillFv(p, 'forsta_hjalpen'), this.rng, combat.woundPenalty(p));
+    if (check.success) {
+      p.bleeding = p.bleeding.filter((l) => l !== loc);
+      this.gainExperience(p, 'forsta_hjalpen', check);
+      this.log(`${p.name} lägger förband på ${loc} (Första hjälpen, ${describe(check)}). Blödningen stannar.`);
+    } else this.log(`${p.name} försöker lägga förband på ${loc} men misslyckas (Första hjälpen, ${describe(check)}).`);
+    if (this.state.mode === 'combat') {
+      this.state.combat!.acted[p.id] = true;
+      combat.finishTurn(this);
+    } else combat.tick(this, p);
+    this.changed();
+    return true;
+  }
+
+  /** Fel som kräver en hel runda att rätta till (t.ex. trasiga kläder efter en fummel). */
+  canFix(): boolean {
+    return this.isPlayerTurn() && !this.state.combat!.acted[this.player.id] && this.player.effects.some((e) => e.untilFixed);
+  }
+
+  fix(): boolean {
+    if (!this.canFix()) return false;
+    const p = this.player;
+    p.effects = p.effects.filter((e) => !e.untilFixed);
+    this.log(`${p.name} lägger rundan på att rätta till utrustningen.`);
+    this.state.combat!.acted[p.id] = true;
+    combat.finishTurn(this);
+    this.changed();
+    return true;
+  }
+
+  /** Utför en tur som rollpersonen inte styr: en varelse, eller rollpersonen under skräck. */
   enemyTurn(): boolean {
     const c = this.state.combat;
     if (this.state.mode !== 'combat' || !c || this.isPlayerTurn()) return false;
-    const a = this.actor(c.order[c.turn])!;
-    const p = this.player;
-    const path = findPath(this.map, a, p, (x, y) => this.occupied(x, y), true);
-    if (path) {
-      for (const step of path) {
-        if (c.movesLeft <= 0 || distance(a.x, a.y, p.x, p.y) <= 1) break;
-        a.x = step.x;
-        a.y = step.y;
-        c.movesLeft--;
-      }
-    }
-    if (!c.acted[a.id] && distance(a.x, a.y, p.x, p.y) <= 1) this.resolveAttack(a, p);
-    this.finishTurn();
+    combat.autoTurn(this);
+    this.changed();
     return true;
   }
 
-  /** Vapnet som aktören för: namn, skada, färdighet och om skadebonus gäller. */
-  weaponOf(a: Actor): { name: string; damage: string; skill: string; useDamageBonus: boolean } {
-    const natural = NATURAL_WEAPONS[a.weapon];
-    if (natural) return natural;
-    const w = WEAPONS[a.weapon];
-    return { name: w.name, damage: w.damage, skill: weaponSkill(w, a.attrs.STY), useDamageBonus: w.kind === 'närstrid' };
+  /** Vapnet som aktören för: namn, skada, färdighet och räckvidd. */
+  weaponOf(a: Actor, slot: 'weapon' | 'offhand' = 'weapon') {
+    return combat.weaponInfo(a, slot);
   }
 
   /**
@@ -375,106 +445,44 @@ export class Game {
     return Math.max(own ?? 0, Math.ceil(best / 2));
   }
 
-  private mark(a: Actor, skill: string) {
-    if (a.kind === 'player' && a.skills[skill] !== undefined && !a.marks.includes(skill)) a.marks.push(skill);
+  /** Erfarenhetspoäng för en lyckad användning (se time.ts). */
+  gainExperience(a: Actor, skill: string, check: Check) {
+    time.gainExperience(this, a, skill, check);
+  }
+
+  /** Avdraget på alla färdighetsslag för kroppsdelar på 0 KP. */
+  woundPenaltyOf(a: Actor): number {
+    return combat.woundPenalty(a);
+  }
+
+  die(a: Actor) {
+    combat.kill(this, a);
+  }
+
+  private uiListeners: ((name: 'training') => void)[] = [];
+  onUi(fn: (name: 'training') => void) {
+    this.uiListeners.push(fn);
+  }
+  /** Ber gränssnittet öppna en vy (t.ex. träningen efter en veckas vila). */
+  openUi(name: 'training') {
+    for (const fn of this.uiListeners) fn(name);
   }
 
   /** Absorbering på en kroppsdel: rustningsdelen som täcker den plus naturligt skydd. */
   armorAt(a: Actor, loc: HitLocation): number {
-    const worn = a.armor.map((id) => ARMOR[id]).filter((p) => p?.covers.includes(loc));
-    return a.naturalArmor + Math.max(0, ...worn.map((p) => p.abs));
+    return a.naturalArmor + (combat.armorPiece(a, loc)?.abs ?? 0);
   }
 
   /** Tar på en rustningsdel och tar av de delar som täcker samma kroppsdelar. */
   equipArmor(id: string) {
     const p = this.player;
     const covers = new Set(ARMOR[id].covers);
-    p.armor = [...p.armor.filter((a) => !ARMOR[a].covers.some((c) => covers.has(c))), id];
+    const off = p.armor.filter((a) => ARMOR[a].covers.some((c) => covers.has(c)));
+    for (const a of off) delete p.bv[a];
+    p.armor = [...p.armor.filter((a) => !off.includes(a)), id];
+    p.bv[id] = combat.armorBv(id);
     this.state.character.equipped.armor = [...p.armor];
     if (!this.state.character.inventory.includes(id)) this.state.character.inventory.push(id);
-  }
-
-  private resolveAttack(att: Actor, def: Actor) {
-    const c = this.state.combat!;
-    const weapon = this.weaponOf(att);
-    const check = skillCheck(this.skillFv(att, weapon.skill), this.rng);
-    const head = `${att.name} anfaller ${def.name} med ${weapon.name.toLowerCase()} (${describe(check)})`;
-
-    if (check.result === 'fummel') {
-      att.stunned = true;
-      this.log(`${head}: fummel! ${att.name} tappar balansen.`);
-      this.fx(att.id, 'Fummel!', 'miss');
-      return;
-    }
-    if (!check.success) {
-      this.log(`${head}: miss.`);
-      this.fx(def.id, 'Miss', 'miss');
-      return;
-    }
-    this.mark(att, weapon.skill);
-
-    // Parering: med vapnet om försvararen valt att parera, annars med sköld (en gång per runda).
-    // Ett perfekt anfall går inte att parera.
-    let failedParry = '';
-    if (check.result !== 'perfekt' && !def.stunned) {
-      let parrySkill: string | null = null;
-      if (c.parrying[def.id]) {
-        parrySkill = this.weaponOf(def).skill;
-        c.parrying[def.id] = false;
-      } else if (def.shield && SHIELDS[def.shield] && !c.shieldUsed[def.id]) {
-        parrySkill = 'skoldar';
-        c.shieldUsed[def.id] = true;
-      }
-      if (parrySkill) {
-        const parry = skillCheck(this.skillFv(def, parrySkill), this.rng);
-        if (parry.success) {
-          this.mark(def, parrySkill);
-          this.log(`${head}: träff, men ${def.name} parerar (${describe(parry)}).`);
-          this.fx(def.id, 'Parerat', 'miss');
-          return;
-        }
-        failedParry = ` ${def.name} misslyckas med pareringen (${describe(parry)}).`;
-      }
-    }
-
-    // Perfekt anfall: maximal skada med maximal skadebonus, och rustningen hjälper inte.
-    const perfect = check.result === 'perfekt';
-    const sb = weapon.useDamageBonus ? damageBonus(att.attrs) : '';
-    const expr = sb ? `${weapon.damage}+${sb}` : weapon.damage;
-    let dmg = perfect ? maxRoll(expr) : roll(expr, this.rng);
-    const loc = lookup(HIT_TABLE.närstrid, roll('1T20', this.rng))!;
-    const abs = perfect ? 0 : this.armorAt(def, loc);
-    dmg = Math.max(0, dmg - abs);
-    def.kp -= dmg;
-    const where = ` i ${loc}`;
-    const perfectText = perfect ? ' Perfekt slag – maximal skada och rustningen hjälper inte!' : '';
-    this.log(
-      dmg > 0
-        ? `${head}: träff${where} för ${dmg} i skada${abs ? ` (rustningen tar ${abs})` : ''}.${perfectText}${failedParry}`
-        : `${head}: träff${where}, men rustningen tar hela smällen.${failedParry}`,
-    );
-    this.fx(def.id, dmg > 0 ? `-${dmg}` : '0', 'damage');
-    if (def.kp <= 0) this.kill(def, att);
-  }
-
-  private kill(victim: Actor, killer: Actor) {
-    victim.alive = false;
-    victim.kp = 0;
-    if (victim.kind === 'player') {
-      this.state.mode = 'dead';
-      this.state.combat = null;
-      this.log(`☠ ${victim.name} faller till marken. Äventyret är slut.`);
-      return;
-    }
-    this.log(`${victim.name} dör.`);
-    if (victim.deathFlag) this.state.flags[victim.deathFlag] = true;
-    if (victim.silver > 0 && killer.kind === 'player') {
-      killer.silver += victim.silver;
-      this.log(`Du hittar ${victim.silver} silvermynt.`);
-    }
-    if (!this.state.actors.some((a) => a.alive && a.hostile && this.state.combat?.order.includes(a.id))) {
-      this.endCombat('Striden är vunnen!');
-    }
   }
 
   // ---------------------------------------------------------------- övrigt
@@ -485,38 +493,63 @@ export class Game {
     if (!a || !a.alive) return;
     a.hostile = true;
     a.kind = 'monster';
-    this.startCombat([a]);
+    combat.startCombat(this, [a]);
     this.changed();
   }
 
   /** Färdighetsslag för rollpersonen, med logg och erfarenhetskryss. */
   playerCheck(skill: string, modifier = 0): Check {
     const p = this.player;
-    const check = skillCheck(this.skillFv(p, skill), this.rng, modifier);
-    if (check.success) this.mark(p, skill);
+    const check = skillCheck(this.skillFv(p, skill), this.rng, modifier + combat.woundPenalty(p));
+    this.gainExperience(p, skill, check);
     this.log(`${skill} (${describe(check)}): ${check.result}.`);
     return check;
   }
 
-  /** Vila: full läkning och förbättringsslag för alla färdigheter med erfarenhetskryss. */
-  rest(): string[] {
-    const p = this.player;
-    p.kp = p.maxKp;
-    const improved: string[] = [];
-    for (const skill of p.marks) {
-      if (improvementRoll(p.skills[skill], this.rng)) {
-        p.skills[skill]++;
-        improved.push(`${skill} ${p.skills[skill]}`);
-      }
-    }
-    p.marks = [];
-    return improved;
+  /** Sover ett antal timmar (som standard en natt). */
+  sleep(hours = 8) {
+    time.advanceTime(this, hours * HOUR, 'sömn');
+    this.changed();
   }
 
+  /** Kan rollpersonen vila här? Inte med fiender i sikte. */
+  canRest(): boolean {
+    return this.state.mode === 'explore' && combat.canAct(this.player) && !this.state.actors.some((a) => a.alive && a.hostile && !a.fled && this.isVisible(a.x, a.y));
+  }
+
+  /** Vilar en vecka (sju nätter). Därefter kan EP växlas in mot FV och fobier mildras. */
+  restWeek() {
+    time.advanceTime(this, 7 * DAY, 'sömn');
+    time.easePhobias(this);
+    this.changed();
+  }
+
+  /** Läkekonst på sig själv, en gång per dag. */
+  canSelfMedicine(): boolean {
+    const p = this.player;
+    return this.state.mode === 'explore' && combat.canAct(p) && p.skills.lakekonst !== undefined && time.canMedicine(this, p);
+  }
+
+  selfMedicine() {
+    if (!this.canSelfMedicine()) return;
+    time.medicine(this, this.player, this.player);
+    this.changed();
+  }
+
+  /** Läker KP i totala KP och fördelar samma mängd på de mest skadade kroppsdelarna. */
   heal(amount: number) {
     const p = this.player;
     const before = p.kp;
     p.kp = Math.min(p.maxKp, p.kp + amount);
-    this.fx(p.id, `+${p.kp - before}`, 'heal');
+    let left = p.kp - before;
+    while (left > 0) {
+      const worst = HIT_LOCATIONS.filter((l) => p.locKp[l] < p.locMax[l]).sort((a, b) => p.locKp[a] - p.locMax[a] - (p.locKp[b] - p.locMax[b]))[0];
+      if (!worst) break;
+      p.locKp[worst]++;
+      if (p.locKp[worst] > 0 && !p.injuries.some((i) => i.loc === worst && i.lost)) p.disabled = p.disabled.filter((l) => l !== worst);
+      left--;
+    }
+    if (p.kp > 1 && !(['bröstkorg', 'mage'] as HitLocation[]).some((l) => p.locKp[l] <= 0)) p.down = false;
+    this.emit(p.id, `+${p.kp - before}`, 'heal');
   }
 }

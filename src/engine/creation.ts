@@ -87,7 +87,7 @@ export interface Draft {
   halfCost?: string;
   /** Köpt utrustning: id → antal. */
   bought_items: Record<string, number>;
-  equipped: { weapon?: string; shield?: string; armor: string[] };
+  equipped: { weapon?: string; offhand?: string; shield?: string; armor: string[] };
   appearance: string;
 }
 
@@ -565,6 +565,13 @@ export function stepErrors(d: Draft, step: Step): string[] {
       if (w && grip(w.styReq, attrs.STY, w.kind === 'närstrid' && w.twoHandedOnly) === 'för tungt') errors.push(`${w.name} är för tungt för STY ${attrs.STY}.`);
       if (w && d.equipped.shield && (w.kind === 'projektil' || grip(w.styReq, attrs.STY, w.kind === 'närstrid' && w.twoHandedOnly) !== 'en hand'))
         errors.push(`${w.name} kräver två händer och kan inte kombineras med sköld.`);
+      const off = d.equipped.offhand ? WEAPONS[d.equipped.offhand] : undefined;
+      if (off) {
+        if (d.equipped.shield) errors.push('Man kan inte ha både sköld och ett andra vapen.');
+        if (off.kind !== 'närstrid' || grip(off.styReq, attrs.STY, off.twoHandedOnly) !== 'en hand') errors.push(`${off.name} kan inte föras med en hand.`);
+        if (w && grip(w.styReq, attrs.STY, w.kind === 'närstrid' && w.twoHandedOnly) !== 'en hand') errors.push(`${w.name} kräver två händer, så det finns ingen hand över.`);
+        if (off.id === d.equipped.weapon && (d.bought_items[off.id] ?? 0) < 2) errors.push(`Köp två exemplar av ${off.name.toLowerCase()} för att ha ett i varje hand.`);
+      }
       const covered = new Set<string>();
       for (const id of d.equipped.armor) {
         for (const loc of ARMOR[id].covers) {
@@ -572,7 +579,7 @@ export function stepErrors(d: Draft, step: Step): string[] {
           covered.add(loc);
         }
       }
-      for (const id of [d.equipped.weapon, d.equipped.shield, ...d.equipped.armor]) {
+      for (const id of [d.equipped.weapon, d.equipped.offhand, d.equipped.shield, ...d.equipped.armor]) {
         if (id && !d.bought_items[id]) errors.push(`${equipmentName(id)} måste köpas först.`);
       }
       break;
@@ -656,7 +663,7 @@ export function finalize(d: Draft): Character {
     capital,
     silver: capital - equipmentCost(d),
     inventory: Object.entries(d.bought_items).flatMap(([id, n]) => Array.from({ length: n }, () => id)),
-    equipped: { weapon: d.equipped.weapon, shield: d.equipped.shield, armor: [...d.equipped.armor] },
+    equipped: { weapon: d.equipped.weapon, offhand: d.equipped.offhand, shield: d.equipped.shield, armor: [...d.equipped.armor] },
     appearance: d.appearance.trim(),
   };
 }

@@ -1,17 +1,17 @@
 import { requestTurn, scriptedTurn, type DialogEntry } from '../ai/dialogClient';
 import { NPCS } from '../content';
-import { ABILITY_BY_ID } from '../data/abilities';
 import { ARMOR, SHIELDS } from '../data/armor';
 import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
-import { SKILLS } from '../data/skills';
-import { SPELLS } from '../data/spells';
-import { skillName } from '../engine/creation';
+import { activeHostiles, damageExpr, effectiveMove, isOut } from '../engine/combat';
 import type { Game } from '../engine/game';
 import { INTENTS } from '../engine/intents';
-import { damageBonus } from '../engine/rules';
-import { ATTR_KEYS, type Actor } from '../engine/types';
+import { HIT_LOCATIONS, type HitLocation } from '../engine/rules';
+import type { Actor } from '../engine/types';
+import { clockText } from '../engine/time';
 import { portraitUrl } from '../game/art';
+import { bodyFigure } from './figure';
+import { renderSheet } from './sheet';
 
 export const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -22,32 +22,68 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text
   return node;
 }
 
-/** Rollformulär, logg och stridspanel. */
+function button(text: string, onClick: () => void, cls = '', disabled = false): HTMLButtonElement {
+  const b = el('button', cls, text);
+  b.onclick = onClick;
+  b.disabled = disabled;
+  return b;
+}
+
+const LOC_SHORT: Record<HitLocation, string> = {
+  huvud: 'Huvud',
+  bröstkorg: 'Bröst',
+  mage: 'Mage',
+  'vänster arm': 'V. arm',
+  'höger arm': 'H. arm',
+  'vänster ben': 'V. ben',
+  'höger ben': 'H. ben',
+};
+
+/** Statuspanel, rollformulär, logg och stridspanel. */
 export class Hud {
   private logCount = -1;
 
   constructor(private g: Game) {
     $('hud').hidden = false;
-    $('btn-parry').onclick = () => g.playerParry();
-    $('btn-end').onclick = () => g.endTurn();
-    $('btn-sheet').onclick = () => $('sheet').classList.toggle('open');
+    $('btn-sheet').onclick = () => $('status').classList.toggle('open');
+    $('rf-close').onclick = () => this.toggleSheet(false);
+    $('rollformular').onclick = (e) => {
+      if (e.target === $('rollformular')) this.toggleSheet(false);
+    };
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this.toggleSheet(false);
+      if ((e.key === 'r' || e.key === 'R') && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+        this.toggleSheet($('rollformular').hidden);
+      }
+    });
     g.onChange(() => this.render());
     this.render();
   }
 
+  private toggleSheet(open: boolean) {
+    $('rollformular').hidden = !open;
+    if (open) this.renderFullSheet();
+  }
+
   render() {
-    this.renderSheet();
+    this.renderStatus();
     this.renderLog();
-    this.renderCombat();
+    this.renderActions();
+    if (!$('rollformular').hidden) this.renderFullSheet();
     $('dead').hidden = this.g.state.mode !== 'dead';
   }
 
-  private renderSheet() {
+  private renderFullSheet() {
+    $('rf-content').replaceChildren(renderSheet(this.g));
+  }
+
+  /** Den lilla panelen: KP per kroppsdel, vapen, rustning och tillstånd. */
+  private renderStatus() {
     const g = this.g;
     const p = g.player;
     const ch = g.state.character;
-    const sheet = $('sheet');
-    sheet.replaceChildren();
+    const box = $('status');
+    box.replaceChildren();
 
     const who = el('div', 'who');
     const img = el('img');
@@ -61,52 +97,57 @@ export class Hud {
     fill.style.width = `${Math.max(0, (100 * p.kp) / p.maxKp)}%`;
     bar.append(fill, el('span', '', `KP ${p.kp} / ${p.maxKp}`));
 
-    const grid = el('div', 'grid');
-    for (const k of ATTR_KEYS) {
-      const cell = el('div', '', String(p.attrs[k]));
-      cell.prepend(el('small', '', k));
-      grid.append(cell);
+    const doll = el('div', 'doll');
+    const locs = el('div', 'locs');
+    for (const loc of HIT_LOCATIONS) {
+      const row = el('div', `loc${p.locKp[loc] <= 0 ? ' hurt' : p.locKp[loc] < p.locMax[loc] ? ' scratched' : ''}`);
+      const abs = g.armorAt(p, loc);
+      row.append(el('span', '', LOC_SHORT[loc]), el('b', '', `${p.locKp[loc]}/${p.locMax[loc]}`), el('small', '', abs ? `abs ${abs}` : ''));
+      if (p.bleeding.includes(loc)) row.append(el('em', 'bleed', '●'));
+      locs.append(row);
     }
+    doll.append(bodyFigure(p), locs);
 
-    const kv = (key: string, value: string, mark = false) => {
+    const kv = (key: string, value: string) => {
       const row = el('div', 'kv');
-      const left = el('span', '', key);
-      if (mark) left.append(el('span', 'mark', ' ✓'));
-      row.append(left, el('b', '', value));
+      row.append(el('span', '', key), el('b', '', value));
       return row;
     };
+    const gear: HTMLElement[] = [];
+    for (const slot of ['weapon', 'offhand'] as const) {
+      if (slot === 'offhand' && !p.offhand) continue;
+      const w = g.weaponOf(p, slot);
+      const bv = w.bvKey && p.bv[w.bvKey] !== undefined ? ` · BV ${p.bv[w.bvKey]}` : '';
+      gear.push(kv(`${w.name} (${g.skillFv(p, w.skill)})`, `${damageExpr(p, w)}${bv}`));
+    }
+    if (p.shield) gear.push(kv(`${SHIELDS[p.shield].name} (${g.skillFv(p, 'skoldar')})`, `BV ${p.bv.shield ?? 0}`));
+    for (const id of p.armor) {
+      const broken = (p.bv[id] ?? 1) <= 0;
+      gear.push(kv(ARMOR[id].name, broken ? 'sönder' : `abs ${ARMOR[id].abs} · BV ${p.bv[id]}`));
+    }
 
-    const weapon = g.weaponOf(p);
-    const sb = weapon.useDamageBonus ? damageBonus(p.attrs) : '';
-    const armor = p.armor.map((id) => ARMOR[id]).filter(Boolean);
-    const skills = Object.entries(p.skills).filter(([, fv]) => fv > 0);
-    const isProf = (k: string) => ch.profSkills.includes(k);
-    const isPrimary = (k: string) => SKILLS[k.split(':')[0]]?.type === 'primär';
-    const row = ([k, fv]: [string, number]) => kv(skillName(k), String(fv), p.marks.includes(k));
-    const byName = (a: [string, number], b: [string, number]) => skillName(a[0]).localeCompare(skillName(b[0]), 'sv');
-    const ability = ch.ability ? ABILITY_BY_ID[ch.ability.id] : null;
+    const states: string[] = [];
+    if (p.unconscious) states.push('Medvetslös');
+    if (p.down) states.push('Utslagen – kan bara krypa');
+    if (p.kp === 2) states.push('2 KP: halverad CL');
+    if (p.kp === 1) states.push('1 KP: kan inte använda färdigheter');
+    if (p.bleeding.length) states.push(`Blöder: ${p.bleeding.join(', ')}`);
+    for (const label of new Set(p.effects.map((e) => e.label))) states.push(label);
+    for (const inj of p.injuries) states.push(`${inj.loc}: ${inj.text}`);
+    for (const ph of ch.phobias ?? []) states.push(`Fobi (${ph.level}): ${ph.source}`);
 
-    sheet.append(
+    box.append(
       who,
       bar,
-      el('h3', '', 'Grundegenskaper'),
-      grid,
-      kv('Skadebonus', sb ? `+${sb}` : 'ingen'),
-      kv('Förflyttning', `${p.move} rutor`),
+      doll,
       el('h3', '', 'Utrustning'),
-      kv(`${weapon.name} (${g.skillFv(p, weapon.skill)})`, weapon.damage + (sb ? ` + ${sb}` : '')),
-      ...(p.shield ? [kv(`${SHIELDS[p.shield].name} (${g.skillFv(p, 'skoldar')})`, `BV ${SHIELDS[p.shield].bv}`)] : []),
-      ...(armor.length ? armor.map((a) => kv(a.name, `abs ${a.abs}`)) : [kv('Ingen rustning', 'abs 0')]),
+      ...gear,
+      kv('Förflyttning', `${effectiveMove(p)} rutor`),
+      kv('PSY-poäng', `${p.psy} / ${p.attrs.PSY}`),
       kv('Silvermynt', String(p.silver)),
-      ...(ability ? [el('h3', '', 'Särskild förmåga'), kv(ability.name, '')] : []),
-      el('h3', '', 'Yrkesfärdigheter'),
-      ...skills.filter(([k]) => isProf(k)).sort(byName).map(row),
-      el('h3', '', 'Primära färdigheter'),
-      ...skills.filter(([k]) => !isProf(k) && isPrimary(k)).sort(byName).map(row),
-      ...(skills.some(([k]) => !isProf(k) && !isPrimary(k)) ? [el('h3', '', 'Övriga färdigheter')] : []),
-      ...skills.filter(([k]) => !isProf(k) && !isPrimary(k)).sort(byName).map(row),
-      ...(Object.keys(ch.spells).length ? [el('h3', '', 'Besvärjelser')] : []),
-      ...Object.entries(ch.spells).map(([id, sv]) => kv(SPELLS[id].name, `S${sv}`)),
+      kv('Tid', clockText(g.state.time)),
+      ...(states.length ? [el('h3', '', 'Tillstånd'), ...states.map((s) => el('p', 'state', s))] : []),
+      button('Rollformulär (R)', () => this.toggleSheet(true), 'primary sheet-btn'),
     );
   }
 
@@ -115,22 +156,67 @@ export class Hud {
     if (log.length === this.logCount) return;
     this.logCount = log.length;
     const box = $('log');
-    box.replaceChildren(...log.slice(-60).map((line) => el('p', '', line)));
+    box.replaceChildren(...log.slice(-80).map((line) => el('p', line.startsWith('—') ? 'round' : '', line)));
     box.scrollTop = box.scrollHeight;
   }
 
-  private renderCombat() {
+  /** Stridspanelen med turordning och handlingar, eller knapparna under utforskning. */
+  private renderActions() {
     const { g } = this;
     const c = g.state.combat;
-    $('combat').hidden = g.state.mode !== 'combat' || !c;
-    if (g.state.mode !== 'combat' || !c) return;
+    const p = g.player;
+    const panel = $('combat');
+    panel.replaceChildren();
+    if (g.state.mode === 'dialog' || g.state.mode === 'dead') {
+      panel.hidden = true;
+      return;
+    }
+    panel.hidden = false;
+    if (g.state.mode !== 'combat' || !c) {
+      const hostiles = g.state.actors.some((a) => a.alive && a.hostile && !a.fled && g.isVisible(a.x, a.y));
+      panel.append(button('⚔ Till strid', () => g.startCombat(), 'danger', !hostiles));
+      if (p.bleeding.length) panel.append(button('Lägg förband', () => g.bandage(), '', !g.canBandage()));
+      if (g.canSelfMedicine()) panel.append(button('Läkekonst', () => g.selfMedicine()));
+      panel.append(button('Sov 8 timmar', () => g.sleep(8), '', !g.canRest()));
+      panel.classList.remove('fighting');
+      return;
+    }
+    panel.classList.add('fighting');
+
+    const order = el('div', 'order');
+    c.order.forEach((id, i) => {
+      const a = g.actor(id);
+      if (!a || (!a.hostile && a.kind !== 'player')) return;
+      const chip = el('span', `chip${i === c.turn ? ' now' : ''}${isOut(a) ? ' out' : ''}${a.kind === 'player' ? ' me' : ''}`);
+      chip.append(el('b', '', String(c.initiative[id] ?? '')), document.createTextNode(` ${a.name}`));
+      order.append(chip);
+    });
+
     const mine = g.isPlayerTurn();
-    const acted = !!c.acted[g.player.id];
-    $('combat-info').textContent = mine
-      ? `Runda ${c.round} · Din tur · ${c.movesLeft} steg kvar${acted ? ' · ingen handling' : ' · klicka på en fiende för att anfalla'}`
-      : `Runda ${c.round} · ${g.actor(c.order[c.turn])?.name ?? 'Fienden'} agerar…`;
-    $<HTMLButtonElement>('btn-parry').disabled = !mine || acted;
-    $<HTMLButtonElement>('btn-end').disabled = !mine;
+    const acted = !!c.acted[p.id];
+    const current = g.actor(c.order[c.turn]);
+    const info = el(
+      'span',
+      'info',
+      mine
+        ? `Runda ${c.round} · Din tur · ${c.movesLeft} steg kvar${acted ? ' · handlingen är gjord' : ' · klicka på en fiende för att anfalla'}`
+        : `Runda ${c.round} · ${current?.name ?? 'Fienden'} agerar…`,
+    );
+
+    const aim = el('select');
+    aim.title = 'Sikta på en kroppsdel ger −5 på anfallet';
+    aim.append(new Option('Slumpvis träff', ''));
+    for (const loc of HIT_LOCATIONS) aim.append(new Option(`Sikta: ${loc} (−5)`, loc, false, c.aim === loc));
+    aim.onchange = () => g.setAim((aim.value || null) as HitLocation | null);
+    aim.disabled = !mine;
+
+    const controls = el('div', 'controls');
+    controls.append(info, aim);
+    if (p.bleeding.length) controls.append(button('Lägg förband', () => g.bandage(), '', !g.canBandage()));
+    if (g.canFix()) controls.append(button('Rätta till', () => g.fix()));
+    controls.append(button('Avsluta tur', () => g.endTurn(), 'primary', !mine));
+    if (!activeHostiles(g).length) controls.append(el('span', 'info', 'Inga fiender kvar.'));
+    panel.append(order, controls);
   }
 }
 

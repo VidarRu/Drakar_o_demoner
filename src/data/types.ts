@@ -73,6 +73,8 @@ export interface RaceDef {
   weight?: 'plus-sty' | 'minus-20-sty';
   /** Tärningar för att slumpa grundegenskaper för en SLP av rasen (Bok II). */
   dice: Record<AttrKey, string>;
+  /** Ser i mörker utan ljuskälla och får inga avdrag för mörker i strid. */
+  darkvision?: boolean;
   traits: string[];
 }
 
