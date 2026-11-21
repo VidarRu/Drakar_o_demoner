@@ -1,5 +1,12 @@
 import { requestTurn, scriptedTurn, type DialogEntry } from '../ai/dialogClient';
-import { ARMORS, NPCS, PROFESSIONS, WEAPONS } from '../content';
+import { NPCS } from '../content';
+import { ABILITY_BY_ID } from '../data/abilities';
+import { ARMOR, SHIELDS } from '../data/armor';
+import { PROFESSIONS } from '../data/professions';
+import { RACES } from '../data/races';
+import { SKILLS } from '../data/skills';
+import { SPELLS } from '../data/spells';
+import { skillName } from '../engine/creation';
 import type { Game } from '../engine/game';
 import { INTENTS } from '../engine/intents';
 import { damageBonus } from '../engine/rules';
@@ -36,7 +43,9 @@ export class Hud {
   }
 
   private renderSheet() {
-    const p = this.g.player;
+    const g = this.g;
+    const p = g.player;
+    const ch = g.state.character;
     const sheet = $('sheet');
     sheet.replaceChildren();
 
@@ -44,7 +53,7 @@ export class Hud {
     const img = el('img');
     img.src = portraitUrl(p.sprite);
     const names = el('div');
-    names.append(el('h2', '', p.name), el('small', '', PROFESSIONS[p.profession!].name));
+    names.append(el('h2', '', p.name), el('small', '', `${RACES[ch.race].name}, ${PROFESSIONS[ch.profession].name.toLowerCase()}`));
     who.append(img, names);
 
     const bar = el('div', 'bar');
@@ -67,20 +76,37 @@ export class Hud {
       return row;
     };
 
-    const weapon = WEAPONS[p.weapon];
-    const sb = damageBonus(p.attrs);
+    const weapon = g.weaponOf(p);
+    const sb = weapon.useDamageBonus ? damageBonus(p.attrs) : '';
+    const armor = p.armor.map((id) => ARMOR[id]).filter(Boolean);
+    const skills = Object.entries(p.skills).filter(([, fv]) => fv > 0);
+    const isProf = (k: string) => ch.profSkills.includes(k);
+    const isPrimary = (k: string) => SKILLS[k.split(':')[0]]?.type === 'primär';
+    const row = ([k, fv]: [string, number]) => kv(skillName(k), String(fv), p.marks.includes(k));
+    const byName = (a: [string, number], b: [string, number]) => skillName(a[0]).localeCompare(skillName(b[0]), 'sv');
+    const ability = ch.ability ? ABILITY_BY_ID[ch.ability.id] : null;
+
     sheet.append(
       who,
       bar,
       el('h3', '', 'Grundegenskaper'),
       grid,
+      kv('Skadebonus', sb ? `+${sb}` : 'ingen'),
+      kv('Förflyttning', `${p.move} rutor`),
       el('h3', '', 'Utrustning'),
-      kv(weapon.name, weapon.damage + (sb ? (sb.startsWith('-') ? sb : `+${sb}`) : '')),
-      kv(p.armor ? ARMORS[p.armor].name : 'Ingen rustning', `abs ${p.armor ? ARMORS[p.armor].abs : 0}`),
-      ...(p.shield ? [kv('Sköld', 'parerar')] : []),
+      kv(`${weapon.name} (${g.skillFv(p, weapon.skill)})`, weapon.damage + (sb ? ` + ${sb}` : '')),
+      ...(p.shield ? [kv(`${SHIELDS[p.shield].name} (${g.skillFv(p, 'skoldar')})`, `BV ${SHIELDS[p.shield].bv}`)] : []),
+      ...(armor.length ? armor.map((a) => kv(a.name, `abs ${a.abs}`)) : [kv('Ingen rustning', 'abs 0')]),
       kv('Silvermynt', String(p.silver)),
-      el('h3', '', 'Färdigheter'),
-      ...Object.entries(p.skills).map(([name, fv]) => kv(name, String(fv), p.marks.includes(name))),
+      ...(ability ? [el('h3', '', 'Särskild förmåga'), kv(ability.name, '')] : []),
+      el('h3', '', 'Yrkesfärdigheter'),
+      ...skills.filter(([k]) => isProf(k)).sort(byName).map(row),
+      el('h3', '', 'Primära färdigheter'),
+      ...skills.filter(([k]) => !isProf(k) && isPrimary(k)).sort(byName).map(row),
+      ...(skills.some(([k]) => !isProf(k) && !isPrimary(k)) ? [el('h3', '', 'Övriga färdigheter')] : []),
+      ...skills.filter(([k]) => !isProf(k) && !isPrimary(k)).sort(byName).map(row),
+      ...(Object.keys(ch.spells).length ? [el('h3', '', 'Besvärjelser')] : []),
+      ...Object.entries(ch.spells).map(([id, sv]) => kv(SPELLS[id].name, `S${sv}`)),
     );
   }
 

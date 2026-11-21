@@ -2,21 +2,15 @@ export type AttrKey = 'STY' | 'STO' | 'FYS' | 'SMI' | 'INT' | 'PSY' | 'KAR';
 export const ATTR_KEYS: AttrKey[] = ['STY', 'STO', 'FYS', 'SMI', 'INT', 'PSY', 'KAR'];
 export type Attrs = Record<AttrKey, number>;
 
-export interface WeaponDef {
+/** Naturligt vapen eller obeväpnat anfall i äventyrsinnehållet (bett, näve). */
+export interface NaturalWeaponDef {
   id: string;
   name: string;
-  /** Färdigheten som används för att anfalla (och parera) med vapnet. */
-  skill: string;
   damage: string;
+  /** Färdigheten som används (t.ex. "slagsmal"), eller varelsens egen anfallsnyckel. */
+  skill: string;
   /** Om skadebonus läggs till skadan. */
   useDamageBonus: boolean;
-}
-
-export interface ArmorDef {
-  id: string;
-  name: string;
-  /** Absorberad skada per träff. */
-  abs: number;
 }
 
 export interface CreatureDef {
@@ -24,12 +18,14 @@ export interface CreatureDef {
   name: string;
   sprite: string;
   attrs: Attrs;
-  /** Sätts KP inte räknas det fram från STO och FYS. */
-  kp?: number;
   skills: Record<string, number>;
+  /** Vapen ur regeldatan eller ett naturligt vapen ur innehållet. */
   weapon: string;
-  armor?: string;
-  shield?: boolean;
+  /** Rustningsdelar ur regeldatan. */
+  armor?: string[];
+  /** Naturligt skydd (päls, hud). */
+  naturalArmor?: number;
+  shield?: string;
   /** Förflyttning i rutor per stridsrunda. */
   move: number;
   hostile: boolean;
@@ -56,18 +52,6 @@ export interface NpcDef {
   intents: string[];
 }
 
-export interface ProfessionDef {
-  id: string;
-  name: string;
-  desc: string;
-  sprite: string;
-  skills: Record<string, number>;
-  weapon: string;
-  armor?: string;
-  shield?: boolean;
-  silver: string;
-}
-
 export interface Actor {
   id: string;
   defId: string;
@@ -83,8 +67,9 @@ export interface Actor {
   /** Färdigheter som fått erfarenhetskryss. */
   marks: string[];
   weapon: string;
-  armor?: string;
-  shield: boolean;
+  armor: string[];
+  naturalArmor: number;
+  shield?: string;
   move: number;
   hostile: boolean;
   sight: number;
@@ -114,7 +99,9 @@ export interface CombatState {
 export type Mode = 'explore' | 'combat' | 'dialog' | 'dead';
 
 export interface GameState {
-  version: 1;
+  version: 2;
+  /** Rollformuläret för rollpersonen. */
+  character: Character;
   mapId: string;
   playerId: string;
   actors: Actor[];
@@ -126,8 +113,33 @@ export interface GameState {
   nextId: number;
 }
 
-export interface NewCharacter {
+/** En färdig rollperson enligt reglerna (skapas i engine/creation.ts). */
+export interface Character {
   name: string;
+  gender: 'man' | 'kvinna';
+  race: string;
   profession: string;
+  age: { group: string; years: number };
+  /** Slutliga grundegenskaper efter ras, förmåga och ålder. */
   attrs: Attrs;
+  maxKp: number;
+  swordHand: string;
+  social: string;
+  /** Särskild förmåga: tabellrad, summan av slaget och eventuellt val. */
+  ability: { id: string; total: number; choice?: unknown } | null;
+  /** Yrkesfärdigheter (nycklar), som är billigare att lära sig. */
+  profSkills: string[];
+  /** Tekniker i rollpersonens stridskonst. */
+  techniques: string[];
+  /** FV per färdighetsnyckel, t.ex. "smyga" eller "hantverk:smide". */
+  skills: Record<string, number>;
+  /** Skicklighetsvärde per besvärjelse. */
+  spells: Record<string, number>;
+  /** Startkapitalet i silvermynt och vad som är kvar efter inköpen. */
+  capital: number;
+  silver: number;
+  /** Ägda föremål (id ur regeldatan, ett per exemplar). */
+  inventory: string[];
+  equipped: { weapon?: string; shield?: string; armor: string[] };
+  appearance: string;
 }

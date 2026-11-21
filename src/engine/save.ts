@@ -1,6 +1,7 @@
 import type { GameState } from './types';
 
-const KEY = 'dod-save-v1';
+/** Version 2: rollpersoner skapade med bakgrundspoäng. Äldre sparningar kan inte läsas. */
+const KEY = 'dod-save-v2';
 
 export function saveGame(state: GameState) {
   try {
@@ -15,7 +16,7 @@ export function loadGame(): GameState | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const state = JSON.parse(raw) as GameState;
-    return state.version === 1 ? state : null;
+    return state.version === 2 ? state : null;
   } catch {
     return null;
   }
