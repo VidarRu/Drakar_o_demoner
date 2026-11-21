@@ -423,7 +423,7 @@ export const INFECTION = {
   /** Chans att infektionen blir kallbrand. */
   gangrene: 5,
   weeks: '1T4',
-  /** Husregel tills vidare: feber ger −5 på alla färdighetsslag medan infektionen varar. */
+  /** Husregel: feber ger −5 på alla färdighetsslag medan infektionen varar. */
   feverCl: -5,
 };
 

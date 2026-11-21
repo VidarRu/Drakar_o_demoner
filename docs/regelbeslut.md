@@ -130,12 +130,13 @@ Dessa val gjordes när striden byggdes. Vidar har godkänt dem eller ändrat dem
 - **Läkekonst** kan slås en gång per dag och patient. Lyckas slaget läks 1 KP extra, och en infektion hävs. Gumman Asta har FV 15 i Läkekonst.
 - **Medvetslöshet:** den som faller på 0 KP är medvetslös i 1T4 timmar och kan sedan inte göra något förrän totala KP (och huvudets KP) är positiva igen. Det sker genom läkningen ovan.
 - **Infektioner** (Bok II): efter en strid slås för varje skadad kroppsdel, 1 % per skadepoäng från eggvapen och 3 % från smutsiga och naturliga vapen. Trubbiga vapen och nävar infekterar inte. Sår under ringbrynja infekteras inte, och alver är immuna. Infektionen varar 1T4 veckor, och kroppsdelen läker inte under tiden. Med 5 % chans blir den kallbrand: en arm eller ett ben amputeras, i huvud, bröstkorg eller mage dör man.
-- **Feber (fråga):** boken säger att den infekterade inte kan göra något aktivt. Tills vidare ger infektionen −5 på alla färdighetsslag.
+- **Feber (husregel):** medan infektionen varar är man matt och febrig och får −5 på alla färdighetsslag. (Boken säger att man inte kan göra något aktivt.)
 - **Amputation:** FYS sjunker för alltid med kroppsdelens KP, KP räknas om, och det tar fyra veckor att hämta sig. Ett krossat ben (kritisk skada 10) amputeras efter striden.
 - **PSY-poäng** återfås med 1 per timmes vila, eller 1 per tre timmar under aktivitet.
 - **Erfarenhetspoäng** (Bok I): den första lyckade användningen av en färdighet efter en sömn på minst sex timmar (två för alver) ger 1 EP, ett perfekt slag 1T3+1. Färdigheter i kategori B ger inga EP genom erfarenhet. EP samlas per färdighet.
 - **Inväxling:** EP kan bara växlas in efter en sammanhängande vila på minst sju dagar (en veckas vila på värdshuset). Kostnaden följer kostnadstabellen med grundkostnad 2 för primära färdigheter, 3 för yrkesfärdigheter och 5 för sekundära. Sekundära färdigheter och B-färdigheter kan inte bli högre än sin grundegenskap.
 - **Bonus-EP:** ett lyckat uppdrag ger 3 bonus-EP som fördelas fritt vid träningen.
+- **Fler sätt att få erfarenhet:** Vidar vill att man ska kunna få EP på fler sätt än ovan. Det gås igenom i ett senare steg.
 - **Ensamträning:** en vecka i taget; ett Normalt grundegenskapsslag ger 1 EP. Kost och logi kostar 70 sm i veckan. Träning med lärare finns inte än.
 - **Fobier:** efter en veckas vila slås ett Normalt PSY-slag för varje fobi. Lyckas det blir den ett steg lindrigare.
 

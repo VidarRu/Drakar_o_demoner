@@ -39,7 +39,7 @@ besvärjelsernas detaljer eller reglerna för infektioner och läkning.
 - `src/engine/time.ts`: `advanceTime` driver klockan, läkning (1 KP per dag, halvt utan vila), PSY-poäng, effekter i dagar och att sömn låser upp EP. `rollInfections` körs efter striden, `amputate` vid kallbrand och krossade ben, `medicine` är Läkekonst en gång per dag.
 - EP samlas per färdighet i `Actor.ep` (`gainExperience` vid lyckade slag, även anfall, parering, Två vapen och Dra vapen). De växlas in i träningsvyn efter en veckas vila (`vila_vecka` på värdshuset). Bonus-EP från uppdraget ligger i `Character.bonusEp`.
 - I gränssnittet finns klockan och PSY i statuspanelen, knapparna "Sov 8 timmar" och "Läkekonst", och gumman Asta vårdar med Läkekonst.
-- Saknas: träning med lärare, PSY-höjning efter kamper PSY mot PSY (hör till magin), hjältepoäng, och att den som har feber egentligen inte ska kunna göra något aktivt (se frågan i regelbeslut).
+- Saknas: träning med lärare, PSY-höjning efter kamper PSY mot PSY (hör till magin), hjältepoäng, och fler sätt att få erfarenhet (Vidar vill gå igenom det senare). Feber ger −5 på allt (godkänd husregel).
 
 ## Hur koden hänger ihop
 
@@ -85,6 +85,6 @@ att skapa ett spel med `Game.create(testCharacter())`, lägga `JSON.stringify(g.
 
 ## Öppna frågor till Vidar
 
-- Feber vid infektion: boken säger att man inte kan göra något aktivt i 1T4 veckor. Nu ger den −5 på allt. Hur vill du ha det?
+- Fler sätt att få erfarenhet: Vidar vill gå igenom det i ett senare steg.
 - Magins husregler som saknas (se steg 6).
 - Ska spelaren få fler figurer, en per yrke eller ras?
