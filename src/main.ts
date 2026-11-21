@@ -6,12 +6,14 @@ import { WorldScene } from './game/WorldScene';
 import { mountCreator } from './ui/creation';
 import { $, DialogUi, Hud } from './ui/hud';
 import { Minimap } from './ui/minimap';
+import { TrainingUi } from './ui/training';
 
 function launch(game: Game) {
   $('start').hidden = true;
   const dialog = new DialogUi(game);
   new Hud(game);
   new Minimap(game);
+  new TrainingUi(game);
   game.onChange(() => {
     if (game.state.mode === 'explore') saveGame(game.state);
     else if (game.state.mode === 'dead') clearSave();

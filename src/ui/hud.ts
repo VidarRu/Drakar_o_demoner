@@ -8,6 +8,7 @@ import type { Game } from '../engine/game';
 import { INTENTS } from '../engine/intents';
 import { HIT_LOCATIONS, type HitLocation } from '../engine/rules';
 import type { Actor } from '../engine/types';
+import { clockText } from '../engine/time';
 import { portraitUrl } from '../game/art';
 import { bodyFigure } from './figure';
 import { renderSheet } from './sheet';
@@ -133,6 +134,7 @@ export class Hud {
     if (p.bleeding.length) states.push(`Blöder: ${p.bleeding.join(', ')}`);
     for (const label of new Set(p.effects.map((e) => e.label))) states.push(label);
     for (const inj of p.injuries) states.push(`${inj.loc}: ${inj.text}`);
+    for (const ph of ch.phobias ?? []) states.push(`Fobi (${ph.level}): ${ph.source}`);
 
     box.append(
       who,
@@ -141,7 +143,9 @@ export class Hud {
       el('h3', '', 'Utrustning'),
       ...gear,
       kv('Förflyttning', `${effectiveMove(p)} rutor`),
+      kv('PSY-poäng', `${p.psy} / ${p.attrs.PSY}`),
       kv('Silvermynt', String(p.silver)),
+      kv('Tid', clockText(g.state.time)),
       ...(states.length ? [el('h3', '', 'Tillstånd'), ...states.map((s) => el('p', 'state', s))] : []),
       button('Rollformulär (R)', () => this.toggleSheet(true), 'primary sheet-btn'),
     );
@@ -172,6 +176,8 @@ export class Hud {
       const hostiles = g.state.actors.some((a) => a.alive && a.hostile && !a.fled && g.isVisible(a.x, a.y));
       panel.append(button('⚔ Till strid', () => g.startCombat(), 'danger', !hostiles));
       if (p.bleeding.length) panel.append(button('Lägg förband', () => g.bandage(), '', !g.canBandage()));
+      if (g.canSelfMedicine()) panel.append(button('Läkekonst', () => g.selfMedicine()));
+      panel.append(button('Sov 8 timmar', () => g.sleep(8), '', !g.canRest()));
       panel.classList.remove('fighting');
       return;
     }

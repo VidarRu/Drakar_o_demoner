@@ -5,6 +5,7 @@ import type { ArmorDef, MeleeWeaponDef } from '../data/types';
 import { WEAPONS, weaponSkill } from '../data/weapons';
 import { die, maxRoll, roll } from './dice';
 import type { Game } from './game';
+import { advanceTime, amputate, rollInfections, woundKind } from './time';
 import { distance, findPath, lineOfSight, tileAt, walkable } from './map';
 import {
   ARMOR_BV_FACTOR,
@@ -24,7 +25,10 @@ import {
   lookup,
   MELEE_MODS,
   MORALE_MODS,
+  DAY,
+  HOUR,
   PARRY_PENALTY,
+  ROUND_SECONDS,
   skillCheck,
   TWO_HAND_BONUS,
   WEAR_CHANCE,
@@ -127,14 +131,17 @@ export function limbUsable(a: Actor, loc: HitLocation): boolean {
   return true;
 }
 
-/** −2 på CL per förlorad KP i kroppsdelarna som behövs, plus bestående skador. */
-function woundMod(a: Actor, locs: HitLocation[]): number {
+/**
+ * Husregel: −2 på alla färdighetsslag för varje kroppsdel (utom huvudet) som står på 0 KP eller
+ * lägre. Bestående skador ger sitt avdrag på det som kräver den kroppsdelen.
+ */
+export function woundPenalty(a: Actor, locs: HitLocation[] = []): number {
   if (!a.detailed) return 0;
   let mod = 0;
-  for (const loc of locs) {
-    mod += LOCATION_WOUND_PENALTY * Math.max(0, a.locMax[loc] - a.locKp[loc]);
-    for (const inj of a.injuries) if (inj.loc === loc) mod += inj.cl;
+  for (const loc of Object.keys(a.locKp) as HitLocation[]) {
+    if (loc !== 'huvud' && a.locKp[loc] <= 0) mod += LOCATION_WOUND_PENALTY;
   }
+  for (const inj of a.injuries) if (locs.includes(inj.loc)) mod += inj.cl;
   return mod;
 }
 
@@ -427,7 +434,7 @@ function computeCl(
     notes.push(`${signed(v)} ${label}`);
     if (label === 'mörker' || label === 'fackelsken') dark = true;
   }
-  const wound = woundMod(a, arms);
+  const wound = woundPenalty(a, arms);
   if (wound) {
     mod += wound;
     notes.push(`${signed(wound)} skador`);
@@ -496,6 +503,7 @@ export function playerAttack(g: Game, target: Actor) {
   if (p.offhand && limbUsable(p, shieldArm(p)) && p.skills.tva_vapen !== undefined) {
     const tv = skillCheck(g.skillFv(p, 'tva_vapen'), g.rng);
     both = tv.success;
+    g.gainExperience(p, 'tva_vapen', tv);
     g.log(`Två vapen (${short(tv)}): ${both ? 'anfaller med båda vapnen' : 'bara med svärdshanden'}.`);
   }
   attackOnce(g, p, target, 'weapon');
@@ -561,51 +569,26 @@ export function attackOnce(g: Game, att: Actor, def: Actor, slot: WeaponSlot) {
     return;
   }
 
-  const parry = exposed?.noParry ? null : tryParry(g, def, att, w);
+  g.gainExperience(att, w.skill, check);
+  // Husregel: ett misslyckat anfall behöver inte pareras.
   if (!check.success) {
-    if (!parry) {
-      g.log(`${head}: miss.`);
-      g.emit(def.id, 'Miss', 'miss');
-    } else if (parry.check.result === 'fummel') {
-      g.log(`${head}: miss. ${def.name} fumlar med pareringen (${parry.text})!`);
-      fumble(g, def, parry.table, parry.slot);
-    } else if (parry.check.success) {
-      g.log(`${head}: miss. ${def.name} parerar med ${parry.name} (${parry.text}).`);
-      g.emit(def.id, 'Parerat', 'miss');
-      // Anfallarens vapen kan skadas mot pareringen.
-      const dmg = rollDamage(g, att, w, false);
-      if (w.bvKey && att.bv[w.bvKey] !== undefined && dmg > att.bv[w.bvKey]) wearItem(g, att, w.bvKey, 'tar skada mot pareringen');
-      if (w.unarmed && parry.slot !== 'shield' && !parry.unarmed && att.detailed) {
-        const self = Math.max(0, roll('1T2-1', g.rng));
-        if (self) {
-          g.log(`${att.name} slår sig mot vapnet och tar ${self} KP i armen.`);
-          wound(g, att, self, att.swordArm);
-        }
-      }
-    } else {
-      g.log(`${head}: miss. ${def.name} parerar också fel (${parry.text}).`);
-      g.emit(def.id, 'Miss', 'miss');
-    }
+    g.log(`${head}: miss.`);
+    g.emit(def.id, 'Miss', 'miss');
     return;
   }
 
+  const parry = exposed?.noParry ? null : tryParry(g, def, att, w);
   if (parry) {
     if (parry.check.result === 'fummel') {
       g.log(`${head}: träff! ${def.name} fumlar med pareringen (${parry.text}).`);
       fumble(g, def, parry.table, parry.slot);
-    } else if (parry.check.result === 'perfekt') {
-      g.log(`${head}: träff, men ${def.name} parerar perfekt med ${parry.name} (${parry.text}).`);
-      g.emit(def.id, 'Parerat', 'miss');
-      return;
     } else if (parry.check.success) {
-      const dmg = rollDamage(g, att, w, false);
-      g.log(`${head}: träff, men ${def.name} parerar med ${parry.name} (${parry.text}).`);
+      // Husregel: en lyckad parering stoppar all skada. Föremålet kan ändå tappa BV.
+      g.log(`${head}: träff, men ${def.name} parerar${parry.check.result === 'perfekt' ? ' perfekt' : ''} med ${parry.name} (${parry.text}).`);
       g.emit(def.id, 'Parerat', 'miss');
-      if (parry.bvKey && !w.noParryWear && def.bv[parry.bvKey] !== undefined && dmg > def.bv[parry.bvKey]) {
-        const before = def.bv[parry.bvKey];
-        wearItem(g, def, parry.bvKey, 'tar skada av hugget');
-        // Går pareringsföremålet sönder tar försvararen den överskjutande skadan.
-        if (before === 1 && dmg > before) hit(g, att, def, w, { damage: dmg - before, aim });
+      if (parry.check.result !== 'perfekt' && parry.bvKey && !w.noParryWear && def.bv[parry.bvKey] !== undefined) {
+        const dmg = rollDamage(g, att, w, false);
+        if (dmg > def.bv[parry.bvKey]) wearItem(g, def, parry.bvKey, 'tar skada av hugget');
       }
       return;
     } else {
@@ -640,7 +623,7 @@ function tryParry(g: Game, def: Actor, att: Actor, aw: WeaponInfo): Parry | null
   const light = lightMod(g, def, att);
   const halve = aw.entangling ? 'halverad mot kätting' : undefined;
 
-  type Option = { x: Cl; slot: WeaponSlot | 'shield'; name: string; bvKey: string | null; table: FumbleTable; unarmed: boolean; free: boolean };
+  type Option = { x: Cl; skill: string; slot: WeaponSlot | 'shield'; name: string; bvKey: string | null; table: FumbleTable; unarmed: boolean; free: boolean };
   const options: Option[] = [];
   const penalty = PARRY_PENALTY * used.count;
   const sit = (p: number): [string, number][] => [
@@ -655,14 +638,14 @@ function tryParry(g: Game, def: Actor, att: Actor, aw: WeaponInfo): Parry | null
     if (w.natural && !(aw.natural && w.unarmed)) continue;
     if (prone && !w.natural && !['dolk', 'parerdolk', 'kortsvard'].includes(w.id)) continue;
     const x = computeCl(g, def, 'parering', w.skill, armsFor(def, slot, w), sit(penalty), slot, halve);
-    if (x) options.push({ x, slot, name: w.name.toLowerCase(), bvKey: w.bvKey, table: w.natural ? 'obeväpnad' : 'närstrid', unarmed: w.natural, free: false });
+    if (x) options.push({ x, skill: w.skill, slot, name: w.name.toLowerCase(), bvKey: w.bvKey, table: w.natural ? 'obeväpnad' : 'närstrid', unarmed: w.natural, free: false });
   }
   const shield = def.shield ? SHIELDS[def.shield] : undefined;
   const main = weaponInfo(def, 'weapon');
   if (shield && !prone && shield.styReq <= def.attrs.STY && !main.twoHanded) {
     const free = !used.shieldFree;
     const x = computeCl(g, def, 'parering', 'skoldar', armsFor(def, 'shield'), sit(free ? 0 : penalty), 'shield', halve);
-    if (x) options.push({ x, slot: 'shield', name: shield.name.toLowerCase(), bvKey: 'shield', table: 'sköld', unarmed: false, free });
+    if (x) options.push({ x, skill: 'skoldar', slot: 'shield', name: shield.name.toLowerCase(), bvKey: 'shield', table: 'sköld', unarmed: false, free });
   }
   if (!options.length) return null;
   const best = options.reduce((a, b) => (b.x.cl > a.x.cl ? b : a));
@@ -672,6 +655,7 @@ function tryParry(g: Game, def: Actor, att: Actor, aw: WeaponInfo): Parry | null
 
   let check = rollCl(g, best.x);
   if (autoFail(def, 'parering')) check = forceFail(check);
+  g.gainExperience(def, best.skill, check);
   if (best.slot !== 'shield') wear(g, def, best.bvKey);
   if (check.result === 'perfekt') def.effects = def.effects.filter((e) => !(e.untilPerfect && e.kind === 'cl'));
   const mods = best.x.notes.length ? `, ${best.x.notes.join(', ')}` : '';
@@ -707,6 +691,8 @@ function hit(g: Game, att: Actor, def: Actor, w: WeaponInfo, opts: { perfect?: b
   g.emit(def.id, dealt > 0 ? `-${dealt}` : '0', 'damage');
   // Husregel: rustningsdelen tappar 1 BV när skadan överstiger dess abs.
   if (!perfect && piece && dmg > piece.abs) wearItem(g, def, piece.id, 'tar skada');
+  const kind = woundKind(w.id, w.natural, w.unarmed);
+  if (dealt > 0 && kind && def.kind === 'player') def.combatWounds.push({ loc, dmg: dealt, kind });
   wound(g, def, dealt, loc);
 }
 
@@ -1074,10 +1060,27 @@ export function startCombat(g: Game, enemies: Actor[]) {
   face(p, enemies[0].x, enemies[0].y);
   const names = [...new Set(enemies.map((e) => e.name))].join(', ');
   g.log(`⚔ Strid! ${names}.`);
+  // Husregel: rollpersonerna slår Dra vapen. De som lyckas får en gratis tur före första rundan.
+  const drawn = party(g).filter((a) => {
+    if (!canUseSkills(a)) return false;
+    const check = skillCheck(g.skillFv(a, 'dra_vapen'), g.rng, woundPenalty(a));
+    g.log(`${a.name} slår Dra vapen (${short(check)}): ${check.success ? 'gratis handling före första rundan!' : 'misslyckas'}.`);
+    if (check.success) g.gainExperience(a, 'dra_vapen', check);
+    return check.success;
+  });
+  if (drawn.length) {
+    c.round = 0;
+    c.freeRound = drawn.map((a) => a.id);
+  }
   rollInitiative(g, c);
   logRound(g, c);
   checkFear(g);
   nextTurn(g);
+}
+
+/** Rollpersonerna: i dag bara huvudpersonen, senare också följeslagare. */
+export function party(g: Game): Actor[] {
+  return g.state.actors.filter((a) => a.kind === 'player' && a.alive);
 }
 
 function logRound(g: Game, c: CombatState) {
@@ -1086,7 +1089,10 @@ function logRound(g: Game, c: CombatState) {
     .filter((a) => a.hostile || a.kind === 'player')
     .map((a) => `${a.name} ${c.initiative[a.id]}`)
     .join(', ');
-  g.log(`— Runda ${c.round} — Initiativ: ${order}`);
+  if (c.freeRound && c.round === 0) {
+    const free = c.order.filter((id) => c.freeRound!.includes(id)).map((id) => `${g.actor(id)!.name} ${c.initiative[id]}`);
+    g.log(`— Gratisrunda (Dra vapen) — ${free.join(', ')}`);
+  } else g.log(`— Runda ${c.round} — Initiativ: ${order}`);
 }
 
 /** Startar nästa runda. Returnerar false om striden tog slut. */
@@ -1112,6 +1118,7 @@ function newRound(g: Game): boolean {
   });
   c.round++;
   c.turn = -1;
+  g.state.time += ROUND_SECONDS;
   c.acted = {};
   c.parries = {};
   for (const a of participants(g)) tick(g, a);
@@ -1177,6 +1184,7 @@ export function nextTurn(g: Game) {
     }
     const a = g.actor(c.order[c.turn])!;
     if (!a.alive || a.fled) continue;
+    if (c.round === 0 && !c.freeRound?.includes(a.id)) continue;
     c.movesLeft = effectiveMove(a);
     // Neutrala deltar i turordningen men står still.
     if (!a.hostile && a.kind !== 'player') {
@@ -1248,14 +1256,21 @@ export function endCombat(g: Game, message: string) {
       kill(g, p);
       return;
     }
+    // Medvetslös i 1T4 timmar, och sedan oförmögen tills KP (och huvudets KP) är positiva igen.
     const hours = roll('1T4', g.rng);
-    const days = Math.max(0, 1 - p.kp, p.detailed ? 1 - p.locKp.huvud : 0);
+    p.effects = p.effects.filter((e) => e.kind !== 'medvetslös');
+    advanceTime(g, hours * HOUR, 'vila');
+    let days = 0;
+    while ((p.kp <= 0 || p.locKp.huvud <= 0) && days < 60) {
+      advanceTime(g, DAY, 'vila');
+      days++;
+    }
     p.unconscious = false;
-    if (days > 0) {
-      g.passDays(days);
-      g.log(`${p.name} vaknar efter ${hours} timmar och ligger sedan ${days} dygn innan hen kan resa sig.`);
-    } else g.log(`${p.name} vaknar efter ${hours} timmar.`);
+    g.log(days ? `${p.name} vaknar efter ${hours} timmar och ligger sedan ${days} dygn innan hen kan resa sig.` : `${p.name} vaknar efter ${hours} timmar.`);
   }
+  rollInfections(g, p);
+  // Ett krossat ben i en arm eller ett ben måste amputeras.
+  for (const inj of p.injuries.filter((i) => i.id === 'krossat')) if (p.alive) amputate(g, p, inj.loc);
 }
 
 // ------------------------------------------------------------------ handlingar utan spelarens styrning

@@ -115,13 +115,17 @@ describe('spelmotor', () => {
     expect(INTENTS.uppdrag_beloning.available(g, host)).toBe(false);
   });
 
-  it('vila läker och ger förbättringsslag', () => {
+  it('sömn läker 1 KP per dygn och gör att färdigheter kan ge EP igen', () => {
     const g = newGame();
-    g.player.kp = 2;
-    g.player.marks = ['enhandssvard'];
-    g.rest();
-    expect(g.player.kp).toBe(g.player.maxKp);
-    expect(g.player.marks).toHaveLength(0);
+    const p = g.player;
+    p.kp -= 3;
+    p.locKp['höger arm'] -= 3;
+    p.epBlocked = ['enhandssvard'];
+    g.sleep(8);
+    expect(p.epBlocked).toEqual([]);
+    g.sleep(16); // ett helt dygns vila
+    expect(p.locKp['höger arm']).toBe(p.locMax['höger arm'] - 2);
+    expect(p.kp).toBe(p.maxKp - 2);
   });
 
   it('tillståndet överlever sparning', () => {

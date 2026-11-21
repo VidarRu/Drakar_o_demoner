@@ -132,7 +132,7 @@ function front(g: Game): HTMLElement {
   );
   attrs.classList.add('attrs');
 
-  const mark = (k: string) => (p.marks.includes(k) ? '✓' : '');
+  const mark = (k: string) => (p.ep[k] ? String(p.ep[k]) : '');
   const fv = (k: string) => (p.skills[k] !== undefined ? String(p.skills[k]) : '');
   const primaries = SKILL_LIST.filter((s) => s.type === 'primär').sort((a, b) => a.name.localeCompare(b.name, 'sv'));
   const primRows = primaries.flatMap((s) => {
@@ -255,7 +255,7 @@ function back(g: Game): HTMLElement {
   tot.append(el('span', 'rf-chip', 'Tot. KP'), kpBoxes(p.maxKp, p.kp, 10));
   if (p.kp < 0) tot.append(hand(`(${p.kp})`, 'red'));
   const psy = el('div', 'rf-stat rf-kp');
-  psy.append(el('span', 'rf-chip', 'PSY'), kpBoxes(p.attrs.PSY, p.attrs.PSY, 10));
+  psy.append(el('span', 'rf-chip', 'PSY'), kpBoxes(p.attrs.PSY, p.psy, 10));
   right2.append(tot, psy);
   stats.append(left2, right2);
 
@@ -274,13 +274,13 @@ function back(g: Game): HTMLElement {
       maxBv !== null && maxBv !== undefined ? `${p.bv[slot] ?? 0}/${maxBv}` : '—',
       def && def.kind === 'närstrid' ? String(def.length) : '—',
       def && def.kind !== 'närstrid' ? String(def.range) : '—',
-      p.marks.includes(w.skill) ? '✓' : '',
+      p.ep[w.skill] ? String(p.ep[w.skill]) : '',
       kg(def?.weight ?? 0),
     ]);
   }
   if (p.shield) {
     const s = SHIELDS[p.shield];
-    wrows.push([s.name, String(g.skillFv(p, 'skoldar')), '—', `${p.bv.shield ?? 0}/${s.bv}`, '—', '—', p.marks.includes('skoldar') ? '✓' : '', kg(s.weight)]);
+    wrows.push([s.name, String(g.skillFv(p, 'skoldar')), '—', `${p.bv.shield ?? 0}/${s.bv}`, '—', '—', p.ep.skoldar ? String(p.ep.skoldar) : '', kg(s.weight)]);
   }
   for (const id of ch.inventory) {
     const w = WEAPONS[id];
@@ -291,7 +291,7 @@ function back(g: Game): HTMLElement {
   weapons.classList.add('rf-weapons');
 
   // Besvärjelser.
-  const spells = Object.entries(ch.spells).map(([id, sv]) => [SPELLS[id]?.name ?? id, p.marks.includes(id) ? '✓' : '', String(sv)]);
+  const spells = Object.entries(ch.spells).map(([id, sv]) => [SPELLS[id]?.name ?? id, p.ep[id] ? String(p.ep[id]) : '', String(sv)]);
   const spellBox = box('Besvärjelser', ['erf', 'S'], lined(spells, 3, 16));
   spellBox.classList.add('rf-spells');
 

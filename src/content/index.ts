@@ -115,7 +115,7 @@ export const CREATURES = list<CreatureDef>([
     name: 'Kloka gumman Asta',
     sprite: 'gumma',
     attrs: { ...human, STY: 7, PSY: 16 },
-    skills: { dolkar: 6 },
+    skills: { dolkar: 6, lakekonst: 15 },
     weapon: 'dolk',
     move: 9,
     hostile: false,
@@ -130,7 +130,7 @@ export const NPCS = list<NpcDef>([
     persona:
       'Bertil är en rund, pratglad värdshusvärd i byn Gråvad. Han är godmodig men snål, orolig för sina gäster och sin handel, och pratar gärna om mat och öl.',
     knowledge:
-      'Svartalfer har slagit sig ner i en grotta öster om byn, längs stigen genom skogen. Deras hövding Grukk leder plundringståg mot resande. Vargar stryker runt i skogen. Bertil erbjuder 500 silvermynt till den som gör slut på hövdingen. En plats i sovsalen kostar 10 silvermynt per natt. Smeden Ylva säljer rustningar och kloka gumman Asta vid dammen sköter om sår.',
+      'Svartalfer har slagit sig ner i en grotta öster om byn, längs stigen genom skogen. Deras hövding Grukk leder plundringståg mot resande. Vargar stryker runt i skogen. Bertil erbjuder 500 silvermynt till den som gör slut på hövdingen. En plats i sovsalen kostar 10 silvermynt per natt, och man kan hyra den en hel vecka för att vila upp sig och träna. Smeden Ylva säljer rustningar och kloka gumman Asta vid dammen sköter om sår.',
     greeting: 'Välkommen till Gyllene Galten, främling! Du ser ut som någon som kan hantera ett vapen.',
     topics: [
       {
@@ -144,7 +144,7 @@ export const NPCS = list<NpcDef>([
           'Gråvad är inte mycket för världen, men Ylva i smedjan kan sitt hantverk och gumman Asta nere vid dammen lappar ihop den som fått stryk.',
       },
     ],
-    intents: ['uppdrag_anta', 'overtala_beloning', 'uppdrag_beloning', 'overnatta', 'anfall'],
+    intents: ['uppdrag_anta', 'overtala_beloning', 'uppdrag_beloning', 'overnatta', 'vila_vecka', 'anfall'],
   },
   {
     id: 'smed',
@@ -170,7 +170,7 @@ export const NPCS = list<NpcDef>([
     persona:
       'Asta är byns kloka gumma: gammal, skarpögd och lite kuslig. Hon talar i gåtor och ordspråk men menar väl.',
     knowledge:
-      'Hon kan förbinda sår för 5 silvermynt. Hon vet att vargarna i skogen flyr ogärna och att svartalferna fruktar eld och dagsljus.',
+      'Hon kan förbinda sår för 5 silvermynt, och vårda sår och infektioner med Läkekonst en gång om dagen för samma pris. Hon vet att vargarna i skogen flyr ogärna och att svartalferna fruktar eld och dagsljus.',
     greeting: 'Jaså, en vandrare. Jag såg dig i teet i morse. Du blöder snart, om du inte redan gör det.',
     topics: [
       {
@@ -178,7 +178,7 @@ export const NPCS = list<NpcDef>([
         reply: 'Skogen minns allt. Vargarna är hungriga i år. Håll dig på stigen, så räcker det med att vara rädd.',
       },
     ],
-    intents: ['forbind', 'anfall'],
+    intents: ['forbind', 'vard', 'anfall'],
   },
 ]);
 

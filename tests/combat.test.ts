@@ -45,7 +45,8 @@ describe('detaljerad strid', () => {
 
   it('pareringar efter den första får −5, och skölden ger en extra parering utan avdrag', () => {
     const { g, p, alf } = duel();
-    g.rng = () => 0.5; // alla T20 blir 11: svartalfen missar, rollpersonen parerar
+    alf.skills.enhandssvard = 15;
+    g.rng = () => 0.5; // alla T20 blir 11: svartalfen träffar, och rollpersonen parerar så länge CL räcker
     g.state.combat!.parries = {};
     const start = g.state.log.length;
     combat.attackOnce(g, alf, p, 'weapon');
@@ -85,13 +86,47 @@ describe('detaljerad strid', () => {
     expect(p.bv.harnesk_lader).toBe(3);
   });
 
-  it('skador i svärdsarmen ger −2 per förlorad KP på anfallen', () => {
+  it('husregel: −2 på alla färdighetsslag för varje kroppsdel på 0 KP, men inget för mindre skador', () => {
     const { g, p, alf } = duel();
     combat.wound(g, p, 2, 'höger arm');
+    expect(combat.woundPenalty(p)).toBe(0);
+    combat.wound(g, p, 5, 'vänster ben');
+    combat.wound(g, p, 9, 'huvud');
+    expect(combat.woundPenalty(p)).toBe(-2); // huvudet räknas inte, där blir man medvetslös
+    p.unconscious = false;
     g.rng = () => 0.5;
     const start = g.state.log.length;
     combat.attackOnce(g, p, alf, 'weapon');
-    expect(g.state.log.slice(start).join('\n')).toContain('-4 skador');
+    expect(g.state.log.slice(start).join('\n')).toContain('-2 skador');
+  });
+
+  it('ett misslyckat anfall pareras inte, och en lyckad parering stoppar all skada', () => {
+    const { g, p, alf } = duel();
+    g.rng = () => 0.5; // svartalfen (FV 4) missar med 11
+    combat.attackOnce(g, alf, p, 'weapon');
+    expect(g.state.combat!.parries[p.id]).toBeUndefined();
+    alf.skills.enhandssvard = 15;
+    combat.attackOnce(g, alf, p, 'weapon');
+    expect(g.state.combat!.parries[p.id]).toEqual({ count: 1, shieldFree: false });
+    expect(p.kp).toBe(p.maxKp);
+  });
+
+  it('Dra vapen ger en gratis tur före första rundan', () => {
+    const g = Game.create(testCharacter(), seededRng(4));
+    const p = g.player;
+    p.skills.dra_vapen = 20;
+    const alf = g.state.actors.find((a) => a.defId === 'svartalf')!;
+    p.x = 10;
+    p.y = 12;
+    alf.x = 13;
+    alf.y = 12;
+    g.rng = () => 0.3; // lyckas med Dra vapen
+    combat.startCombat(g, [alf]);
+    expect(g.state.combat!.round).toBe(0);
+    expect(g.state.log.join('\n')).toContain('Gratisrunda');
+    expect(g.isPlayerTurn()).toBe(true);
+    g.endTurn();
+    expect(g.state.combat!.round).toBe(1);
   });
 
   it('blödningen tar 1 KP var sjätte runda tills någon lägger förband', () => {

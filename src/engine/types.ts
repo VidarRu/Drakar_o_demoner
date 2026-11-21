@@ -141,8 +141,23 @@ export interface Actor {
   critical: HitLocation[];
   injuries: Injury[];
   skills: Record<string, number>;
-  /** Färdigheter som fått erfarenhetskryss. */
-  marks: string[];
+  /** Erfarenhetspoäng per färdighet, som växlas in mot FV efter en veckas vila. */
+  ep: Record<string, number>;
+  /** Färdigheter som redan gett EP sedan senaste sömnen. */
+  epBlocked: string[];
+  /** Kvarvarande PSY-poäng (högst PSY). */
+  psy: number;
+  /** Infekterade kroppsdelar: läker inte förrän infektionen gått över (speltid i sekunder). */
+  infections: { loc: HitLocation; until: number; gangrene: boolean }[];
+  /** Sår från den pågående striden, för infektionsslagen efteråt. */
+  combatWounds: { loc: HitLocation; dmg: number; kind: 'egg' | 'smutsig' }[];
+  /** Läktimmar och PSY-timmar som samlats men ännu inte gett en poäng. */
+  healHours: number;
+  psyHours: number;
+  /** Sammanhängande vila i sekunder (för att växla in EP krävs sju dagar). */
+  restSeconds: number;
+  /** Dagen då Läkekonst senast användes på aktören. */
+  medicineDay: number;
   weapon: string;
   /** Vapen i den andra handen (Två vapen). */
   offhand?: string;
@@ -197,6 +212,8 @@ export interface CombatState {
   aim: HitLocation | null;
   /** Varelser som redan har skräckslagit rollpersonen automatiskt eller aktivt. */
   scared: string[];
+  /** Runda 0: de som lyckades med Dra vapen och får en gratis tur innan den vanliga turordningen. */
+  freeRound?: string[];
 }
 
 /** Ett föremål som ligger på marken (tappat i strid). */
@@ -212,7 +229,9 @@ export interface DroppedItem {
 export type Mode = 'explore' | 'combat' | 'dialog' | 'dead';
 
 export interface GameState {
-  version: 3;
+  version: 4;
+  /** Speltid i sekunder sedan dag 1 klockan 00:00. */
+  time: number;
   /** Rollformuläret för rollpersonen. */
   character: Character;
   mapId: string;
@@ -258,6 +277,8 @@ export interface Character {
   inventory: string[];
   equipped: { weapon?: string; offhand?: string; shield?: string; armor: string[] };
   appearance: string;
+  /** Bonus-EP från uppdrag, att fördela fritt mellan färdigheterna vid träningen. */
+  bonusEp?: number;
   /** Fobier från Skräcktabellen. */
   phobias?: { source: string; level: 'mild' | 'normal' | 'svår' }[];
 }

@@ -4,6 +4,7 @@ import { ARMOR } from '../data/armor';
 import { RACES } from '../data/races';
 import { SKILLS } from '../data/skills';
 import * as combat from './combat';
+import * as time from './time';
 import { roll, type Rng } from './dice';
 import {
   computeFov,
@@ -17,8 +18,9 @@ import {
   type Point,
 } from './map';
 import {
+  DAY,
   HIT_LOCATIONS,
-  improvementRoll,
+  HOUR,
   INITIATIVE_MODS,
   locationKp,
   maxKp,
@@ -80,7 +82,15 @@ export function makeActor(init: ActorInit, extra: Partial<Actor> = {}): Actor {
     disabled: [],
     critical: [],
     injuries: [],
-    marks: [],
+    ep: {},
+    epBlocked: [],
+    psy: init.attrs.PSY,
+    infections: [],
+    combatWounds: [],
+    healHours: 0,
+    psyHours: 0,
+    restSeconds: 0,
+    medicineDay: 0,
     bv: {},
     swordArm: init.swordArm ?? 'höger arm',
     alive: true,
@@ -153,7 +163,8 @@ export class Game {
       },
     );
     const state: GameState = {
-      version: 3,
+      version: 4,
+      time: time.START_TIME,
       character: char,
       mapId,
       playerId: player.id,
@@ -270,6 +281,7 @@ export class Game {
     this.updateFov();
     combat.pickUp(this);
     combat.tick(this, p);
+    time.advanceTime(this, 5, 'aktiv');
     if (this.state.mode === 'explore') this.checkAmbush();
     this.changed();
     return true;
@@ -376,10 +388,10 @@ export class Game {
     if (!this.canBandage()) return false;
     const p = this.player;
     const loc = p.bleeding[0];
-    const check = skillCheck(this.skillFv(p, 'forsta_hjalpen'), this.rng);
+    const check = skillCheck(this.skillFv(p, 'forsta_hjalpen'), this.rng, combat.woundPenalty(p));
     if (check.success) {
       p.bleeding = p.bleeding.filter((l) => l !== loc);
-      this.mark(p, 'forsta_hjalpen');
+      this.gainExperience(p, 'forsta_hjalpen', check);
       this.log(`${p.name} lägger förband på ${loc} (Första hjälpen, ${describe(check)}). Blödningen stannar.`);
     } else this.log(`${p.name} försöker lägga förband på ${loc} men misslyckas (Första hjälpen, ${describe(check)}).`);
     if (this.state.mode === 'combat') {
@@ -433,8 +445,27 @@ export class Game {
     return Math.max(own ?? 0, Math.ceil(best / 2));
   }
 
-  private mark(a: Actor, skill: string) {
-    if (a.kind === 'player' && a.skills[skill] !== undefined && !a.marks.includes(skill)) a.marks.push(skill);
+  /** Erfarenhetspoäng för en lyckad användning (se time.ts). */
+  gainExperience(a: Actor, skill: string, check: Check) {
+    time.gainExperience(this, a, skill, check);
+  }
+
+  /** Avdraget på alla färdighetsslag för kroppsdelar på 0 KP. */
+  woundPenaltyOf(a: Actor): number {
+    return combat.woundPenalty(a);
+  }
+
+  die(a: Actor) {
+    combat.kill(this, a);
+  }
+
+  private uiListeners: ((name: 'training') => void)[] = [];
+  onUi(fn: (name: 'training') => void) {
+    this.uiListeners.push(fn);
+  }
+  /** Ber gränssnittet öppna en vy (t.ex. träningen efter en veckas vila). */
+  openUi(name: 'training') {
+    for (const fn of this.uiListeners) fn(name);
   }
 
   /** Absorbering på en kroppsdel: rustningsdelen som täcker den plus naturligt skydd. */
@@ -469,59 +500,40 @@ export class Game {
   /** Färdighetsslag för rollpersonen, med logg och erfarenhetskryss. */
   playerCheck(skill: string, modifier = 0): Check {
     const p = this.player;
-    const check = skillCheck(this.skillFv(p, skill), this.rng, modifier);
-    if (check.success) this.mark(p, skill);
+    const check = skillCheck(this.skillFv(p, skill), this.rng, modifier + combat.woundPenalty(p));
+    this.gainExperience(p, skill, check);
     this.log(`${skill} (${describe(check)}): ${check.result}.`);
     return check;
   }
 
-  /**
-   * Vila över natten: full läkning, effekter som räknas i dagar går ned och förbättringsslag
-   * för alla färdigheter med erfarenhetskryss. (Tillfälligt tills tid och läkning byggs i steg 5.)
-   */
-  rest(): string[] {
-    const p = this.player;
-    p.kp = p.maxKp;
-    p.locKp = { ...p.locMax };
-    p.bleeding = [];
-    p.bleedTimer = 0;
-    p.critical = [];
-    p.disabled = p.injuries.filter((i) => i.lost).map((i) => i.loc);
-    p.unconscious = false;
-    p.down = false;
-    this.passDays(0);
-    p.effects = p.effects.filter((e) => !e.untilRest);
-    const improved: string[] = [];
-    for (const skill of p.marks) {
-      if (improvementRoll(p.skills[skill], this.rng)) {
-        p.skills[skill]++;
-        improved.push(`${skill} ${p.skills[skill]}`);
-      }
-    }
-    p.marks = [];
-    return improved;
+  /** Sover ett antal timmar (som standard en natt). */
+  sleep(hours = 8) {
+    time.advanceTime(this, hours * HOUR, 'sömn');
+    this.changed();
   }
 
-  /**
-   * Låter dagar gå: 1 KP per dag i varje skadad kroppsdel och i totala KP (husregel), och
-   * effekter som räknas i dagar går ned. Med 0 dagar räknas bara en natt för effekterna.
-   */
-  passDays(days: number) {
+  /** Kan rollpersonen vila här? Inte med fiender i sikte. */
+  canRest(): boolean {
+    return this.state.mode === 'explore' && combat.canAct(this.player) && !this.state.actors.some((a) => a.alive && a.hostile && !a.fled && this.isVisible(a.x, a.y));
+  }
+
+  /** Vilar en vecka (sju nätter). Därefter kan EP växlas in mot FV och fobier mildras. */
+  restWeek() {
+    time.advanceTime(this, 7 * DAY, 'sömn');
+    time.easePhobias(this);
+    this.changed();
+  }
+
+  /** Läkekonst på sig själv, en gång per dag. */
+  canSelfMedicine(): boolean {
     const p = this.player;
-    const n = Math.max(1, days);
-    p.effects = p.effects.filter((e) => {
-      if (e.days === undefined) return true;
-      e.days -= n;
-      return e.days > 0;
-    });
-    if (days <= 0) return;
-    p.kp = Math.min(p.maxKp, p.kp + days);
-    for (const loc of HIT_LOCATIONS) {
-      if (p.injuries.some((i) => i.loc === loc && i.lost)) continue;
-      p.locKp[loc] = Math.min(p.locMax[loc], p.locKp[loc] + days);
-      if (p.locKp[loc] > 0) p.disabled = p.disabled.filter((l) => l !== loc);
-    }
-    if (p.kp > 1 && !(['bröstkorg', 'mage'] as HitLocation[]).some((l) => p.locKp[l] <= 0)) p.down = false;
+    return this.state.mode === 'explore' && combat.canAct(p) && p.skills.lakekonst !== undefined && time.canMedicine(this, p);
+  }
+
+  selfMedicine() {
+    if (!this.canSelfMedicine()) return;
+    time.medicine(this, this.player, this.player);
+    this.changed();
   }
 
   /** Läker KP i totala KP och fördelar samma mängd på de mest skadade kroppsdelarna. */

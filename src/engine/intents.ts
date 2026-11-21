@@ -3,7 +3,8 @@ import type { MeleeWeaponDef } from '../data/types';
 import { WEAPONS } from '../data/weapons';
 import { armorBv } from './combat';
 import { roll } from './dice';
-import { REPAIR_PERCENT } from './rules';
+import { EXPERIENCE, REPAIR_PERCENT } from './rules';
+import { canMedicine, clockText, medicine } from './time';
 import type { Game } from './game';
 import type { Actor } from './types';
 
@@ -79,7 +80,8 @@ export const INTENTS: Record<string, Intent> = {
       const reward = g.state.flags.hogre_beloning ? HIGHER_REWARD : REWARD;
       g.player.silver += reward;
       g.state.flags.uppdrag_klart = true;
-      return `Spelaren berättar att hövdingen är död och får sin belöning på ${reward} silvermynt.`;
+      g.state.character.bonusEp = (g.state.character.bonusEp ?? 0) + EXPERIENCE.questBonus;
+      return `Spelaren berättar att hövdingen är död och får sin belöning på ${reward} silvermynt. (Uppdraget ger också ${EXPERIENCE.questBonus} bonus-EP att fördela vid träningen.)`;
     },
   },
   overnatta: {
@@ -87,9 +89,31 @@ export const INTENTS: Record<string, Intent> = {
     available: (g) => g.player.silver >= REST_COST,
     apply: (g) => {
       g.player.silver -= REST_COST;
-      const improved = g.rest();
-      const gains = improved.length ? ` Erfarenheten ger resultat: ${improved.join(', ')}.` : '';
-      return `Spelaren betalar ${REST_COST} silvermynt, sover över natten och vaknar helt återställd.${gains}`;
+      g.sleep(8);
+      return `Spelaren betalar ${REST_COST} silvermynt och sover över natten. Klockan är nu ${clockText(g.state.time)}.`;
+    },
+  },
+  vila_vecka: {
+    label: () => `Vila en vecka och träna (${REST_COST * 7} silver)`,
+    available: (g) => g.player.silver >= REST_COST * 7,
+    ends: true,
+    apply: (g) => {
+      g.player.silver -= REST_COST * 7;
+      g.restWeek();
+      g.log(`${g.player.name} vilar en vecka på värdshuset. Klockan är nu ${clockText(g.state.time)}.`);
+      g.openUi('training');
+      return 'Spelaren vilar en vecka.';
+    },
+  },
+  vard: {
+    label: () => `Låt gumman vårda såren med Läkekonst (${HEAL_COST} silver)`,
+    available: (g) => g.player.silver >= HEAL_COST && canMedicine(g, g.player),
+    apply: (g, npc) => {
+      g.player.silver -= HEAL_COST;
+      const check = medicine(g, npc, g.player, npc.skills.lakekonst ?? 0);
+      return check?.success
+        ? 'Gumman vårdar spelarens sår med sina örter och läker en KP. Har såret varit infekterat hävs infektionen.'
+        : 'Gumman vårdar såren, men det hjälper inte i dag.';
     },
   },
   forbind: {

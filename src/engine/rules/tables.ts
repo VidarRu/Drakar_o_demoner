@@ -406,3 +406,37 @@ export const MORALE_MODS = {
   ledareBorta: -10,
   halvaKp: -4,
 };
+
+// ------------------------------------------------------------------ tid, infektioner och erfarenhet (steg 5)
+
+/** En stridsrunda är ungefär fem sekunder. Ett steg utanför strid räknas som en runda. */
+export const ROUND_SECONDS = 5;
+export const HOUR = 3600;
+export const DAY = 24 * HOUR;
+
+/** Infektioner (Bok II s. 20): procent per skadepoäng, kallbrand och hur länge de varar. */
+export const INFECTION = {
+  /** Vanliga eggvapen. */
+  egg: 1,
+  /** Särskilt smutsiga vapen och djurs naturliga vapen. */
+  smutsig: 3,
+  /** Chans att infektionen blir kallbrand. */
+  gangrene: 5,
+  weeks: '1T4',
+  /** Husregel tills vidare: feber ger −5 på alla färdighetsslag medan infektionen varar. */
+  feverCl: -5,
+};
+
+/** Amputation: fyra veckors konvalescens. */
+export const AMPUTATION_WEEKS = 4;
+
+/** Erfarenhet (Bok I s. 63–64). */
+export const EXPERIENCE = {
+  /** EP för en lyckad användning efter sömn, och för ett perfekt slag. */
+  success: 1,
+  perfect: '1T3+1',
+  /** Sammanhängande vila som krävs för att växla in EP mot FV. */
+  restDays: 7,
+  /** Bonus för ett lyckat uppdrag (Bok I tillåter 1–4). */
+  questBonus: 3,
+};
