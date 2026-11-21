@@ -1,4 +1,4 @@
-import { ARMORS } from '../content';
+import { ARMOR } from '../data/armor';
 import { roll } from './dice';
 import type { Game } from './game';
 import type { Actor } from './types';
@@ -16,9 +16,13 @@ export interface Intent {
   ends?: boolean;
 }
 
-const REST_COST = 5;
-const HEAL_COST = 2;
-const MAIL_COST = 40;
+/** Priser enligt Bok III: sovsal 10 sm per natt, ringbrynjeskjorta 1 500 sm. */
+const REST_COST = 10;
+const HEAL_COST = 5;
+const MAIL_COST = 1500;
+const MAIL = 'ringbrynjeskjorta';
+const REWARD = 500;
+const HIGHER_REWARD = 750;
 
 export const INTENTS: Record<string, Intent> = {
   uppdrag_anta: {
@@ -26,7 +30,7 @@ export const INTENTS: Record<string, Intent> = {
     available: (g) => !g.state.flags.uppdrag_antaget && !g.state.flags.uppdrag_klart,
     apply: (g) => {
       g.state.flags.uppdrag_antaget = true;
-      return 'Spelaren åtar sig uppdraget att döda svartalfshövdingen Grukk i grottan österut. Belöningen är 60 silvermynt.';
+      return `Spelaren åtar sig uppdraget att döda svartalfshövdingen Grukk i grottan österut. Belöningen är ${REWARD} silvermynt.`;
     },
   },
   overtala_beloning: {
@@ -35,19 +39,19 @@ export const INTENTS: Record<string, Intent> = {
       !!g.state.flags.uppdrag_antaget && !g.state.flags.prutat && !g.state.flags.uppdrag_klart,
     apply: (g) => {
       g.state.flags.prutat = true;
-      const check = g.playerCheck('Övertala');
+      const check = g.playerCheck('overtala');
       if (check.success) {
         g.state.flags.hogre_beloning = true;
-        return 'Spelaren lyckas övertala värdshusvärden: belöningen höjs till 90 silvermynt.';
+        return `Spelaren lyckas övertala värdshusvärden: belöningen höjs till ${HIGHER_REWARD} silvermynt.`;
       }
-      return 'Spelaren försöker pruta upp belöningen men misslyckas. Belöningen förblir 60 silvermynt och frågan är avgjord.';
+      return `Spelaren försöker pruta upp belöningen men misslyckas. Belöningen förblir ${REWARD} silvermynt och frågan är avgjord.`;
     },
   },
   uppdrag_beloning: {
     label: () => 'Hämta belöningen för hövdingens död',
     available: (g) => !!g.state.flags.hovding_dod && !!g.state.flags.uppdrag_antaget && !g.state.flags.uppdrag_klart,
     apply: (g) => {
-      const reward = g.state.flags.hogre_beloning ? 90 : 60;
+      const reward = g.state.flags.hogre_beloning ? HIGHER_REWARD : REWARD;
       g.player.silver += reward;
       g.state.flags.uppdrag_klart = true;
       return `Spelaren berättar att hövdingen är död och får sin belöning på ${reward} silvermynt.`;
@@ -75,13 +79,13 @@ export const INTENTS: Record<string, Intent> = {
     },
   },
   kop_ringbrynja: {
-    label: () => `Köp ringbrynjan (${MAIL_COST} silver)`,
-    available: (g) => g.player.silver >= MAIL_COST && g.player.armor !== 'ringbrynja',
+    label: () => `Köp ringbrynjeskjortan (${MAIL_COST} silver)`,
+    available: (g) => g.player.silver >= MAIL_COST && !g.player.armor.includes(MAIL),
     apply: (g) => {
       g.player.silver -= MAIL_COST;
-      g.player.armor = 'ringbrynja';
+      g.equipArmor(MAIL);
       g.state.flags.kopt_ringbrynja = true;
-      return `Spelaren köper ringbrynjan för ${MAIL_COST} silvermynt och tar på sig den (absorberar ${ARMORS.ringbrynja.abs}).`;
+      return `Spelaren köper ringbrynjeskjortan för ${MAIL_COST} silvermynt och tar på sig den (absorberar ${ARMOR[MAIL].abs} på bröstkorg och mage).`;
     },
   },
   anfall: {

@@ -3,6 +3,7 @@
  * sköldar, varelser, besvärjelser och utrustning. Bara regelvärden och egna korta
  * beskrivningar. Äventyrsinnehållet (kartor, personer, uppdrag) ligger i src/content/.
  */
+export * from './abilities';
 export * from './armor';
 export * from './creatures';
 export * from './equipment';

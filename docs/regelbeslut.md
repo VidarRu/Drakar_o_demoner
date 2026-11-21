@@ -17,7 +17,7 @@ Regelvärdena finns i koden:
 - **Tabeller går före exempel.** Exemplen i böckerna innehåller räknefel. Exempel: ringbrynja har abs 5 och stridsyxa 1T8+2.
 - **Formler går före tryckta värden.** Varelsers KP räknas som (STO+FYS)/2 avrundat uppåt, och SB tas ur skadebonustabellen. Det gäller också när den tryckta raden avviker, till exempel för jätte, kentaur, mantikora, liten björn och zombie. Undantag är varelser där boken anger en egen regel med flit: gasten har KP = PSY och spöket saknar kropp.
 - **Bok III gäller för vapen.** STY-kraven för skjut- och kastvapen tas från Bok III.
-- **Yrkeslistorna gäller.** När yrkesbeskrivningarna och färdighetstabellen säger olika gäller listan vid yrket. Därför har utbygdsjägaren inte Trästav, helaren har Dolk men inte Språkkunskap, och tjuven har Drogkunskap men inte Hasardspel eller Hantera fällor.
+- **Yrkeslistorna gäller.** När yrkesbeskrivningarna och färdighetstabellen säger olika gäller listan vid yrket. Helaren har Dolk men inte Språkkunskap, och tjuven har Drogkunskap men inte Hasardspel eller Hantera fällor. Trästav står inte som egen post för utbygdsjägaren, men den kan väljas som en av hens tre vapenfärdigheter eftersom den är en vapengrupp.
 - **Dvärgen får PSY +2.** Det står tryckt som "±2".
 - **Magisk kanalisering bygger på PSY och Två vapen på SMI**, som i Bok III.
 - **Rustningar** räknas per kroppsdel med vikter och priser ur rustningstabellen. Tabellen för hela rustningar används inte.
@@ -38,6 +38,22 @@ Regelvärdena finns i koden:
 - **Differensvärde** = CL − tärningsslaget.
 - **Motståndsslag och grundegenskapsslag** använder formeln 10 + värde − motvärde (svårighetsgrad eller motståndarens värde). Är resultatet 20 eller mer lyckas man automatiskt, är det 0 eller mindre misslyckas man automatiskt. Däremellan räknas perfekt och fummel som för färdighetsslag.
 - **Tala modersmål räknas som en B-färdighet**, liksom Läsa/Skriva modersmål. Båda skrivs ofta som B-värden i böckerna.
+
+## Skapa rollperson (byggt i steg 3)
+
+- **Bakgrundspoängen** följer Bok I strikt. Det gäller ras, grundegenskaper (krav räknas efter rasmodifikationen), STO, särskild förmåga, svärdshand, socialt stånd, startkapital, ålder och överblivna BP till EP.
+- **BP låses när man slagit.** Bakgrundspoängen för ett slag kan inte ändras efter slaget.
+- **Särskild förmåga får slås om en gång.** Boken låter spelledaren tillåta omslag om resultatet inte passar.
+- **Förmågor som gäller en sekundär färdighet** som inte är yrkesfärdighet ger ett fast FV, som inte kan höjas från start.
+- **Tillägg från ras och förmåga** läggs på före köpet och får gå över ålderns högsta FV. Själva köpen får inte gå över det.
+- **Tak för köpta värden:**
+  - Färdigheter i kategori B kan inte köpas högre än sin grundegenskap. Modersmålen är undantagna.
+  - Historia, Alkemi och Kunskap om … kan inte bli högre än Läsa/Skriva.
+  - Hypnotisera kan inte bli högre än PSY.
+  - Två vapen kan inte bli högre än det lägsta av de två vapnens FV.
+- **Magiker får automatiskt** Känna magi (som primär färdighet) och Kunskap om magi med samma FV som magiskolan.
+- **Utrustning köps för startkapitalet** till Bok III:s priser. Äventyrets priser och belöningar följer samma nivå: sovsal 10 sm, ringbrynjeskjorta 1 500 sm och uppdraget 500 sm (750 om man prutar upp det).
+- **Rustningens abs gäller kroppsdelen som träffas.** Redan nu slås ett träffområde för att avgöra vilken rustningsdel som skyddar, men KP dras fortfarande bara från totala KP fram till steg 4.
 
 ## Vapenfärdigheter (husregel)
 
@@ -64,7 +80,7 @@ Regelvärdena finns i koden:
 - **Brytvärde (BV):**
   - Bokens regler gäller: BV kan sjunka när ett anfall pareras.
   - Dessutom är det 2 % chans att vapnet tappar 1 BV varje gång det används.
-  - Vapen och sköldar kan lagas, och slitna eller trasiga föremål kan säljas för en liten del av ursprungspriset.
+  - Slitna vapen och sköldar repareras hos en smed för en liten del av ursprungspriset. Förslag: 5 % av priset per återställd BV-poäng. Ett vapen kan bara lagas upp till sitt ursprungliga BV, och aldrig högre än smedens FV i Smide.
 - **Rustningens BV** är dubbla abs. Varje träff vars skada överstiger abs drar 1 BV från den träffade delen. Vid BV 0 är delen sönder och skyddar inte förrän den lagas.
 - **Fummel som träffar "närmsta vän"** träffar en följeslagare. Finns ingen följeslagare slås det om.
 - **Moral** gäller bara SLP och fiender, aldrig rollpersonen. Slaget är 1T20 mot PSY + modifikationerna, där fler kamrater är bra och fler fiender dåligt. Ett lyckat slag betyder att varelsen står kvar, ett misslyckat att den flyr eller ger upp. En etta lyckas alltid och en tjugo misslyckas alltid.

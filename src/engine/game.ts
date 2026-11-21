@@ -1,5 +1,9 @@
-import { ARMORS, CREATURES, MAPS, PROFESSIONS, WEAPONS } from '../content';
-import { roll, type Rng } from './dice';
+import { CREATURES, MAPS, NATURAL_WEAPONS, PROFESSION_SPRITES } from '../content';
+import { ARMOR, SHIELDS } from '../data/armor';
+import { RACES } from '../data/races';
+import { SKILLS } from '../data/skills';
+import { WEAPONS, weaponSkill } from '../data/weapons';
+import { maxRoll, roll, type Rng } from './dice';
 import {
   computeFov,
   distance,
@@ -11,8 +15,8 @@ import {
   type GameMap,
   type Point,
 } from './map';
-import { damageBonus, improvementRoll, maxKp, movement, skillCheck, type Check } from './rules';
-import type { Actor, CombatState, GameState, NewCharacter } from './types';
+import { damageBonus, HIT_TABLE, improvementRoll, lookup, maxKp, movement, skillCheck, type Check, type HitLocation } from './rules';
+import type { Actor, Character, CombatState, GameState } from './types';
 
 export const FOV_RADIUS = 8;
 const LOG_LIMIT = 200;
@@ -44,36 +48,36 @@ export class Game {
     this.updateFov();
   }
 
-  static create(char: NewCharacter, rng: Rng = Math.random, mapId = 'gravad'): Game {
+  static create(char: Character, rng: Rng = Math.random, mapId = 'gravad'): Game {
     const map = parseMap(MAPS[mapId]);
-    const prof = PROFESSIONS[char.profession];
-    const kp = maxKp(char.attrs);
     const player: Actor = {
       id: 'player',
       defId: 'player',
       name: char.name,
       kind: 'player',
-      sprite: prof.sprite,
+      sprite: PROFESSION_SPRITES[char.profession] ?? 'krigare',
       x: map.start.x,
       y: map.start.y,
       attrs: { ...char.attrs },
-      kp,
-      maxKp: kp,
-      skills: { ...prof.skills },
+      kp: char.maxKp,
+      maxKp: char.maxKp,
+      skills: { ...char.skills },
       marks: [],
-      weapon: prof.weapon,
-      armor: prof.armor,
-      shield: !!prof.shield,
-      move: movement(char.attrs),
+      weapon: char.equipped.weapon ?? 'nave',
+      armor: [...char.equipped.armor],
+      naturalArmor: 0,
+      shield: char.equipped.shield,
+      move: movement(char.attrs, RACES[char.race].move),
       hostile: false,
       sight: FOV_RADIUS,
       alive: true,
-      silver: roll(prof.silver, rng),
-      profession: prof.id,
+      silver: char.silver,
+      profession: char.profession,
       stunned: false,
     };
     const state: GameState = {
-      version: 1,
+      version: 2,
+      character: char,
       mapId,
       playerId: player.id,
       actors: [player],
@@ -86,7 +90,7 @@ export class Game {
     };
     for (const s of map.spawns) {
       const def = CREATURES[s.creature];
-      const hp = def.kp ?? maxKp(def.attrs);
+      const hp = maxKp(def.attrs);
       state.actors.push({
         id: `a${state.nextId++}`,
         defId: def.id,
@@ -101,8 +105,9 @@ export class Game {
         skills: { ...def.skills },
         marks: [],
         weapon: def.weapon,
-        armor: def.armor,
-        shield: !!def.shield,
+        armor: [...(def.armor ?? [])],
+        naturalArmor: def.naturalArmor ?? 0,
+        shield: def.shield,
         move: def.move,
         hostile: def.hostile,
         sight: def.sight ?? 6,
@@ -349,18 +354,50 @@ export class Game {
     return true;
   }
 
-  private weaponSkill(a: Actor): number {
-    return a.skills[WEAPONS[a.weapon].skill] ?? Math.ceil(a.attrs.SMI / 2);
+  /** Vapnet som aktören för: namn, skada, färdighet och om skadebonus gäller. */
+  weaponOf(a: Actor): { name: string; damage: string; skill: string; useDamageBonus: boolean } {
+    const natural = NATURAL_WEAPONS[a.weapon];
+    if (natural) return natural;
+    const w = WEAPONS[a.weapon];
+    return { name: w.name, damage: w.damage, skill: weaponSkill(w, a.attrs.STY), useDamageBonus: w.kind === 'närstrid' };
+  }
+
+  /**
+   * FV med en färdighet. Vapengrupper ger minst halva FV (avrundat uppåt) från bästa grupp
+   * av samma slag (husregel, se docs/regelbeslut.md).
+   */
+  skillFv(a: Actor, skill: string): number {
+    const own = a.skills[skill];
+    const family = SKILLS[skill]?.weaponGroup;
+    if (!family || family === 'sköld' || family === 'piska') return own ?? 0;
+    let best = 0;
+    for (const [id, fv] of Object.entries(a.skills)) if (SKILLS[id]?.weaponGroup === family) best = Math.max(best, fv);
+    return Math.max(own ?? 0, Math.ceil(best / 2));
   }
 
   private mark(a: Actor, skill: string) {
     if (a.kind === 'player' && a.skills[skill] !== undefined && !a.marks.includes(skill)) a.marks.push(skill);
   }
 
+  /** Absorbering på en kroppsdel: rustningsdelen som täcker den plus naturligt skydd. */
+  armorAt(a: Actor, loc: HitLocation): number {
+    const worn = a.armor.map((id) => ARMOR[id]).filter((p) => p?.covers.includes(loc));
+    return a.naturalArmor + Math.max(0, ...worn.map((p) => p.abs));
+  }
+
+  /** Tar på en rustningsdel och tar av de delar som täcker samma kroppsdelar. */
+  equipArmor(id: string) {
+    const p = this.player;
+    const covers = new Set(ARMOR[id].covers);
+    p.armor = [...p.armor.filter((a) => !ARMOR[a].covers.some((c) => covers.has(c))), id];
+    this.state.character.equipped.armor = [...p.armor];
+    if (!this.state.character.inventory.includes(id)) this.state.character.inventory.push(id);
+  }
+
   private resolveAttack(att: Actor, def: Actor) {
     const c = this.state.combat!;
-    const weapon = WEAPONS[att.weapon];
-    const check = skillCheck(this.weaponSkill(att), this.rng);
+    const weapon = this.weaponOf(att);
+    const check = skillCheck(this.skillFv(att, weapon.skill), this.rng);
     const head = `${att.name} anfaller ${def.name} med ${weapon.name.toLowerCase()} (${describe(check)})`;
 
     if (check.result === 'fummel') {
@@ -382,15 +419,14 @@ export class Game {
     if (check.result !== 'perfekt' && !def.stunned) {
       let parrySkill: string | null = null;
       if (c.parrying[def.id]) {
-        parrySkill = WEAPONS[def.weapon].skill;
+        parrySkill = this.weaponOf(def).skill;
         c.parrying[def.id] = false;
-      } else if (def.shield && !c.shieldUsed[def.id]) {
-        parrySkill = 'Sköld';
+      } else if (def.shield && SHIELDS[def.shield] && !c.shieldUsed[def.id]) {
+        parrySkill = 'skoldar';
         c.shieldUsed[def.id] = true;
       }
       if (parrySkill) {
-        const fv = def.skills[parrySkill] ?? Math.ceil(def.attrs.SMI / 2);
-        const parry = skillCheck(fv, this.rng);
+        const parry = skillCheck(this.skillFv(def, parrySkill), this.rng);
         if (parry.success) {
           this.mark(def, parrySkill);
           this.log(`${head}: träff, men ${def.name} parerar (${describe(parry)}).`);
@@ -401,16 +437,21 @@ export class Game {
       }
     }
 
-    let dmg = roll(weapon.damage, this.rng);
-    if (weapon.useDamageBonus) dmg += roll(damageBonus(att.attrs), this.rng);
-    const abs = check.result === 'perfekt' ? 0 : def.armor ? ARMORS[def.armor].abs : 0;
+    // Perfekt anfall: maximal skada med maximal skadebonus, och rustningen hjälper inte.
+    const perfect = check.result === 'perfekt';
+    const sb = weapon.useDamageBonus ? damageBonus(att.attrs) : '';
+    const expr = sb ? `${weapon.damage}+${sb}` : weapon.damage;
+    let dmg = perfect ? maxRoll(expr) : roll(expr, this.rng);
+    const loc = lookup(HIT_TABLE.närstrid, roll('1T20', this.rng))!;
+    const abs = perfect ? 0 : this.armorAt(def, loc);
     dmg = Math.max(0, dmg - abs);
     def.kp -= dmg;
-    const perfect = check.result === 'perfekt' ? ' Perfekt slag – rustningen hjälper inte!' : '';
+    const where = ` i ${loc}`;
+    const perfectText = perfect ? ' Perfekt slag – maximal skada och rustningen hjälper inte!' : '';
     this.log(
       dmg > 0
-        ? `${head}: träff för ${dmg} i skada${abs ? ` (rustningen tar ${abs})` : ''}.${perfect}${failedParry}`
-        : `${head}: träff, men rustningen tar hela smällen.${failedParry}`,
+        ? `${head}: träff${where} för ${dmg} i skada${abs ? ` (rustningen tar ${abs})` : ''}.${perfectText}${failedParry}`
+        : `${head}: träff${where}, men rustningen tar hela smällen.${failedParry}`,
     );
     this.fx(def.id, dmg > 0 ? `-${dmg}` : '0', 'damage');
     if (def.kp <= 0) this.kill(def, att);
@@ -451,7 +492,7 @@ export class Game {
   /** Färdighetsslag för rollpersonen, med logg och erfarenhetskryss. */
   playerCheck(skill: string, modifier = 0): Check {
     const p = this.player;
-    const check = skillCheck(p.skills[skill] ?? 5, this.rng, modifier);
+    const check = skillCheck(this.skillFv(p, skill), this.rng, modifier);
     if (check.success) this.mark(p, skill);
     this.log(`${skill} (${describe(check)}): ${check.result}.`);
     return check;

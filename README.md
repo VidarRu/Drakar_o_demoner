@@ -37,6 +37,7 @@ Utan AI-nyckel används förskriven dialog, så spelet går att spela helt grati
 | `src/data/` | Regeldata: raser, yrken, färdigheter, vapen, rustningar, sköldar, varelser, besvärjelser, utrustning. |
 | `src/content/` | Äventyrsinnehåll: kartor, personer, uppdrag och de varelser och vapen som äventyret använder. |
 | `docs/regelbeslut.md` | Tolkningar, val mellan motsägelser i böckerna och husregler. |
+| `docs/brief.md` | Läget i arbetet och nästa steg, för den som tar vid. |
 | `src/game/` | Kartvyn (Phaser 3). Grafiken ritas i kod i `src/game/art/`: marken som en bild per karta, väggar, berg och träd radvis snett uppifrån. |
 | `src/ui/` | Rollformulär, logg, stridspanel och samtalsruta. |
 | `src/ai/`, `api/` | Dialog via språkmodell, med förskriven reservdialog. |
@@ -51,7 +52,8 @@ Datan innehåller bara regelvärden och egna korta beskrivningar.
 
 ## Det här finns
 
-- Rollperson med grundegenskaper (3T6), tre yrken, KP, skadebonus och färdigheter
+- Rollperson skapad med bakgrundspoäng enligt Bok I: sju raser, elva yrken, särskilda förmågor,
+  socialt stånd, startkapital, ålder, yrkesfärdigheter, startfärdigheter, besvärjelser och utrustning
 - Utforskning med klick för att gå, stigfinnande, dimma över outforskat och en minikarta
 - Grottor är mörka utanför skenet från rollpersonens fackla
 - Turbaserad strid på rutnät: turordning efter SMI, förflyttning, anfall, parering,

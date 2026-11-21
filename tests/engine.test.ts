@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { CREATURES, MAPS, NPCS, PROFESSIONS, WEAPONS } from '../src/content';
+import { CREATURES, MAPS, NATURAL_WEAPONS, NPCS } from '../src/content';
+import { WEAPONS } from '../src/data/weapons';
 import { roll, seededRng } from '../src/engine/dice';
 import { Game } from '../src/engine/game';
 import { INTENTS } from '../src/engine/intents';
 import { findPath, lineOfSight, parseMap } from '../src/engine/map';
 import { damageBonus, maxKp, rollAttrs, skillCheck } from '../src/engine/rules';
+import { testCharacter } from './helpers';
 
 const attrs = { STY: 13, STO: 12, FYS: 13, SMI: 12, INT: 10, PSY: 10, KAR: 10 };
-const newGame = (seed = 1, profession = 'krigare') =>
-  Game.create({ name: 'Test', profession, attrs }, seededRng(seed));
+const newGame = (seed = 1) => Game.create(testCharacter(), seededRng(seed));
 
 describe('tärningar', () => {
   it('håller sig inom gränserna', () => {
@@ -47,10 +48,9 @@ describe('regler', () => {
 describe('innehåll', () => {
   it('hänger ihop', () => {
     for (const c of Object.values(CREATURES)) {
-      expect(WEAPONS[c.weapon], c.id).toBeDefined();
+      expect(WEAPONS[c.weapon] ?? NATURAL_WEAPONS[c.weapon], c.id).toBeDefined();
       if (c.npc) expect(NPCS[c.npc], c.id).toBeDefined();
     }
-    for (const p of Object.values(PROFESSIONS)) expect(WEAPONS[p.weapon]).toBeDefined();
     for (const n of Object.values(NPCS)) for (const i of n.intents) expect(INTENTS[i], i).toBeDefined();
   });
   it('alla varelser på kartan går att nå från starten', () => {
@@ -72,7 +72,10 @@ describe('innehåll', () => {
 describe('spelmotor', () => {
   it('skapar ett spel med rollperson och varelser', () => {
     const g = newGame();
-    expect(g.player.kp).toBe(13);
+    expect(g.player.kp).toBe(13); // (FYS 13 + STO 13) / 2
+    expect(g.player.move).toBe(10);
+    expect(g.player.skills.enhandssvard).toBe(13);
+    expect(g.skillFv(g.player, 'enhandsyxor')).toBe(7); // halva bästa enhandsgruppen, uppåt
     expect(g.state.actors.length).toBeGreaterThan(5);
     expect(g.state.mode).toBe('explore');
   });
@@ -107,14 +110,14 @@ describe('spelmotor', () => {
     expect(INTENTS.uppdrag_beloning.available(g, host)).toBe(true);
     const before = g.player.silver;
     INTENTS.uppdrag_beloning.apply(g, host);
-    expect(g.player.silver).toBe(before + 60);
+    expect(g.player.silver).toBe(before + 500);
     expect(INTENTS.uppdrag_beloning.available(g, host)).toBe(false);
   });
 
   it('vila läker och ger förbättringsslag', () => {
     const g = newGame();
     g.player.kp = 2;
-    g.player.marks = ['Svärd'];
+    g.player.marks = ['enhandssvard'];
     g.rest();
     expect(g.player.kp).toBe(g.player.maxKp);
     expect(g.player.marks).toHaveLength(0);
