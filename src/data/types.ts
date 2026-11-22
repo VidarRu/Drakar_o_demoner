@@ -1,5 +1,5 @@
 import type { AgeGroup, HitLocation } from '../engine/rules/tables';
-import type { AttrKey, Attrs } from '../engine/types';
+import type { AttrKey, Attrs, ElementKind } from '../engine/types';
 
 /**
  * Typer för regeldatan. Datan innehåller regelvärden ur Drakar och Demoner (1991) och
@@ -177,6 +177,8 @@ export interface ArmorDef {
   metal: boolean;
   /** Klirrar: halverar Smyga (fjällpansar och metall). */
   noisy: boolean;
+  /** Inte tyngre än läder: stridskonster går att använda (Bok I s. 57). */
+  light: boolean;
   /** Sår under ringbrynja kan inte bli infekterade. */
   noInfection?: boolean;
   /** Avdrag på Finna dolda ting och Upptäcka fara (tunnhjälm). */
@@ -303,7 +305,9 @@ export type SpellEffect =
   /** Avslöjar om målet är fientligt inställt. */
   | { kind: 'fiendskap' }
   /** Snärjer ett mål med en E per 10 STO. */
-  | { kind: 'rankor' };
+  | { kind: 'rankor' }
+  /** FRAMMANA/SKICKA BORT ELEMENTAR: en besvärjelse per sorts elementar. */
+  | { kind: 'elementar'; element: ElementKind };
 
 export interface ItemDef {
   id: string;

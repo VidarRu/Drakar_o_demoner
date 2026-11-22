@@ -463,7 +463,90 @@ const LOOKS: Record<string, Look> = {
     shield: { color: '#4a2f1c', rim: '#3a3840', emblem: '#c8c0a8' },
     size: 'big',
   },
+  // Följeslagarna i Gråvad.
+  knekt: {
+    skin: '#d8a67e',
+    hair: '#8a8a86',
+    beard: '#8a8a86',
+    helmet: '#6a6258',
+    tunic: '#6a4a32',
+    sleeves: '#5a4030',
+    legs: '#4a3c30',
+    boots: '#2e241c',
+    belt: '#3a2818',
+    weapon: 'hammer',
+    shield: { color: '#7a5a2c', rim: '#5a5c66', emblem: '#c8b060' },
+  },
+  jagarinna: {
+    skin: '#e4b896',
+    hair: '#b8742e',
+    hairStyle: 'braid',
+    tunic: '#4f6a34',
+    legs: '#5a4630',
+    boots: '#3e2c1e',
+    belt: '#4a3420',
+    cape: '#3a5a2a',
+    weapon: 'staff',
+  },
+  linnea: {
+    skin: '#f0c8a8',
+    hair: '#e0c070',
+    hairStyle: 'long',
+    tunic: '#8a6a9c',
+    legs: '#5a4a5a',
+    boots: '#3a2c26',
+    apron: '#d8d0b8',
+    belt: '#6a4a2a',
+    weapon: 'staff',
+  },
+  // Elementarer som har människolik skepnad.
+  gnom: { skin: '#8a7050', eyes: '#2a1c10', tunic: '#7a6044', legs: '#6e5840', boots: '#5e4a34', size: 'big' },
+  umbra: { skin: '#1e1828', eyes: '#c060ff', hood: '#16121e', tunic: '#1a1522', legs: '#16121e', boots: '#100c16', cape: '#120e18', robe: true },
+  glacial: { skin: '#8ab8e8', eyes: '#ffffff', hair: '#f2f6ff', beard: '#f2f6ff', tunic: '#a8cff0', legs: '#86b0dc', boots: '#6a94c4', size: 'big' },
 };
+
+/** Elementarer utan människolik skepnad: ritade som klot, pelare och ödlor. */
+function spirit(f: Fig, name: string, frame: number) {
+  const bob = frame === 0 ? 0 : frame === 1 ? -1 : 1;
+  const glow = (cx: number, cy: number, r: number, color: string, alpha: number) => {
+    const c = rgb(color);
+    for (let y = Math.floor(cy - r); y <= cy + r; y++)
+      for (let x = Math.floor(cx - r); x <= cx + r; x++) {
+        const d = Math.hypot(x - cx, y - cy) / r;
+        if (d <= 1) f.r.blend(x, y, c, alpha * (1 - d * d));
+      }
+  };
+  switch (name) {
+    case 'sylf':
+      glow(16, 17 + bob, 11, '#cfe8ff', 0.5);
+      f.ellipse(16, 11 + bob, 3.5, 4, '#e4f2ff');
+      f.ellipse(16, 19 + bob, 4.5, 6, '#d2e6fa', 0.1);
+      for (let i = 0; i < 6; i++) f.px(11 + i * 2, 25 + ((i + frame) % 2), '#b8d8f4');
+      break;
+    case 'salamander':
+      f.ellipse(16, 22, 8, 3.5, '#d8501c');
+      f.ellipse(24, 20, 3.5, 2.8, '#e86a20');
+      for (let x = 4; x < 10; x++) f.px(x, 23 + Math.round(Math.sin((x + frame) * 0.9)), '#c84418');
+      f.px(25, 19, '#fff2a0');
+      for (let i = 0; i < 5; i++) glow(9 + i * 3.5, 16 - ((i + frame) % 3), 3, '#ffd040', 0.8);
+      break;
+    case 'undin':
+      f.ellipse(16, 18, 5.5, 11, '#3a7ac8');
+      f.ellipse(14, 14, 2, 6, '#7ab8f0', 0.2);
+      for (let x = 9; x <= 23; x++) f.px(x, 28 + ((x + frame) % 2), '#5a9ae0');
+      f.ellipse(16, 8 + bob, 3, 2.5, '#8ac4f4');
+      break;
+    case 'luminal':
+      glow(16, 16 + bob, 13, '#fff6c0', 0.7);
+      f.ellipse(16, 16 + bob, 5, 5, '#fffbe6', 0.2);
+      break;
+    case 'therm':
+      glow(16, 16 + bob, 12, '#ff9a40', 0.55);
+      glow(16, 16 + bob, 6, '#ffd080', 0.6);
+      break;
+  }
+}
+const SPIRITS = ['sylf', 'salamander', 'undin', 'luminal', 'therm'];
 
 const FRAMES = 3;
 
@@ -473,6 +556,9 @@ function build(name: string, frame: number): HTMLCanvasElement {
     wolf(f, frame);
     f.outline();
     f.shadow(16, 29, 11, 2.2);
+  } else if (SPIRITS.includes(name)) {
+    spirit(f, name, frame);
+    f.shadow(16, 29.5, 7, 2);
   } else {
     humanoid(f, LOOKS[name], frame);
     f.outline();
@@ -486,7 +572,7 @@ function build(name: string, frame: number): HTMLCanvasElement {
  * gåsteg med vänster respektive höger fot lyft.
  */
 export const SPRITES: Record<string, HTMLCanvasElement> = {};
-for (const name of [...Object.keys(LOOKS), 'varg']) {
+for (const name of [...Object.keys(LOOKS), 'varg', ...SPIRITS]) {
   SPRITES[name] = build(name, 0);
   for (let i = 1; i < FRAMES; i++) SPRITES[`${name}_g${i}`] = build(name, i);
 }
@@ -503,7 +589,7 @@ export function portraitUrl(sprite: string): string {
   c.fillStyle = bg;
   c.fillRect(0, 0, 96, 96);
   c.imageSmoothingEnabled = false;
-  const [sx, sy] = sprite === 'varg' ? [14, 3] : [4, 1];
+  const [sx, sy] = sprite === 'varg' ? [14, 3] : SPIRITS.includes(sprite) ? [4, 4] : [4, 1];
   c.drawImage(SPRITES[sprite], sx, sy, 24, 24, 0, 0, 96, 96);
   return el.toDataURL();
 }

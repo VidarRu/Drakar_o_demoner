@@ -27,17 +27,30 @@ stridskonsterna eller varelsernas detaljer.
 | 4 | Detaljerad strid enligt husreglerna, och rollformuläret i originalets stil | Klart (`src/engine/combat.ts`, `src/ui/sheet.ts`) |
 | 5 | Tid och utveckling: spelklocka, läkning, Läkekonst, infektioner, amputation, PSY-poäng, EP och träning | Klart (`src/engine/time.ts`, `src/ui/training.ts`) |
 | 6 | Magi, avståndsstrid, örter och gifter, bärförmåga och handel | Klart (`src/engine/magic.ts`, `combat.ts`, `poison.ts`, `inventory.ts`, `trade.ts`, `src/ui/panels.ts`) |
-| 7 | Följeslagare och elementarer, och fler handlingar i strid | **Förslag på nästa**, se nedan |
+| 7 | Följeslagare, elementarer, smygarläge, Avväpna, Fasthållning och stridskonster | Klart (`src/engine/party.ts`, `elementals.ts`, `maneuvers.ts`, `stealth.ts`) |
+| 8 | Ej bestämt | **Fråga Vidar**, se förslag nedan |
 
-## Förslag till steg 7: följeslagare och elementarer
+## Förslag till steg 8
 
-Mycket i reglerna väntar på att rollpersonen kan ha sällskap. Fråga Vidar om upplägget först.
+Fråga Vidar vad som ska komma härnäst. Kandidater som har kommit upp:
 
-- **Följeslagare:** `combat.party` finns. Fummel mot "närmsta vän" ska träffa dem, Dra vapen slås för alla, en kamrat ska kunna hjälpa den som sväljer tungan, och projektiler i skottlinjen kan träffa dem.
-- **Elementarer:** FRAMMANA ELEMENTAR (Bok III s. 21–22) ger en tillfällig följeslagare som magikern måste styra med full uppmärksamhet.
-- **Fler handlingar:** hjälpa en kamrat, använda magiska föremål, Avväpna och stridskonster (diskutera med Vidar), anfall bakifrån mot en omedveten försvarare, fasthållning, piskans avväpning, spjut mot anstormande varelser och strid från hästryggen.
-- **Varelser som söker skydd** och varelser som lägger besvärjelser.
+- **Äventyrsmoduler:** att flytta gruppen mellan äventyr (gruppen och rollformulären finns redan i sparfilen), och att gå igenom vilka personer som kan värvas i varje modul.
+- **Fler sätt att få erfarenhet** (Vidar ville gå igenom det).
 - **Lärare och bibliotek:** träning med lärare och studier i ett magibibliotek, så att magiskolor kan höjas. Besvärjelser att hitta i äventyret (`learnSpell` finns).
+- **Varelser som söker skydd och lägger besvärjelser**, och fiender som själva frammanar elementarer.
+- **Fler handlingar:** använda magiska föremål, piskans avväpning, spjut mot anstormande varelser och strid från hästryggen.
+- **Egna figurer för fler yrken och raser** (bara krigare, jägare och tjuv finns för rollpersonen).
+
+## Steg 7 i korthet
+
+- **Gruppen** (`src/engine/party.ts`): `GameState.party` är rollpersonen och upp till fem följeslagare, `GameState.companions` deras rollformulär per aktörs-id. `Game.leader` är rollpersonen, `Game.player` den som styrs (i strid den vars tur det är, annars den som valts med `setFocus`) och `Game.char` dess rollformulär. `charOf(a)` ger rollformuläret för vem som helst i gruppen. Allt som tidigare gällde rollpersonen (packning, magi, örter, träning, läkning, tid) gäller nu den som styrs eller var och en i gruppen.
+- **Följeslagare** definieras i `src/content` som `RECRUITS` (skapade med `newDraft` och `finalize`, alltså samma regler som rollpersonen) och placeras på kartan med `recruit` i `spawns`. Samtalsvalet `folj_med` värvar, `Game.dismiss` låter dem gå. `payWages`, `shareLoot`, `leaveParty`, `fallenCompanion` och `aidAfterCombat` sköter lön, byte, avsked, död och förband efter striden. Gråvad har Hjalmar, Sigrid och Linnea.
+- **Elementarer** (`src/engine/elementals.ts`): `ELEMENTALS` beskriver de åtta sorterna, `summonOrBanish` frammanar eller skickar bort, `elementalRound` räknar ned och verkar varje runda, `elementalTakes` avgör hur vapen biter, `actions` och `act` är de särskilda handlingarna. En elementar är en figur med `kind: 'player'` och `Actor.elemental`; magikern har effekten `styr`.
+- **Fler handlingar** (`src/engine/maneuvers.ts`): `helpOptions` och `help` (hjälpa en kamrat), `attackModes`, `maneuverProblem` och `maneuver` (Avväpna, Fasthållning och stridskonsternas anfall), `keepHold`, `breakHold` och `release` (fasthållning och låsning), `roll5` (Rulla). `CombatState.attackMode` och `feint` väljs i stridspanelen.
+- **Smygarläge** (`src/engine/stealth.ts`): `toggleSneak` och `sneakRound`. `Actor.sneaking` och `hidden`. Anfall från smygarläge (`ambush` i `combat.ts`) följer Bok II. `sneakMod` har modifikationerna. Facklor: `Actor.torchOut`, `torchLit`, och luminalens och umbrans glober i `lightMod`.
+- **Stridskonster** i `combat.ts`: `martialOk`, obeväpnad parering och avväpning i `tryParry`, Stålsättning (`steel`), Vidvinkelsyn i `flankMod`, Blind strid och Liggande strid.
+- **Gränssnittet:** gruppanelen ovanför stridspanelen (klicka för att välja vem som visas), elementarens status och handlingar, val av anfallssätt, Fint, Smyg, facklan, hjälp åt kamrater, Släpp taget och Rulla. Träningsvyn har en flik per gruppmedlem. Kameran följer den som har turen. Nya figurer: knekt, jagarinna, linnea och åtta elementarer (`src/game/art/sprites.ts`).
+- Sparformatet är version 6 (`dod-save-v6`); äldre sparningar läses inte.
 
 ## Steg 6 i korthet
 
@@ -48,8 +61,6 @@ Mycket i reglerna väntar på att rollpersonen kan ha sällskap. Fråga Vidar om
 - **Örter och gifter** (`src/data/herbs.ts`, `src/engine/poison.ts`, regler i `rules/poison.ts`): `useHerb`, `searchHerb`, `poisonActor`, `updatePoisons`, `advancePoisons` och `neutralize`. Gifter på vapnet ligger i `Actor.weaponPoison`, gifter i kroppen i `Actor.poisons`.
 - **Gränssnittet** (`src/ui/panels.ts`): fönstren Packning (P), Magi (M) och handlarens bod. Stridspanelen har knappar för Packning, Magi, Ladda om och Sök skydd, och statuspanelen visar avståndsvapen, börda och gifter.
 - **Effekter** som ska överleva striden har `persist`. Örter som läker efter en stund använder effekten `läkning`, som läker när den tar slut (`combat.onExpire`).
-- Sparformatet är version 5 (`dod-save-v5`); äldre sparningar läses inte.
-
 ## Steg 5 i korthet
 
 - `src/engine/time.ts`: `advanceTime` driver klockan, läkning (1 KP per dag, halvt utan vila), PSY-poäng, effekter i dagar och att sömn låser upp EP. `rollInfections` körs efter striden, `amputate` vid kallbrand och krossade ben, `medicine` är Läkekonst en gång per dag.
@@ -68,17 +79,16 @@ Mycket i reglerna väntar på att rollpersonen kan ha sällskap. Fråga Vidar om
   - varelsernas turer (`autoTurn`), även för rollpersonen när skräcken tar över.
 - `src/engine/rules/fumble.ts`, `fear.ts` och `outcomes.ts` innehåller fummeltabellerna och Skräcktabellen som data med egna ord. Tabellen för kritiska skador och stridens konstanter ligger i `tables.ts`.
 - `Actor` har `locKp`, `bleeding`, `effects`, `bv` och `injuries`. Effekterna (`ActiveEffect`) varar i rundor, dagar, ett antal slag eller tills något händer.
-- `GameState.dropped` är föremål som tappats på marken och `GameState.time` är speltiden i sekunder. Sparformatet är version 5; äldre sparningar läses inte.
+- `GameState.dropped` är föremål som tappats på marken och `GameState.time` är speltiden i sekunder. Sparformatet är version 6; äldre sparningar läses inte.
 - **Rollformuläret** (`src/ui/sheet.ts`, öppnas med R) följer originalformulärets uppställning: framsida med grundegenskaper och färdigheter, baksida med kroppsfiguren och träffområdena, vapen, pengar och utrustning. Förlorade KP kryssas över. Kroppsfiguren (`src/ui/figure.ts`) används också i statuspanelen, färgad efter skadorna.
 - `src/content/` innehåller äventyret Gråvad. Varelserna har `humanoid`, `darkvision`, `leader`, `noMorale`, `fear` och `ranged`, personerna `shop`, och kartan `habitats` (växtplatser för örter).
 - **Spelarfigurer:** bara `krigare`, `jagare` och `tjuv` finns. `PROFESSION_SPRITES` ger alla elva yrken en av dem tills det finns egna.
 
 ## Saknas i striden
 
-- **Följeslagare:** reglerna är förberedda för fler rollpersoner (`combat.party`). Med följeslagare ska fummel mot "närmsta vän" träffa dem, Dra vapen slås för alla, och en kamrat ska kunna hjälpa den som sväljer tungan.
-- **Fler handlingar** på turen och gratisturen: hjälpa en kamrat och använda magiska föremål. Att byta vapen, använda örter, lägga besvärjelser, skjuta, ladda om och söka skydd finns.
-- **Stridskonster och Avväpna:** diskutera med Vidar innan de byggs.
-- Anfall bakifrån mot en omedveten försvarare (Smyga mot Upptäcka fara), fasthållning, piskans avväpning, spjut mot en anstormande varelse och strid från hästryggen.
+- **Magiska föremål** att använda på turen.
+- Piskans avväpning, spjut mot en anstormande varelse och strid från hästryggen.
+- Varelser som söker skydd, lägger besvärjelser eller värvar egna elementarer.
 
 ## Kontroll
 
@@ -90,13 +100,13 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 105 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 133 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
-`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya.
+`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan.
 
 För att provköra gränssnittet: starta `npx vite` och styr sidan med Playwright. Ett snabbt sätt är
 att skapa ett spel med `Game.create(testCharacter())`, lägga `JSON.stringify(g.state)` i
-`localStorage` under nyckeln `dod-save-v5` och klicka på "Fortsätt äventyret". Från sidan går det att
+`localStorage` under nyckeln `dod-save-v6` och klicka på "Fortsätt äventyret". Från sidan går det att
 importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och `await import('/tests/helpers.ts')`.
 
 ## Öppna frågor till Vidar
@@ -104,4 +114,5 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 - Fler sätt att få erfarenhet: Vidar vill gå igenom det i ett senare steg.
 - Ska spelaren få fler figurer, en per yrke eller ras?
 - Tolkningarna i steg 6 som Vidar inte uttryckligen har godkänt: säljpriset (halva listpriset), högsta rabatt 50 %, att hälften av pilarna hittas igen, vilka vapen som inte är av järn, och hur ELD, BLIXT och EXPLOSION träffar (se `docs/regelbeslut.md`).
-- Steg 7: följeslagare och elementarer, eller något annat först?
+- Tolkningarna i steg 7 som är markerade som tolkning i `docs/regelbeslut.md`, särskilt: att rollpersonens död avslutar äventyret även om följeslagare lever, att elementarer bara frammanas i strid, att magikern inte kan parera medan hen styr en elementar, CL 8 + E för salamandern och undinen, och att anfall från smygarläge hindrar parering från alla håll.
+- Steg 8: vad ska komma härnäst?

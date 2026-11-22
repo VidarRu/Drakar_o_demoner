@@ -479,3 +479,20 @@ export const EXPERIENCE = {
   /** Bonus för ett lyckat uppdrag (Bok I tillåter 1–4). */
   questBonus: 3,
 };
+
+// ------------------------------------------------------------------ steg 7: smyga, avväpna och följeslagare
+
+/** Modifikationer på Smyga (husregler): tänd fackla i mörker, och dagsljus nära en fiende. */
+export const SNEAK_MODS = {
+  torch: -10,
+  daylight: -5,
+};
+
+/** Avväpna (Bok I s. 46): vapnet hamnar 1T3+1 meter bort, alltså 1–3 rutor. Tekniken Avväpning: 1T3 rutor. */
+export const DISARM = {
+  skill: '1T3',
+  technique: '1T3',
+};
+
+/** Gruppen får vara högst sex: rollpersonen och fem följeslagare (husregel). */
+export const PARTY_MAX = 6;

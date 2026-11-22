@@ -31,7 +31,7 @@ const ROUNDS_PER_MINUTE = 60 / ROUND_SECONDS;
 
 /** Vanligheten för rollpersonen: lönnmördare drar bort 10 för extremt okända droger. */
 export function commonFor(g: Game, h: HerbDef): number {
-  return h.rare && g.state.character.profession === 'lonnmordare' ? Math.max(1, h.common - 10) : h.common;
+  return h.rare && g.char.profession === 'lonnmordare' ? Math.max(1, h.common - 10) : h.common;
 }
 
 /**
@@ -50,7 +50,7 @@ export function prepareDose(g: Game, herbId: string, fv: number, common = HERBS[
 /** Ett gift kommer in i kroppen: offret slår FYS mot giftets STY, och stadiet avgörs. */
 export function poisonActor(g: Game, a: Actor, dose: HerbDose, loc?: HitLocation | null) {
   const h = HERBS[dose.id];
-  if (!h?.poison || !a.alive) return;
+  if (!h?.poison || !a.alive || a.elemental) return;
   if (dose.quality === 'verkningslös' || dose.quality === 'skadlig') {
     g.log(`Giftet på ${a.name} verkar inte; det var illa berett.`);
     return;
@@ -222,7 +222,8 @@ function applySpecial(g: Game, a: Actor, h: HerbDef, p: Poisoning) {
       break;
     case 'sänk':
       a.attrs[s.attr] = Math.min(a.attrs[s.attr], s.to);
-      if (a.id === g.state.playerId) g.state.character.attrs[s.attr] = a.attrs[s.attr];
+      const sheet = g.charOf(a);
+      if (sheet) sheet.attrs[s.attr] = a.attrs[s.attr];
       break;
     case 'infektionsrisk':
       break;
@@ -264,7 +265,8 @@ function dailyHarm(g: Game, a: Actor, p: Poisoning) {
   const brain = () => {
     a.attrs.INT = Math.max(1, a.attrs.INT - 1);
     a.attrs.PSY = Math.max(1, a.attrs.PSY - 1);
-    if (a.id === g.state.playerId) Object.assign(g.state.character.attrs, { INT: a.attrs.INT, PSY: a.attrs.PSY });
+    const sheet = g.charOf(a);
+    if (sheet) Object.assign(sheet.attrs, { INT: a.attrs.INT, PSY: a.attrs.PSY });
     g.log(`Syrebrist: ${a.name}s INT och PSY sjunker med 1 för alltid.`);
   };
   if (type === 'andning') {
@@ -272,7 +274,7 @@ function dailyHarm(g: Game, a: Actor, p: Poisoning) {
   } else if (type === 'blod') {
     const n = die(6, g.rng);
     if (n === 4) brain();
-    else if (n >= 5 && a.id === g.state.playerId) {
+    else if (n >= 5 && g.charOf(a)) {
       const limbs: HitLocation[] = ['vänster arm', 'höger arm', 'vänster ben', 'höger ben'];
       const loc = limbs[die(4, g.rng) - 1];
       if (limbUsable(a, loc)) amputate(g, a, loc);
@@ -320,9 +322,8 @@ export function neutralize(g: Game, a: Actor, amount: number, only?: string) {
 // ------------------------------------------------------------------ använda örter
 
 /** Kan dosen användas just nu? I strid kostar det handlingen. */
-export function herbProblem(g: Game, dose: HerbDose): string | null {
+export function herbProblem(g: Game, dose: HerbDose, p: Actor = g.player): string | null {
   const h = HERBS[dose.id];
-  const p = g.player;
   if (!h) return 'Okänd drog.';
   if (h.kind === 'gift') return h.poison?.byWound ? null : 'Giftet måste ges i mat eller dryck, och det går inte här.';
   if (!h.effects?.length) return 'Drogen har ingen verkan i spelet än.';
@@ -334,13 +335,22 @@ export function herbProblem(g: Game, dose: HerbDose): string | null {
 
 /** Använder en dos ur packningen. Gifter genom sår stryks på vapnet (tar en timme utanför strid). */
 export function useHerb(g: Game, index: number): string | null {
-  const ch = g.state.character;
+  return useHerbOn(g, g.player, g.player, index);
+}
+
+/**
+ * Ger en dos till sig själv eller en kamrat intill. Gifter stryks bara på det egna vapnet. När en
+ * kamrat hjälper till är det den som anropar som avslutar turen.
+ */
+export function useHerbOn(g: Game, giver: Actor, p: Actor, index: number): string | null {
+  const ch = g.charOf(giver)!;
+  if (index < 0) index = ch.herbs.findIndex((d) => HERBS[d.id]?.kind === 'läkedrog' && !herbProblem(g, d, giver));
   const dose = ch.herbs[index];
   if (!dose) return 'Dosen finns inte.';
-  const problem = herbProblem(g, dose);
+  const problem = herbProblem(g, dose, giver);
   if (problem) return problem;
   const h = HERBS[dose.id];
-  const p = g.player;
+  if (h.kind === 'gift' && p !== giver) return 'Gift ger man inte till en kamrat.';
   ch.herbs.splice(index, 1);
   if (h.kind === 'gift') {
     if (g.state.mode === 'combat') return 'Det tar en timme att låta giftet torka in på vapnet.';
@@ -350,16 +360,17 @@ export function useHerb(g: Game, index: number): string | null {
     g.changed();
     return null;
   }
-  g.log(`${p.name} använder ${h.name.toLowerCase()}.`);
+  g.log(giver === p ? `${p.name} använder ${h.name.toLowerCase()}.` : `${giver.name} ger ${p.name} ${h.name.toLowerCase()}.`);
   if (dose.quality === 'verkningslös') g.log('Drogen verkar inte; den var illa beredd.');
   else if (dose.quality === 'skadlig') {
     const dmg = roll('1T6', g.rng);
     g.log(`Drogen var felberedd och gör ${p.name} sjuk (${dmg} i skada).`);
     wound(g, p, dmg, null);
   } else for (const e of h.effects!) applyHerbEffect(g, p, h, e, dose.quality === 'dubbel' ? 2 : 1);
-  if (g.state.mode === 'combat') {
-    g.state.combat!.acted[p.id] = true;
-  } else advanceTime(g, ROUND_SECONDS * 2, 'aktiv');
+  if (giver === p) {
+    if (g.state.mode === 'combat') g.state.combat!.acted[p.id] = true;
+    else advanceTime(g, ROUND_SECONDS * 2, 'aktiv');
+  }
   g.changed();
   return null;
 }
@@ -369,7 +380,7 @@ function applyHerbEffect(g: Game, p: Actor, h: HerbDef, e: NonNullable<HerbDef['
     case 'läka': {
       const amount = roll(e.dice, g.rng) * factor;
       if (!e.minutes) {
-        g.heal(amount);
+        g.heal(amount, p);
         g.log(`${h.name} läker ${amount} KP.`);
       } else {
         p.effects.push({ kind: 'läkning', label: h.name, mod: amount, rounds: e.minutes * ROUNDS_PER_MINUTE, persist: true });
@@ -446,7 +457,7 @@ export function searchHerb(g: Game, id: string): string | null {
   const check = skillCheck(fv, g.rng, cl - fv);
   advanceTime(g, 10 * HOUR, 'aktiv');
   const n = check.result === 'perfekt' ? roll('4T4', g.rng) : check.success ? roll('1T4', g.rng) : 0;
-  for (let i = 0; i < n; i++) g.state.character.herbs.push(prepareDose(g, id, fv, common));
+  for (let i = 0; i < n; i++) g.char.herbs.push(prepareDose(g, id, fv, common));
   if (check.success) g.gainExperience(p, skill, check);
   g.log(`${p.name} letar ${h.name.toLowerCase()} hela dagen (Örtkunskap ${fv} − vanlighet ${common}, T20: ${check.roll} mot ${cl}): ${n ? `${n} doser` : 'hittar inget'}.`);
   g.changed();

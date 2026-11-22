@@ -4,8 +4,9 @@
  *
  * OBS: värdena är provisoriska och ska stämmas av mot regelboken efterhand.
  */
-import type { CreatureDef, NaturalWeaponDef, NpcDef } from '../engine/types';
+import type { Character, CompanionInfo, CreatureDef, NaturalWeaponDef, NpcDef } from '../engine/types';
 import type { MapDef } from '../engine/map';
+import { finalize, newDraft, type Draft } from '../engine/creation';
 
 const list = <T extends { id: string }>(items: T[]): Record<string, T> =>
   Object.fromEntries(items.map((i) => [i.id, i]));
@@ -198,6 +199,140 @@ export const NPCS = list<NpcDef>([
     shop: { goods: ['läkedroger', 'droger'] },
     intents: ['forbind', 'vard', 'handla', 'anfall'],
   },
+  {
+    id: 'hjalmar',
+    persona:
+      'Hjalmar är en grånad legoknekt som sitter i ett hörn på Gyllene Galten och väntar på arbete. Han är fåordig, praktisk och ärlig mot den som betalar. Han tar 20 silvermynt om dagen och slåss så länge hans uppdragsgivare står upp.',
+    knowledge:
+      'Han har hört att svartalferna i grottan österut leds av en hövding som heter Grukk. Han följer med den som betalar dagslönen, och han går om lönen uteblir. Han tycker att man ska ha en sköld och inte springa först in i en grotta.',
+    greeting: 'Behöver du ett svärd till? Jag tar tjugo silver om dagen. Yxan ingår.',
+    topics: [
+      { text: 'Vad har du gjort förut?', reply: 'Vaktat karavaner, slagits i andras krig. Jag lever än, så jag gjorde nog något rätt.' },
+      { text: 'Vad tror du om svartalferna?', reply: 'Fega en och en, farliga i flock. Håll ihop, så klarar vi oss.' },
+    ],
+    intents: ['folj_med', 'anfall'],
+  },
+  {
+    id: 'sigrid',
+    persona:
+      'Sigrid är en tystlåten jägarinna som känner skogen öster om Gråvad bättre än någon annan. Hon är försiktig och vill hellre skjuta från avstånd än slåss på nära håll. Hon följer med mot en lika stor del av silvret som hittas.',
+    knowledge:
+      'Hon vet att vargarna jagar i flock i skogen och att svartalferna har skyttar i grottan. Hon följer gärna med för en del av bytet men flyr om det går riktigt illa.',
+    greeting: 'Sch. Du skrämmer viltet. Vad vill du?',
+    topics: [
+      { text: 'Vad vet du om skogen?', reply: 'Vargarna har blivit djärvare sedan svartalferna kom. De driver dem framför sig.' },
+      { text: 'Vill du tjäna lite silver?', reply: 'Lika delar av det vi hittar. Och jag går först om det luktar illa.' },
+    ],
+    intents: ['folj_med', 'anfall'],
+  },
+  {
+    id: 'linnea',
+    persona:
+      'Linnea är en ung kvinna från Gråvad som går i lära hos kloka gumman Asta. Svartalferna dödade hennes far på stigen i våras, och hon vill hämnas. Hon kan förbinda sår och vårda skadade, men hon har aldrig varit i en riktig strid.',
+    knowledge:
+      'Hon vet var grottan ligger och att svartalferna skyr ljus. Hon följer med utan betalning, men hon kan få nog om det går illa.',
+    greeting: 'Ska du till grottan? Ta mig med. Jag vill se dem som dödade min far få sitt straff.',
+    topics: [
+      { text: 'Vad kan du?', reply: 'Lägga förband och sköta sår. Asta säger att jag har händerna för det.' },
+      { text: 'Är du inte rädd?', reply: 'Jo. Men jag är argare än jag är rädd.' },
+    ],
+    intents: ['folj_med', 'anfall'],
+  },
+]);
+
+/**
+ * Personer som kan följa med rollpersonen (husregel, steg 7). De skapas med samma regler som
+ * rollpersonen, så att de har ett fullständigt rollformulär. Varje äventyr har sina egna.
+ */
+export interface RecruitDef {
+  id: string;
+  /** Visningsnamn i samtalet. */
+  name: string;
+  sprite: string;
+  /** Spelledarpersonen med dialog (NPCS). */
+  npc: string;
+  pay: CompanionInfo['pay'];
+  wage?: number;
+  morale: CompanionInfo['morale'];
+  character: () => Character;
+}
+
+function recruitChar(fill: (d: Draft) => void): () => Character {
+  return () => {
+    const d = newDraft();
+    fill(d);
+    return finalize(d);
+  };
+}
+
+export const RECRUITS = list<RecruitDef>([
+  {
+    id: 'hjalmar',
+    name: 'Legoknekten Hjalmar',
+    sprite: 'knekt',
+    npc: 'hjalmar',
+    pay: 'dagslön',
+    wage: 20,
+    morale: 'ledare',
+    character: recruitChar((d) => {
+      d.name = 'Hjalmar';
+      d.profession = 'krigare';
+      d.bought = { STY: 15, FYS: 14, SMI: 12, INT: 9, PSY: 11, KAR: 9 };
+      d.swordDice = 7;
+      d.socialDice = 8;
+      d.capitalDice = 12;
+      d.profSkills = ['enhandsyxor', 'skoldar', 'bagar', 'dolkar', 'dra_vapen', 'avvapna', 'geografi', 'hasardspel', 'kulturkannedom:manniskor', 'simma', 'trastav', 'barsarkagang'];
+      d.targets = { enhandsyxor: 13, skoldar: 12, dra_vapen: 10, avvapna: 8, upptacka_fara: 9, forsta_hjalpen: 7 };
+      d.bought_items = { stridsyxa: 1, vanlig_skold: 1, harnesk_nitlader: 1, nitladerhuva: 1 };
+      d.equipped = { weapon: 'stridsyxa', shield: 'vanlig_skold', armor: ['harnesk_nitlader', 'nitladerhuva'] };
+      d.appearance = 'Grånad legoknekt med ärrat ansikte och en yxa som sett många strider.';
+    }),
+  },
+  {
+    id: 'sigrid',
+    name: 'Jägarinnan Sigrid',
+    sprite: 'jagarinna',
+    npc: 'sigrid',
+    pay: 'andel',
+    morale: 'alltid',
+    character: recruitChar((d) => {
+      d.name = 'Sigrid';
+      d.gender = 'kvinna';
+      d.profession = 'utbygdsjagare';
+      d.bought = { STY: 12, FYS: 12, SMI: 15, INT: 11, PSY: 12, KAR: 10 };
+      d.swordDice = 6;
+      d.socialDice = 4;
+      d.capitalDice = 9;
+      d.profSkills = ['bagar', 'dolkar', 'stickvapen', 'djurhelning:hund', 'drogkunskap', 'geografi', 'knopar', 'orientering', 'simma', 'spa_vader', 'ortkunskap', 'overlevnad'];
+      d.targets = { bagar: 13, dolkar: 9, smyga: 12, gomma_sig: 10, spara: 12, upptacka_fara: 11, forsta_hjalpen: 9 };
+      d.bought_items = { kortbage: 1, dolk: 1, pilar: 2, harnesk_lader: 1 };
+      d.equipped = { weapon: 'kortbage', armor: ['harnesk_lader'] };
+      d.appearance = 'Smidig och tystlåten jägarinna i grön kappa, med en båge över axeln.';
+    }),
+  },
+  {
+    id: 'linnea',
+    name: 'Bybon Linnea',
+    sprite: 'linnea',
+    npc: 'linnea',
+    pay: 'gratis',
+    morale: 'alltid',
+    character: recruitChar((d) => {
+      d.name = 'Linnea';
+      d.gender = 'kvinna';
+      d.profession = 'helare';
+      d.age = 'ung';
+      d.bought = { STY: 9, FYS: 12, SMI: 11, INT: 13, PSY: 14, KAR: 12 };
+      d.swordDice = 6;
+      d.socialDice = 3;
+      d.capitalDice = 3;
+      d.profSkills = ['dolkar', 'drogkunskap', 'geografi', 'kulturkannedom:manniskor', 'lakekonst', 'massage', 'orientering', 'simma', 'trastav', 'zoologi', 'ortkunskap', 'overlevnad'];
+      d.targets = { trastav: 8, lakekonst: 11, ortkunskap: 10, forsta_hjalpen: 12 };
+      d.bought_items = { trastav: 1 };
+      d.equipped = { weapon: 'trastav', armor: [] };
+      d.appearance = 'Ung kvinna med flätat hår och örtpåsar i bältet. Svartalferna dödade hennes far.';
+    }),
+  },
 ]);
 
 /** Anteckningar som ges till språkmodellen beroende på vad som hänt i spelet. */
@@ -223,12 +358,15 @@ export const MAPS = list<MapDef>([
       g: { tile: ':', creature: 'svartalf' },
       b: { tile: ':', creature: 'svartalf_skytt' },
       C: { tile: ':', creature: 'svartalfshovding' },
+      h: { tile: '_', recruit: 'hjalmar' },
+      j: { tile: '.', recruit: 'sigrid' },
+      l: { tile: '.', recruit: 'linnea' },
     },
     rows: [
       'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',
       'T..........T....TT......T...%%%%%%%%%%%%%%%T',
       'T.#######.......T....T......%%::::%%%%:::%%T',
-      'T.#_____#..........TT....T..%:::g::%%::::%%T',
+      'T.#___h_#..........TT....T..%:::g::%%::::%%T',
       'T.#_i___#....T..........T...%::::::::b:C:%%T',
       'T.#_____#.........T.........%%::::%%%::::%%T',
       'T.###+###......T......w..T..%%%:%%%%%%%%%%%T',
@@ -238,10 +376,10 @@ export const MAPS = list<MapDef>([
       'T....,,,,,+s_#........T.....%::::%%%%%%%%%%T',
       'T....,....####....T......T..%%:%%%%%%%%%%%%T',
       'T....@,,,,,,,,,,,,,,,,,,,,,,,,:%%%%%%%%%%%%T',
-      'T....,.......T.......,...T..%%%%%%%%%%%%%%%T',
+      'T....,.......T...j...,...T..%%%%%%%%%%%%%%%T',
       'T....,..~~~.......T..,......T...T....T.....T',
       'T..o.,.~~~~~....T....,..w......T...T.......T',
-      'T....,..~~~..........,.......T.......T.....T',
+      'T..l.,..~~~..........,.......T.......T.....T',
       'T.........T....T.....,,,,,..T...w....T.....T',
       'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',
     ],

@@ -103,7 +103,7 @@ const kg = (n: number) => (n ? `${String(Math.round(n * 10) / 10).replace('.', '
 
 function front(g: Game): HTMLElement {
   const p = g.player;
-  const ch = g.state.character;
+  const ch = g.char;
   const race = RACES[ch.race];
   const prof = PROFESSIONS[ch.profession];
   const page = el('article', 'rf-page rf-front');
@@ -216,7 +216,7 @@ function locationBox(a: Actor, loc: HitLocation, title: string): HTMLElement {
 
 function back(g: Game): HTMLElement {
   const p = g.player;
-  const ch = g.state.character;
+  const ch = g.char;
   const page = el('article', 'rf-page rf-back');
 
   // Kroppen med träffområdena runt figuren.

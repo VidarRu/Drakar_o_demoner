@@ -24,7 +24,8 @@ export interface MapDef {
   name: string;
   rows: string[];
   /** Tecken i kartan som placerar ut varelser: tecken -> underlag och varelse-id. */
-  spawns: Record<string, { tile: string; creature: string }>;
+  /** Figurer på kartan: en varelse ur innehållet eller en person som kan följa med (`recruit`). */
+  spawns: Record<string, { tile: string; creature?: string; recruit?: string }>;
   /** Tecknet för rollpersonens startruta och dess underlag. */
   start: { char: string; tile: string };
   /** Växtplatser i trakten (för att leta örter), t.ex. "skog" eller "ängar". */
@@ -37,7 +38,7 @@ export interface GameMap {
   w: number;
   h: number;
   tiles: string[];
-  spawns: { creature: string; x: number; y: number }[];
+  spawns: { creature?: string; recruit?: string; x: number; y: number }[];
   start: { x: number; y: number };
   habitats: string[];
 }
@@ -55,7 +56,7 @@ export function parseMap(def: MapDef): GameMap {
         start = { x, y };
         tiles.push(def.start.tile);
       } else if (def.spawns[ch]) {
-        spawns.push({ creature: def.spawns[ch].creature, x, y });
+        spawns.push({ creature: def.spawns[ch].creature, recruit: def.spawns[ch].recruit, x, y });
         tiles.push(def.spawns[ch].tile);
       } else if (TILES[ch]) {
         tiles.push(ch);

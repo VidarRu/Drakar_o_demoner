@@ -40,6 +40,7 @@ import {
 } from './rules';
 import type { ActiveEffect, Actor, PendingSpell } from './types';
 import { advanceTime } from './time';
+import { dissolve, spellVersusElemental, summonOrBanish, summonProblem } from './elementals';
 
 /**
  * Magi enligt Bok III s. 3–8 med Vidars husregler (docs/regelbeslut.md under Magi). Bara
@@ -77,7 +78,7 @@ export function maxGrade(a: Actor, id: string): number {
 const slots = (id: string) => (SPELLS[id]?.ritual ? RITUAL_MEMORY_SLOTS : 1);
 
 export function memoryUsed(g: Game): number {
-  return g.state.character.memorized.reduce((n, id) => n + slots(id), 0);
+  return g.char.memorized.reduce((n, id) => n + slots(id), 0);
 }
 
 export function memoryLimit(g: Game): number {
@@ -87,7 +88,7 @@ export function memoryLimit(g: Game): number {
 
 /** Varför besvärjelsen inte kan memoreras nu, eller null. */
 export function memorizeProblem(g: Game, id: string): string | null {
-  const ch = g.state.character;
+  const ch = g.char;
   const p = g.player;
   const spell = SPELLS[id];
   if (!spell || !ch.spells.includes(id)) return 'Besvärjelsen finns inte i din formelsamling.';
@@ -107,21 +108,21 @@ export function memorize(g: Game, id: string): string | null {
   const spell = SPELLS[id];
   const minutes = spell.sv * (spell.ritual ? RITUAL_MEMORIZE_MINUTES_PER_SV : MEMORIZE_MINUTES_PER_SV);
   advanceTime(g, minutes * 60, 'vila');
-  g.state.character.memorized.push(id);
+  g.char.memorized.push(id);
   g.log(`${g.player.name} memorerar ${spell.name} ur formelsamlingen (${minutes} minuter).`);
   g.changed();
   return null;
 }
 
 export function forget(g: Game, id: string) {
-  const ch = g.state.character;
+  const ch = g.char;
   ch.memorized = ch.memorized.filter((x) => x !== id);
   g.changed();
 }
 
 /** Lär sig en besvärjelse som man har hittat (husregel: utan EP). Kräver FV i skolan minst skolvärdet. */
 export function learnSpell(g: Game, id: string): string | null {
-  const ch = g.state.character;
+  const ch = g.char;
   const spell = SPELLS[id];
   if (!spell) return 'Okänd besvärjelse.';
   if (ch.spells.includes(id)) return 'Den finns redan i formelsamlingen.';
@@ -133,8 +134,8 @@ export function learnSpell(g: Game, id: string): string | null {
 
 /** Medvetslös: magikern glömmer allt i minnet om ett Normalt PSY-slag misslyckas (Bok III s. 5). */
 export function forgetOnKnockout(g: Game, a: Actor) {
-  if (a.id !== g.state.playerId) return;
-  const ch = g.state.character;
+  const ch = g.charOf(a);
+  if (!ch) return;
   if (!ch.memorized.length) return;
   const check = attributeCheck(a.attrs.PSY, g.rng, 'Normalt');
   if (check.success) g.log(`${a.name} behåller besvärjelserna i minnet (Normalt PSY-slag, T20: ${check.roll} mot ${check.target}).`);
@@ -194,12 +195,13 @@ export function spellTargets(g: Game, id: string, extraRange = 0): Actor[] {
 /** Varför besvärjelsen inte kan läggas nu, eller null. */
 export function castProblem(g: Game, id: string, o: CastOptions): string | null {
   const p = g.player;
-  const ch = g.state.character;
+  const ch = g.char;
   const spell = SPELLS[id];
+  if (p.elemental) return 'En elementar lägger inga besvärjelser.';
   if (!spell || !ch.spells.includes(id)) return 'Du kan inte den besvärjelsen.';
   if (!spell.effect) return `${spell.name} verkar inte i spelet än.`;
   if (spell.ritual) return 'Ritualer tar timmar och kan inte läggas här.';
-  if (!canAct(p) || p.down || p.kp <= 1) return 'Du kan inte lägga besvärjelser nu.';
+  if (!canAct(p) || p.down || p.kp <= 1 || hasEffect(p, 'håller')) return 'Du kan inte lägga besvärjelser nu.';
   if (hasEffect(p, 'stum')) return 'Du kan inte använda magi just nu.';
   const iron = ironProblem(g);
   if (iron) return `Järnet stör magin: ${iron}`;
@@ -220,6 +222,7 @@ export function castProblem(g: Game, id: string, o: CastOptions): string | null 
   if (spell.aim !== 'själv') {
     const t = o.target ? g.actor(o.target) : undefined;
     if (!t || !spellTargets(g, id, o.extraRange).includes(t)) return 'Välj ett mål inom räckhåll som du ser.';
+    if (spell.effect.kind === 'elementar') return summonProblem(g, p, spell.effect.element, t);
   }
   return null;
 }
@@ -233,7 +236,7 @@ export function castSpell(g: Game, id: string, o: CastOptions): string | null {
   if (problem) return problem;
   const p = g.player;
   const spell = SPELLS[id];
-  const ch = g.state.character;
+  const ch = g.char;
   const memorized = ch.memorized.includes(id);
   const target = spell.aim === 'själv' ? p.id : o.target;
   const t = target ? g.actor(target) : undefined;
@@ -389,8 +392,9 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
         abs = (piece?.abs ?? 0) + t.naturalArmor + magicArmor(t);
         if (e.armor === 'halvMetall' && piece?.metal) abs = Math.floor(abs / 2);
       }
-      const dealt = Math.max(0, dmg - abs);
-      g.log(`${t.name} tar ${dealt} i skada${loc ? ` i ${loc}` : ''}${abs ? ` (${dmg} − ${abs} i skydd)` : ''}.`);
+      const factor = spellVersusElemental(g, s.spell, t);
+      const dealt = Math.max(0, dmg - abs) * factor;
+      g.log(`${t.name} tar ${dealt} i skada${loc ? ` i ${loc}` : ''}${abs ? ` (${dmg} − ${abs} i skydd)` : ''}${factor === 2 ? ' – dubbel skada' : factor === 0 ? ' – elementaren är immun' : ''}.`);
       g.emit(t.id, dealt ? `-${dealt}` : '0', 'damage');
       provoke(g, t);
       wound(g, t, dealt, loc);
@@ -458,7 +462,7 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
     }
     case 'läka': {
       const amount = perfect ? maxDice(e.dice, grade) : sumDice(e.dice, grade, g);
-      if (t.id === g.state.playerId) g.heal(amount);
+      if (t.detailed) g.heal(amount, t);
       else t.kp = Math.min(t.maxKp, t.kp + amount);
       g.log(`${t.name} läks ${amount} KP.`);
       return;
@@ -483,6 +487,13 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       g.log(`${t.name} känner ingen fruktan.`);
       return;
     case 'skingra': {
+      if (t.elemental) {
+        // SKINGRA kan förstöra en elementar: E mot elementarens grad.
+        const r = resistance(grade, t.elemental.grade, g.rng);
+        if (r.success) dissolve(g, t, `${t.name} skingras (E${grade} mot grad ${t.elemental.grade}).`);
+        else g.log(`${t.name} står emot SKINGRA (E${grade} mot grad ${t.elemental.grade}).`);
+        return;
+      }
       const magic = t.effects.filter((x) => x.spell && x.grade !== undefined);
       if (!magic.length) {
         g.log(`Det finns ingen besvärjelse att skingra på ${t.name}.`);
@@ -499,6 +510,9 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
     }
     case 'fiendskap':
       g.log(t.hostile ? `${t.name} vill dig ont.` : `${t.name} är inte fientligt inställd mot dig.`);
+      return;
+    case 'elementar':
+      summonOrBanish(g, caster, t, e.element, grade, spellS(caster, spell.id), s.extraDuration);
       return;
     case 'rankor': {
       const need = Math.ceil(t.attrs.STO / 10);
@@ -579,7 +593,7 @@ function misfire(g: Game, a: Actor, s: PendingSpell) {
     }
     case 'hjärnskada': {
       const loss = roll(row.effect.amount, g.rng);
-      const ch = g.state.character;
+      const ch = g.charOf(a) ?? g.char;
       a.attrs.INT = Math.max(1, a.attrs.INT - loss);
       ch.attrs.INT = a.attrs.INT;
       for (const [k, fv] of Object.entries(a.skills)) {
@@ -597,7 +611,7 @@ function misfire(g: Game, a: Actor, s: PendingSpell) {
       a.effects.push({ kind: 'stum', label: 'Minnesförlust: ingen magi', days, persist: true });
       a.effects.push({ kind: 'misslyckas', label: 'Minnesförlust: inga färdigheter', scope: 'strid', days, persist: true });
       a.effects.push({ kind: 'cl', label: 'Minnesförlust', mod: -20, scope: 'alla', days, persist: true });
-      (g.state.character.phobias ??= []).push({ source: 'magi', level: 'normal' });
+      ((g.charOf(a) ?? g.char).phobias ??= []).push({ source: 'magi', level: 'normal' });
       return;
     }
   }

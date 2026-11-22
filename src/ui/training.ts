@@ -31,9 +31,23 @@ export class TrainingUi {
   private render() {
     const g = this.g;
     const p = g.player;
-    const ch = g.state.character;
+    const ch = g.char;
     const body = $('training-body');
     body.replaceChildren();
+    // Var och en i gruppen tränar för sig.
+    const members = g.partyMembers();
+    if (members.length > 1) {
+      const tabs = el('div', 'chips');
+      for (const m of members) {
+        const b = el('button', m === p ? 'primary' : '', m.name);
+        b.onclick = () => {
+          g.setFocus(m.id);
+          this.render();
+        };
+        tabs.append(b);
+      }
+      body.append(tabs);
+    }
     const bonus = ch.bonusEp ?? 0;
     body.append(
       el(

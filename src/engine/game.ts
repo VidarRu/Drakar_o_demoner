@@ -1,10 +1,14 @@
-import { CREATURES, MAPS, PROFESSION_SPRITES } from '../content';
+import { CREATURES, MAPS, PROFESSION_SPRITES, RECRUITS } from '../content';
 import { ABILITY_BY_ID } from '../data/abilities';
 import { ARMOR } from '../data/armor';
 import { RACES } from '../data/races';
 import { SKILLS } from '../data/skills';
 import * as combat from './combat';
 import * as time from './time';
+import * as stealth from './stealth';
+import * as maneuvers from './maneuvers';
+import * as party from './party';
+import * as elementals from './elementals';
 import { roll, type Rng } from './dice';
 import {
   computeFov,
@@ -110,6 +114,48 @@ export function makeActor(init: ActorInit, extra: Partial<Actor> = {}): Actor {
   return a;
 }
 
+/** En figur för en rollperson eller följeslagare, byggd ur rollformuläret. */
+export function actorFromCharacter(char: Character, id: string, x: number, y: number, sprite?: string): Actor {
+  const race = RACES[char.race];
+  const ability = char.ability ? ABILITY_BY_ID[char.ability.id] : undefined;
+  return makeActor(
+    {
+      id,
+      defId: id === 'player' ? 'player' : `rp:${slugName(char.name)}`,
+      name: char.name,
+      kind: 'player',
+      sprite: sprite ?? PROFESSION_SPRITES[char.profession] ?? 'krigare',
+      x,
+      y,
+      attrs: { ...char.attrs },
+      skills: { ...char.skills },
+      weapon: char.equipped.weapon ?? 'nave',
+      offhand: char.equipped.offhand,
+      armor: [...char.equipped.armor],
+      naturalArmor: 0,
+      shield: char.equipped.shield,
+      move: movement(char.attrs, race.move),
+      hostile: false,
+      detailed: true,
+      sight: FOV_RADIUS,
+      darkvision: !!race.darkvision,
+      silver: char.silver,
+      swordArm: char.swordHand === 'vänster' ? 'vänster arm' : 'höger arm',
+    },
+    {
+      profession: char.profession,
+      initiative:
+        (char.profession === 'krigare' ? INITIATIVE_MODS.stridsvana : 0) +
+        (ability?.passive?.initiative ?? 0) +
+        (char.techniques.includes('initiativbonus') ? INITIATIVE_MODS.initiativbonus : 0),
+      firstAlways: ability?.id === 'snabbslaende',
+      techniques: [...char.techniques],
+    },
+  );
+}
+
+const slugName = (n: string) => n.toLowerCase().replace(/[^a-zåäö]+/g, '_');
+
 /**
  * Spelmotorn. Äger hela speltillståndet och alla regler; känner inte till grafik eller gränssnitt.
  * Gränssnittet anropar metoderna och lyssnar på ändringar. Striden ligger i combat.ts.
@@ -130,45 +176,13 @@ export class Game {
 
   static create(char: Character, rng: Rng = Math.random, mapId = 'gravad'): Game {
     const map = parseMap(MAPS[mapId]);
-    const race = RACES[char.race];
-    const ability = char.ability ? ABILITY_BY_ID[char.ability.id] : undefined;
-    const player = makeActor(
-      {
-        id: 'player',
-        defId: 'player',
-        name: char.name,
-        kind: 'player',
-        sprite: PROFESSION_SPRITES[char.profession] ?? 'krigare',
-        x: map.start.x,
-        y: map.start.y,
-        attrs: { ...char.attrs },
-        skills: { ...char.skills },
-        weapon: char.equipped.weapon ?? 'nave',
-        offhand: char.equipped.offhand,
-        armor: [...char.equipped.armor],
-        naturalArmor: 0,
-        shield: char.equipped.shield,
-        move: movement(char.attrs, race.move),
-        hostile: false,
-        detailed: true,
-        sight: FOV_RADIUS,
-        darkvision: !!race.darkvision,
-        silver: char.silver,
-        swordArm: char.swordHand === 'vänster' ? 'vänster arm' : 'höger arm',
-      },
-      {
-        profession: char.profession,
-        initiative:
-          (char.profession === 'krigare' ? INITIATIVE_MODS.stridsvana : 0) +
-          (ability?.passive?.initiative ?? 0) +
-          (char.techniques.includes('initiativbonus') ? INITIATIVE_MODS.initiativbonus : 0),
-        firstAlways: ability?.id === 'snabbslaende',
-      },
-    );
+    const player = actorFromCharacter(char, 'player', map.start.x, map.start.y);
     const state: GameState = {
-      version: 5,
+      version: 6,
       time: time.START_TIME,
       character: char,
+      companions: {},
+      party: [player.id],
       mapId,
       playerId: player.id,
       actors: [player],
@@ -183,7 +197,18 @@ export class Game {
       nextId: 1,
     };
     for (const s of map.spawns) {
-      const def = CREATURES[s.creature];
+      if (s.recruit) {
+        const r = RECRUITS[s.recruit];
+        const ch = r.character();
+        const a = actorFromCharacter(ch, `a${state.nextId++}`, s.x, s.y, r.sprite);
+        a.kind = 'npc';
+        a.npc = r.npc;
+        a.companion = { recruit: r.id, pay: r.pay, wage: r.wage, morale: r.morale, home: { x: s.x, y: s.y } };
+        state.companions[a.id] = ch;
+        state.actors.push(a);
+        continue;
+      }
+      const def = CREATURES[s.creature!];
       state.actors.push(
         makeActor(
           {
@@ -244,9 +269,46 @@ export class Game {
 
   // ---------------------------------------------------------------- uppslag
 
-  get player(): Actor {
+  /** Huvudpersonen, den som spelaren skapade. Dör hen är äventyret slut. */
+  get leader(): Actor {
     return this.actor(this.state.playerId)!;
   }
+
+  /**
+   * Gruppmedlemmen som spelaren styr och ser i panelerna: i strid den vars tur det är,
+   * annars den som valts (som standard huvudpersonen).
+   */
+  get player(): Actor {
+    const f = this.state.focus ? this.actor(this.state.focus) : undefined;
+    return f && f.alive && f.kind === 'player' ? f : this.leader;
+  }
+
+  /** Rollformuläret för den som styrs (för en elementar: magikerns). */
+  get char(): Character {
+    const p = this.player;
+    return this.charOf(p) ?? (p.elemental ? this.charOf(this.actor(p.elemental.caster)!) : undefined) ?? this.state.character;
+  }
+
+  /** Rollformuläret för en rollperson eller följeslagare, eller undefined för andra figurer. */
+  charOf(a: Actor | undefined): Character | undefined {
+    if (!a) return undefined;
+    if (a.id === this.state.playerId) return this.state.character;
+    return this.state.companions[a.id];
+  }
+
+  /** Gruppens levande medlemmar (rollpersonen och följeslagarna, inte elementarer). */
+  partyMembers(): Actor[] {
+    return this.state.party.map((id) => this.actor(id)!).filter((a) => a && a.alive);
+  }
+
+  /** Väljer vem som visas och styrs utanför strid. */
+  setFocus(id: string) {
+    const a = this.actor(id);
+    if (!a || !a.alive || a.kind !== 'player' || this.state.mode === 'combat') return;
+    this.state.focus = id;
+    this.changed();
+  }
+
   actor(id: string): Actor | undefined {
     return this.state.actors.find((a) => a.id === id);
   }
@@ -258,20 +320,23 @@ export class Game {
   }
   private occupied = (x: number, y: number) => !!this.actorAt(x, y);
 
-  /** Väg för rollpersonen till en ruta, eller till en ruta intill om `adjacentOk`. */
+  /** Väg för den som går (ledaren utanför strid) till en ruta, eller till en ruta intill om `adjacentOk`. */
   pathTo(x: number, y: number, adjacentOk = false): Point[] | null {
-    return findPath(this.map, this.player, { x, y }, this.occupied, adjacentOk);
+    const who = this.state.mode === 'combat' ? this.player : this.leader;
+    return findPath(this.map, who, { x, y }, this.occupied, adjacentOk);
   }
 
-  /** Rutor rollpersonen kan nå med sin återstående förflyttning i strid. */
+  /** Rutor som den som har turen kan nå med sin återstående förflyttning i strid. */
   reachableTiles(): Point[] {
     if (!this.isPlayerTurn()) return [];
     return reachable(this.map, this.player, this.state.combat!.movesLeft, this.occupied);
   }
 
-  private updateFov() {
-    const p = this.player;
-    this.visible = computeFov(this.map, p.x, p.y, FOV_RADIUS);
+  /** Gruppen ser tillsammans: synfälten för alla som är vid medvetande läggs ihop. */
+  updateFov() {
+    this.visible = new Set();
+    const eyes = this.state.actors.filter((a) => a.alive && a.kind === 'player' && (!a.unconscious || a.id === this.state.playerId));
+    for (const a of eyes) for (const i of computeFov(this.map, a.x, a.y, FOV_RADIUS)) this.visible.add(i);
     for (const i of this.visible) this.state.explored[i] = 1;
   }
 
@@ -281,25 +346,52 @@ export class Game {
 
   // ---------------------------------------------------------------- utforskning
 
-  /** Flyttar rollpersonen ett steg under utforskning. Varje steg räknas som en stridsrunda. */
+  /**
+   * Flyttar ledaren ett steg under utforskning, och följeslagarna går efter i ett led. Varje steg
+   * räknas som en stridsrunda. De som smyger slår Smyga när en fiende kan se dem.
+   */
   stepPlayer(to: Point): boolean {
     if (this.state.mode !== 'explore') return false;
-    const p = this.player;
+    const p = this.leader;
     if (!combat.canAct(p) || distance(p.x, p.y, to.x, to.y) !== 1 || this.occupied(to.x, to.y)) return false;
+    const members = this.partyMembers();
+    const before = members.map((m) => ({ x: m.x, y: m.y }));
     combat.face(p, to.x, to.y);
     p.x = to.x;
     p.y = to.y;
+    // Följeslagarna går i ledarens spår. Den som inte kan gå bärs av de andra (tolkning).
+    for (let i = 1; i < members.length; i++) {
+      const m = members[i];
+      const goal = before[i - 1];
+      if (distance(m.x, m.y, goal.x, goal.y) > 1) {
+        const path = findPath(this.map, m, goal, this.occupied, true);
+        if (path?.length) {
+          combat.face(m, path[0].x, path[0].y);
+          m.x = path[0].x;
+          m.y = path[0].y;
+        }
+      } else if (!this.occupied(goal.x, goal.y)) {
+        combat.face(m, goal.x, goal.y);
+        m.x = goal.x;
+        m.y = goal.y;
+      }
+    }
     this.updateFov();
-    combat.pickUp(this);
-    combat.tick(this, p);
+    for (const m of members) combat.pickUp(this, m);
+    for (const m of members) combat.tick(this, m);
     time.advanceTime(this, 5, 'aktiv');
-    if (this.state.mode === 'explore') this.checkAmbush();
+    if (this.state.mode === 'explore') {
+      stealth.sneakRound(this);
+      this.checkAmbush();
+    }
     this.changed();
     return true;
   }
 
+  /** Fiender som ser någon i gruppen som inte är dold. */
   private hostilesAware(): Actor[] {
-    return this.state.actors.filter((a) => a.alive && a.hostile && !a.fled && this.canSee(a, this.player));
+    const seen = this.state.actors.filter((a) => a.alive && a.kind === 'player' && !a.hidden);
+    return this.state.actors.filter((a) => a.alive && a.hostile && !a.fled && seen.some((m) => this.canSee(a, m)));
   }
 
   private checkAmbush() {
@@ -323,12 +415,16 @@ export class Game {
     return true;
   }
 
-  /** Rollpersonen styr sin tur själv (inte medvetslös, paralyserad, på flykt eller i bärsärkagång). */
+  /**
+   * Spelaren styr turen: den som agerar hör till gruppen (rollpersonen, en följeslagare eller en
+   * elementar) och är inte medvetslös, paralyserad, på flykt eller i bärsärkagång.
+   */
   isPlayerTurn(): boolean {
     const c = this.state.combat;
-    if (this.state.mode !== 'combat' || !c || c.order[c.turn] !== this.state.playerId) return false;
-    const p = this.player;
-    return combat.canAct(p) && !combat.hasEffect(p, 'flyr') && !combat.hasEffect(p, 'bärsärk');
+    if (this.state.mode !== 'combat' || !c) return false;
+    const a = this.actor(c.order[c.turn]);
+    if (!a || a.kind !== 'player' || a.id !== this.player.id) return false;
+    return combat.canAct(a) && !combat.hasEffect(a, 'flyr') && !combat.hasEffect(a, 'bärsärk');
   }
 
   /** Flyttar rollpersonen ett steg i strid. Föremål på marken plockas upp om handlingen finns kvar. */
@@ -364,6 +460,8 @@ export class Game {
     if (this.state.combat!.acted[p.id]) return 'Du har redan gjort din handling.';
     if (!t || !t.alive || !t.hostile) return 'Inget fientligt mål.';
     if (this.holdsRanged()) return combat.shootProblem(this, p, t);
+    const mode = this.state.combat!.attackMode;
+    if (mode && mode !== 'vanligt') return maneuvers.maneuverProblem(this, p, t, mode);
     if (!combat.canAttackNow(p)) return 'Du kan inte anfalla nu.';
     return combat.inReach(this, p, t) ? null : 'Målet är utom räckhåll.';
   }
@@ -376,7 +474,9 @@ export class Game {
   playerAttack(targetId: string): boolean {
     if (!this.canAttack(targetId)) return false;
     const t = this.actor(targetId)!;
+    const mode = this.state.combat!.attackMode;
     if (this.holdsRanged()) combat.shoot(this, this.player, t);
+    else if (mode && mode !== 'vanligt') maneuvers.maneuver(this, this.player, t, mode);
     else combat.playerAttack(this, t);
     if (this.state.combat) {
       this.state.combat.acted[this.player.id] = true;
@@ -421,6 +521,88 @@ export class Game {
     this.changed();
   }
 
+  /** Väljer hur nästa anfall görs: vanligt, Avväpna, Fasthållning eller en stridskonstteknik. */
+  setAttackMode(mode: string) {
+    if (this.state.combat) this.state.combat.attackMode = mode;
+    this.changed();
+  }
+
+  /** Fint tillsammans med nästa anfall (stridskonsttekniken Fint). */
+  setFeint(on: boolean) {
+    if (this.state.combat) this.state.combat.feint = on;
+    this.changed();
+  }
+
+  /** Släpper taget om den som hålls fast. */
+  releaseHold() {
+    maneuvers.release(this, this.player);
+    this.changed();
+  }
+
+  /** Fallteknik: rulla iväg upp till 5 rutor. */
+  rollAway(): string | null {
+    const r = maneuvers.roll5(this, this.player);
+    if (r) this.log(r);
+    this.changed();
+    return r;
+  }
+
+  // ---------------------------------------------------------------- smyga, facklor och kamrater
+
+  /** Slår på eller av smygarläget för den som styrs. */
+  toggleSneak(): string | null {
+    const r = stealth.toggleSneak(this, this.player);
+    if (r) this.log(r);
+    this.changed();
+    return r;
+  }
+
+  /** Tänder eller släcker facklan för den som styrs. */
+  toggleTorch() {
+    const p = this.player;
+    p.torchOut = !p.torchOut;
+    this.log(p.torchOut ? `${p.name} släcker sin fackla.` : `${p.name} tänder sin fackla.`);
+    this.changed();
+  }
+
+  /** Vad den som styrs kan göra för en kamrat just nu. */
+  helpOptions(): maneuvers.HelpOption[] {
+    return maneuvers.helpOptions(this, this.player);
+  }
+
+  /** Hjälper en kamrat: förband, häva kvävning, resa upp, ge en ört eller Läkekonst. */
+  help(kind: maneuvers.HelpKind, targetId: string, arg?: number): string | null {
+    const r = maneuvers.help(this, this.player, kind, targetId, arg);
+    if (r) this.log(r);
+    this.changed();
+    return r;
+  }
+
+  /** Värvar en person som vill följa med. */
+  recruit(npcId: string): string {
+    return party.recruit(this, npcId);
+  }
+
+  /** Låter en följeslagare gå hem. */
+  dismiss(id: string) {
+    party.dismiss(this, id, 'avskedad');
+    this.changed();
+  }
+
+  // ---------------------------------------------------------------- elementarer
+
+  /** Elementarens särskilda handlingar på dess tur. */
+  elementalActions(): elementals.ElementalAction[] {
+    return elementals.actions(this, this.player);
+  }
+
+  elementalAct(action: string, targetId?: string): string | null {
+    const r = elementals.act(this, this.player, action, targetId);
+    if (r) this.log(r);
+    this.changed();
+    return r;
+  }
+
   endTurn(): boolean {
     if (!this.isPlayerTurn()) return false;
     combat.finishTurn(this);
@@ -440,13 +622,7 @@ export class Game {
   bandage(): boolean {
     if (!this.canBandage()) return false;
     const p = this.player;
-    const loc = p.bleeding[0];
-    const check = skillCheck(this.skillFv(p, 'forsta_hjalpen'), this.rng, combat.skillMod(this, p, 'forsta_hjalpen'));
-    if (check.success) {
-      p.bleeding = p.bleeding.filter((l) => l !== loc);
-      this.gainExperience(p, 'forsta_hjalpen', check);
-      this.log(`${p.name} lägger förband på ${loc} (Första hjälpen, ${describe(check)}). Blödningen stannar.`);
-    } else this.log(`${p.name} försöker lägga förband på ${loc} men misslyckas (Första hjälpen, ${describe(check)}).`);
+    maneuvers.bandageOnce(this, p, p);
     if (this.state.mode === 'combat') {
       this.state.combat!.acted[p.id] = true;
       combat.finishTurn(this);
@@ -534,8 +710,8 @@ export class Game {
     for (const a of off) delete p.bv[a];
     p.armor = [...p.armor.filter((a) => !off.includes(a)), id];
     p.bv[id] = combat.armorBv(id);
-    this.state.character.equipped.armor = [...p.armor];
-    if (!this.state.character.inventory.includes(id)) this.state.character.inventory.push(id);
+    this.char.equipped.armor = [...p.armor];
+    if (!this.char.inventory.includes(id)) this.char.inventory.push(id);
   }
 
   // ---------------------------------------------------------------- övrigt
@@ -565,9 +741,9 @@ export class Game {
     this.changed();
   }
 
-  /** Kan rollpersonen vila här? Inte med fiender i sikte. */
+  /** Kan gruppen vila här? Inte med fiender i sikte. */
   canRest(): boolean {
-    return this.state.mode === 'explore' && combat.canAct(this.player) && !this.state.actors.some((a) => a.alive && a.hostile && !a.fled && this.isVisible(a.x, a.y));
+    return this.state.mode === 'explore' && combat.canAct(this.leader) && !this.state.actors.some((a) => a.alive && a.hostile && !a.fled && this.isVisible(a.x, a.y));
   }
 
   /** Vilar en vecka (sju nätter). Därefter kan EP växlas in mot FV och fobier mildras. */
@@ -590,8 +766,7 @@ export class Game {
   }
 
   /** Läker KP i totala KP och fördelar samma mängd på de mest skadade kroppsdelarna. */
-  heal(amount: number) {
-    const p = this.player;
+  heal(amount: number, p: Actor = this.player) {
     const before = p.kp;
     p.kp = Math.min(p.maxKp, p.kp + amount);
     let left = p.kp - before;

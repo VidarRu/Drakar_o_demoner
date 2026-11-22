@@ -115,7 +115,7 @@ export class PackUi {
   private render(body: HTMLElement) {
     const g = this.g;
     const p = g.player;
-    const ch = g.state.character;
+    const ch = g.char;
     const kg = carriedWeight(g);
     const mod = loadMod(g, p);
     body.append(
@@ -255,7 +255,7 @@ export class MagicUi {
   private render(body: HTMLElement) {
     const g = this.g;
     const p = g.player;
-    const ch = g.state.character;
+    const ch = g.char;
     body.append(
       el(
         'p',

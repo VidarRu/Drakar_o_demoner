@@ -4,7 +4,9 @@ import { ARMOR, SHIELDS } from '../data/armor';
 import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
 import { HERBS } from '../data/herbs';
-import { activeHostiles, ammoLeft, damageExpr, effectiveMove, isOut, rangedInfo } from '../engine/combat';
+import { activeHostiles, ammoLeft, damageExpr, effectiveMove, hasEffect, isOut, martialOk, rangedInfo } from '../engine/combat';
+import { elementalAttacks } from '../engine/elementals';
+import { attackModes, passiveTechniques } from '../engine/maneuvers';
 import { carriedWeight, loadMod } from '../engine/inventory';
 import type { Game } from '../engine/game';
 import { INTENTS } from '../engine/intents';
@@ -70,8 +72,9 @@ export class Hud {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
       if (!$('panel').hidden || !$('dialog').hidden) return;
       if (e.key === 'r' || e.key === 'R') this.toggleSheet($('rollformular').hidden);
+      if (this.g.player.elemental) return;
       if (e.key === 'p' || e.key === 'P') this.open.pack();
-      if ((e.key === 'm' || e.key === 'M') && this.g.state.character.spells.length) this.open.magic();
+      if ((e.key === 'm' || e.key === 'M') && this.g.char.spells.length) this.open.magic();
     });
     g.onChange(() => this.render());
     this.render();
@@ -83,6 +86,7 @@ export class Hud {
   }
 
   render() {
+    this.renderParty();
     this.renderStatus();
     this.renderLog();
     this.renderActions();
@@ -91,16 +95,62 @@ export class Hud {
   }
 
   private renderFullSheet() {
+    if (this.g.player.elemental) {
+      $('rf-content').replaceChildren(el('p', 'note', 'En elementar har inget rollformulär. Välj en rollperson i gruppen.'));
+      return;
+    }
     $('rf-content').replaceChildren(renderSheet(this.g));
+  }
+
+  /** Gruppen: ett kort per rollperson, följeslagare och elementar. Klicka för att visa och styra. */
+  private renderParty() {
+    const g = this.g;
+    const box = $('party');
+    const members = [...g.partyMembers(), ...g.state.actors.filter((a) => a.alive && a.elemental)];
+    box.hidden = members.length < 2 || g.state.mode === 'dialog' || g.state.mode === 'dead';
+    if (box.hidden) return;
+    box.replaceChildren(
+      ...members.map((m) => {
+        const card = el('div', `member${m === g.player ? ' focus' : ''}${isOut(m) ? ' out' : ''}`);
+        card.title = g.state.mode === 'combat' ? m.name : `Visa ${m.name}`;
+        const img = el('img');
+        img.src = portraitUrl(m.sprite);
+        const text = el('div');
+        const kp = el('span', 'kp');
+        const fill = el('i');
+        fill.style.width = `${Math.max(0, (100 * m.kp) / m.maxKp)}%`;
+        kp.append(fill);
+        const tags = [m.sneaking ? 'smyger' : '', m.unconscious ? 'medvetslös' : '', m.elemental ? `${m.elemental.rounds} SR` : ''].filter(Boolean).join(', ');
+        text.append(el('b', '', m.name), kp);
+        if (tags) text.append(el('span', 'tag', tags));
+        card.append(img, text);
+        card.onclick = () => g.setFocus(m.id);
+        if (m.companion && g.state.mode === 'explore') {
+          const pay = m.companion.pay === 'dagslön' ? `${m.companion.wage} sm/dag` : m.companion.pay === 'andel' ? 'del av bytet' : 'gratis';
+          const bye = el('button', 'dismiss', '✕');
+          bye.title = `Låt ${m.name} gå hem`;
+          bye.onclick = (e) => {
+            e.stopPropagation();
+            if (confirm(`Låta ${m.name} gå hem? (${pay})`)) g.dismiss(m.id);
+          };
+          card.append(bye);
+        }
+        return card;
+      }),
+    );
   }
 
   /** Den lilla panelen: KP per kroppsdel, vapen, rustning och tillstånd. */
   private renderStatus() {
     const g = this.g;
     const p = g.player;
-    const ch = g.state.character;
     const box = $('status');
     box.replaceChildren();
+    if (p.elemental) {
+      this.renderElementalStatus(box, p);
+      return;
+    }
+    const ch = g.char;
 
     const who = el('div', 'who');
     const img = el('img');
@@ -145,6 +195,11 @@ export class Hud {
     }
 
     const states: string[] = [];
+    if (p.sneaking) states.push(p.hidden ? 'Smyger oupptäckt' : 'Smyger');
+    if (p.torchOut) states.push('Facklan är släckt');
+    if (p.companion) states.push(p.companion.pay === 'dagslön' ? `Följer med för ${p.companion.wage} silver om dagen` : p.companion.pay === 'andel' ? 'Följer med för en del av bytet' : 'Följer med utan betalning');
+    const passive = passiveTechniques(p);
+    if (passive.length) states.push(`Stridskonst: ${passive.join(', ')}`);
     if (p.unconscious) states.push('Medvetslös');
     if (p.down) states.push('Utslagen – kan bara krypa');
     if (p.kp === 2) states.push('2 KP: halverad CL');
@@ -169,6 +224,39 @@ export class Hud {
       kv('Tid', clockText(g.state.time)),
       ...(states.length ? [el('h3', '', 'Tillstånd'), ...states.map((s) => el('p', 'state', s))] : []),
       button('Rollformulär (R)', () => this.toggleSheet(true), 'primary sheet-btn'),
+    );
+  }
+
+  /** Statuspanelen för en elementar: grundegenskaper, grad och hur länge den finns kvar. */
+  private renderElementalStatus(box: HTMLElement, e: Actor) {
+    const g = this.g;
+    const info = e.elemental!;
+    const who = el('div', 'who');
+    const img = el('img');
+    img.src = portraitUrl(e.sprite);
+    const names = el('div');
+    names.append(el('h2', '', e.name), el('small', '', `Styrs av ${g.actor(info.caster)?.name ?? 'magikern'}`));
+    who.append(img, names);
+    const bar = el('div', 'bar');
+    const fill = el('i');
+    fill.style.width = `${Math.max(0, (100 * e.kp) / e.maxKp)}%`;
+    bar.append(fill, el('span', '', `KP ${e.kp} / ${e.maxKp}`));
+    const kv = (key: string, value: string) => {
+      const row = el('div', 'kv');
+      row.append(el('span', '', key), el('b', '', value));
+      return row;
+    };
+    const w = g.weaponOf(e);
+    box.append(
+      who,
+      bar,
+      kv('STO och STY', String(e.attrs.STO)),
+      kv('PSY', String(e.attrs.PSY)),
+      kv('SMI', String(e.attrs.SMI)),
+      kv('Grad', `E${info.grade}`),
+      kv('Finns kvar', `${info.rounds} SR`),
+      kv('Förflyttning', `${effectiveMove(e, g)} rutor`),
+      ...(elementalAttacks(e) ? [kv(`${w.name} (CL ${e.skills.elementar})`, w.damage)] : []),
     );
   }
 
@@ -198,9 +286,11 @@ export class Hud {
       panel.append(button('⚔ Till strid', () => g.startCombat(), 'danger', !hostiles));
       if (p.bleeding.length) panel.append(button('Lägg förband', () => g.bandage(), '', !g.canBandage()));
       if (g.canSelfMedicine()) panel.append(button('Läkekonst', () => g.selfMedicine()));
+      for (const h of g.helpOptions()) panel.append(button(h.label, () => g.help(h.kind, h.target)));
+      panel.append(this.sneakButton(), this.torchButton());
       panel.append(button('Sov 8 timmar', () => g.sleep(8), '', !g.canRest()));
       panel.append(button('Packning (P)', () => this.open.pack()));
-      if (g.state.character.spells.length) panel.append(button('Magi (M)', () => this.open.magic()));
+      if (g.char.spells.length) panel.append(button('Magi (M)', () => this.open.magic()));
       panel.classList.remove('fighting');
       return;
     }
@@ -211,6 +301,7 @@ export class Hud {
       const a = g.actor(id);
       if (!a || (!a.hostile && a.kind !== 'player')) return;
       const chip = el('span', `chip${i === c.turn ? ' now' : ''}${isOut(a) ? ' out' : ''}${a.kind === 'player' ? ' me' : ''}`);
+      if (a.hidden) chip.title = 'Smyger oupptäckt';
       chip.append(el('b', '', String(c.initiative[id] ?? '')), document.createTextNode(` ${a.name}`));
       order.append(chip);
     });
@@ -218,13 +309,18 @@ export class Hud {
     const mine = g.isPlayerTurn();
     const acted = !!c.acted[p.id];
     const current = g.actor(c.order[c.turn]);
+    const holding = hasEffect(p, 'håller');
     const info = el(
       'span',
       'info',
       mine
-        ? `Runda ${c.round} · Din tur · ${c.movesLeft} steg kvar${acted ? ' · handlingen är gjord' : g.holdsRanged() ? ' · stå still och klicka på en fiende för att skjuta' : ' · klicka på en fiende för att anfalla'}`
+        ? `Runda ${c.round} · ${p.name}s tur · ${c.movesLeft} steg kvar${holding ? ' · håller fast' : acted ? ' · handlingen är gjord' : g.holdsRanged() ? ' · stå still och klicka på en fiende för att skjuta' : ' · klicka på en fiende för att anfalla'}`
         : `Runda ${c.round} · ${current?.name ?? 'Fienden'} agerar…`,
     );
+    if (mine && p.elemental) {
+      panel.append(order, this.elementalControls(info));
+      return;
+    }
 
     const aim = el('select');
     aim.title = 'Sikta på en kroppsdel ger −5 på anfallet';
@@ -235,15 +331,75 @@ export class Hud {
 
     const controls = el('div', 'controls');
     controls.append(info, aim);
+    const modes = attackModes(g, p);
+    if (modes.length > 1 && !g.holdsRanged()) {
+      const mode = el('select');
+      mode.title = 'Hur nästa anfall görs';
+      for (const m of modes) {
+        const o = new Option(m.name, m.id, false, (c.attackMode ?? 'vanligt') === m.id);
+        o.title = m.desc;
+        mode.append(o);
+      }
+      mode.onchange = () => g.setAttackMode(mode.value);
+      mode.disabled = !mine || acted;
+      controls.append(mode);
+    }
+    if (p.techniques?.includes('fint') && !g.holdsRanged()) {
+      const lab = el('label', 'check');
+      const box = el('input');
+      box.type = 'checkbox';
+      box.checked = !!c.feint;
+      box.disabled = !mine;
+      box.onchange = () => g.setFeint(box.checked);
+      lab.append(box, document.createTextNode('Fint'));
+      lab.title = 'Lyckas finten (Stridskonster) halveras motståndarens parering';
+      controls.append(lab);
+    }
+    if (holding) controls.append(button('Släpp taget', () => g.releaseHold(), '', !mine));
+    if (p.techniques?.includes('fallteknik') && martialOk(g, p)) controls.append(button('Rulla', () => g.rollAway(), '', !mine || acted || (p.movedLast ?? 0) > 0));
+    for (const h of g.helpOptions()) controls.append(button(h.label, () => g.help(h.kind, h.target)));
+    if (mine) controls.append(this.sneakButton(), this.torchButton());
     if (p.bleeding.length) controls.append(button('Lägg förband', () => g.bandage(), '', !g.canBandage()));
     if (g.canFix()) controls.append(button('Rätta till', () => g.fix()));
     if ((p.reload ?? 0) > 0) controls.append(button(`Ladda om (${p.reload} SR)`, () => g.reload(), '', !g.canReload()));
     if (g.canTakeCover()) controls.append(button('Sök skydd', () => g.takeCover()));
     controls.append(button('Packning', () => this.open.pack(), '', !mine));
-    if (g.state.character.spells.length) controls.append(button('Magi', () => this.open.magic(), '', !mine || acted));
+    if (g.char.spells.length) controls.append(button('Magi', () => this.open.magic(), '', !mine || acted));
     controls.append(button('Avsluta tur', () => g.endTurn(), 'primary', !mine));
     if (!activeHostiles(g).length) controls.append(el('span', 'info', 'Inga fiender kvar.'));
     panel.append(order, controls);
+  }
+
+  private sneakButton(): HTMLButtonElement {
+    const p = this.g.player;
+    const b = button(p.sneaking ? 'Sluta smyga' : 'Smyg', () => this.g.toggleSneak(), p.sneaking ? 'primary' : '');
+    b.title = 'Smyga: ett slag i Smyga varje runda som en fiende kan se dig. Tänd fackla i mörker −10, dagsljus nära fienden −5.';
+    return b;
+  }
+
+  private torchButton(): HTMLButtonElement {
+    const p = this.g.player;
+    const b = button(p.torchOut ? 'Tänd facklan' : 'Släck facklan', () => this.g.toggleTorch());
+    b.title = 'Utan fackla syns du sämre i mörker, men du strider själv i mörker (−15) om du inte har mörkersyn.';
+    return b;
+  }
+
+  /** Elementarens tur: flytta, anfalla (om den kan) och dess särskilda handlingar. */
+  private elementalControls(info: HTMLElement): HTMLElement {
+    const g = this.g;
+    const controls = el('div', 'controls');
+    controls.append(info);
+    for (const a of g.elementalActions()) {
+      if (!a.targets.length) {
+        controls.append(button(a.label, () => g.elementalAct(a.id), a.id === 'släpp' ? 'danger' : ''));
+        continue;
+      }
+      const pick = el('select');
+      for (const id of a.targets) pick.append(new Option(g.actor(id)?.name ?? id, id));
+      controls.append(pick, button(a.label, () => g.elementalAct(a.id, pick.value)));
+    }
+    controls.append(button('Avsluta tur', () => g.endTurn(), 'primary'));
+    return controls;
   }
 }
 
@@ -271,6 +427,8 @@ export class DialogUi {
     this.history = [];
     this.options = [];
     this.ai = true;
+    // Det är ledaren som talar och betalar.
+    this.g.state.focus = this.g.state.playerId;
     this.g.state.mode = 'dialog';
     $('dialog').hidden = false;
     $('bottom').hidden = true;
@@ -354,7 +512,7 @@ export class DialogUi {
     for (const id of NPCS[npc.npc!].intents) {
       const intent = INTENTS[id];
       if (!intent.available(this.g, npc)) continue;
-      add(`[${intent.label(this.g)}]`, id === 'anfall' ? 'act danger' : 'act', () => void this.act(id));
+      add(`[${intent.label(this.g, npc)}]`, id === 'anfall' ? 'act danger' : 'act', () => void this.act(id));
     }
     add('Farväl.', 'bye', () => this.close());
   }
