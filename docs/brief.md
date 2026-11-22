@@ -28,18 +28,32 @@ stridskonsterna eller varelsernas detaljer.
 | 5 | Tid och utveckling: spelklocka, läkning, Läkekonst, infektioner, amputation, PSY-poäng, EP och träning | Klart (`src/engine/time.ts`, `src/ui/training.ts`) |
 | 6 | Magi, avståndsstrid, örter och gifter, bärförmåga och handel | Klart (`src/engine/magic.ts`, `combat.ts`, `poison.ts`, `inventory.ts`, `trade.ts`, `src/ui/panels.ts`) |
 | 7 | Följeslagare, elementarer, smygarläge, Avväpna, Fasthållning och stridskonster | Klart (`src/engine/party.ts`, `elementals.ts`, `maneuvers.ts`, `stealth.ts`) |
-| 8 | Ej bestämt | **Fråga Vidar**, se förslag nedan |
+| 8 | Äventyrsmoduler och utveckling mellan äventyren, plus beslutade ändringar | **Nästa**: börja med ett samtal, se nedan |
 
-## Förslag till steg 8
+## Steg 8: äventyrsmoduler och utveckling mellan äventyren
 
-Fråga Vidar vad som ska komma härnäst. Kandidater som har kommit upp:
+Vidar vill börja steg 8 med ett samtal, inte med kod. Prata igenom med honom:
 
-- **Äventyrsmoduler:** att flytta gruppen mellan äventyr (gruppen och rollformulären finns redan i sparfilen), och att gå igenom vilka personer som kan värvas i varje modul.
-- **Fler sätt att få erfarenhet** (Vidar ville gå igenom det).
-- **Lärare och bibliotek:** träning med lärare och studier i ett magibibliotek, så att magiskolor kan höjas. Besvärjelser att hitta i äventyret (`learnSpell` finns).
-- **Varelser som söker skydd och lägger besvärjelser**, och fiender som själva frammanar elementarer.
-- **Fler handlingar:** använda magiska föremål, piskans avväpning, spjut mot anstormande varelser och strid från hästryggen.
-- **Egna figurer för fler yrken och raser** (bara krigare, jägare och tjuv finns för rollpersonen).
+- **Hur en äventyrsmodul är uppbyggd:** kartor, personer, uppdrag, varelser, personer som kan värvas (några per modul) och hur modulerna hänger ihop i den större spelmekaniken. Gruppen och rollformulären följer redan med i sparfilen.
+- **Hur rollpersonen förbättras mellan äventyren:** träning, lärare, bibliotek och fler sätt att få erfarenhet.
+
+### Ändringar som är beslutade men inte byggda
+
+Bygg dem tidigt i steg 8 (detaljerna står i `docs/regelbeslut.md`):
+
+1. **Döden (husregel):** på 0 KP dör man inte direkt. Man faller medvetslös och förlorar 1 KP per stridsrunda så länge man är medvetslös, och dör först vid minus lika mycket som FYS. Rollpersonens död avslutar äventyret, även om följeslagare lever. Bestäm med Vidar hur det samspelar med blödning, förband och kamraternas hjälp.
+2. **Elementarer:** att styra elementaren kostar ingen handling. Magikern kan parera, lägga nya besvärjelser och agera som vanligt. Ta bort spärren från effekten `styr` i `canAct` (`src/engine/combat.ts`), men behåll effekten som markering för att magikern styr en elementar. Uppdatera testet i `tests/step7.test.ts` som förväntar sig att magikern inte kan agera.
+3. Elementarer försvinner när striden är slut, som nu.
+
+### Senare: besvärjelser
+
+Vid något tillfälle ska vi diskutera fiender som lägger besvärjelser, och vad alla besvärjelser gör. Vidar vill att **alla besvärjelser i regelboken ska ha en verkan** i spelet. I dag verkar 21 plus de åtta elementarerna.
+
+### Andra kandidater
+
+- Varelser som söker skydd, och fiender som frammanar elementarer.
+- Fler handlingar: använda magiska föremål, piskans avväpning, spjut mot anstormande varelser och strid från hästryggen.
+- Egna figurer för fler yrken och raser (bara krigare, jägare och tjuv finns för rollpersonen).
 
 ## Steg 7 i korthet
 
@@ -114,5 +128,7 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 - Fler sätt att få erfarenhet: Vidar vill gå igenom det i ett senare steg.
 - Ska spelaren få fler figurer, en per yrke eller ras?
 - Tolkningarna i steg 6 som Vidar inte uttryckligen har godkänt: säljpriset (halva listpriset), högsta rabatt 50 %, att hälften av pilarna hittas igen, vilka vapen som inte är av järn, och hur ELD, BLIXT och EXPLOSION träffar (se `docs/regelbeslut.md`).
-- Tolkningarna i steg 7 som är markerade som tolkning i `docs/regelbeslut.md`, särskilt: att rollpersonens död avslutar äventyret även om följeslagare lever, att elementarer bara frammanas i strid, att magikern inte kan parera medan hen styr en elementar, CL 8 + E för salamandern och undinen, och att anfall från smygarläge hindrar parering från alla håll.
-- Steg 8: vad ska komma härnäst?
+- Övriga tolkningar i steg 7 har Vidar godkänt (se `docs/regelbeslut.md`).
+- Hur dödsregeln samspelar med blödning och förband.
+- Hur en äventyrsmodul ska byggas upp, och hur rollpersonen utvecklas mellan äventyren (steg 8).
+- Fiender som lägger besvärjelser, och verkan för alla besvärjelser i regelboken.
