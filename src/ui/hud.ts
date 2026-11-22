@@ -59,7 +59,7 @@ export class Hud {
 
   constructor(
     private g: Game,
-    private open: { pack: () => void; magic: () => void } = { pack: () => {}, magic: () => {} },
+    private open: { pack: () => void; magic: () => void; quests: () => void } = { pack: () => {}, magic: () => {}, quests: () => {} },
   ) {
     $('hud').hidden = false;
     $('btn-sheet').onclick = () => $('status').classList.toggle('open');
@@ -71,7 +71,9 @@ export class Hud {
       if (e.key === 'Escape') this.toggleSheet(false);
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
       if (!$('panel').hidden || !$('dialog').hidden) return;
+      if (!$('modal').hidden || this.g.state.mode === 'ended') return;
       if (e.key === 'r' || e.key === 'R') this.toggleSheet($('rollformular').hidden);
+      if (e.key === 'u' || e.key === 'U') this.open.quests();
       if (this.g.player.elemental) return;
       if (e.key === 'p' || e.key === 'P') this.open.pack();
       if ((e.key === 'm' || e.key === 'M') && this.g.char.spells.length) this.open.magic();
@@ -107,7 +109,7 @@ export class Hud {
     const g = this.g;
     const box = $('party');
     const members = [...g.partyMembers(), ...g.state.actors.filter((a) => a.alive && a.elemental)];
-    box.hidden = members.length < 2 || g.state.mode === 'dialog' || g.state.mode === 'dead';
+    box.hidden = members.length < 2 || g.state.mode === 'dialog' || g.state.mode === 'dead' || g.state.mode === 'ended';
     if (box.hidden) return;
     box.replaceChildren(
       ...members.map((m) => {
@@ -120,7 +122,7 @@ export class Hud {
         const fill = el('i');
         fill.style.width = `${Math.max(0, (100 * m.kp) / m.maxKp)}%`;
         kp.append(fill);
-        const tags = [m.sneaking ? 'smyger' : '', m.unconscious ? 'medvetslös' : '', m.elemental ? `${m.elemental.rounds} SR` : ''].filter(Boolean).join(', ');
+        const tags = [m.sneaking ? 'smyger' : '', m.dying ? `döende ${m.kp} KP` : m.unconscious ? 'medvetslös' : '', m.elemental ? `${m.elemental.rounds} SR` : ''].filter(Boolean).join(', ');
         text.append(el('b', '', m.name), kp);
         if (tags) text.append(el('span', 'tag', tags));
         card.append(img, text);
@@ -200,10 +202,11 @@ export class Hud {
     if (p.companion) states.push(p.companion.pay === 'dagslön' ? `Följer med för ${p.companion.wage} silver om dagen` : p.companion.pay === 'andel' ? 'Följer med för en del av bytet' : 'Följer med utan betalning');
     const passive = passiveTechniques(p);
     if (passive.length) states.push(`Stridskonst: ${passive.join(', ')}`);
-    if (p.unconscious) states.push('Medvetslös');
+    if (p.dying) states.push(`Döende: förlorar 1 KP per runda och dör vid −${p.attrs.FYS} KP`);
+    else if (p.unconscious) states.push('Medvetslös');
     if (p.down) states.push('Utslagen – kan bara krypa');
     if (p.kp === 2) states.push('2 KP: halverad CL');
-    if (p.kp === 1) states.push('1 KP: kan inte använda färdigheter');
+    if (p.kp === 1) states.push('1 KP: kan inte använda färdigheter, halv förflyttning');
     if (p.bleeding.length) states.push(`Blöder: ${p.bleeding.join(', ')}`);
     for (const label of new Set(p.effects.map((e) => e.label))) states.push(label);
     for (const inj of p.injuries) states.push(`${inj.loc}: ${inj.text}`);
@@ -276,7 +279,7 @@ export class Hud {
     const p = g.player;
     const panel = $('combat');
     panel.replaceChildren();
-    if (g.state.mode === 'dialog' || g.state.mode === 'dead') {
+    if (g.state.mode === 'dialog' || g.state.mode === 'dead' || g.state.mode === 'ended') {
       panel.hidden = true;
       return;
     }
@@ -290,6 +293,7 @@ export class Hud {
       panel.append(this.sneakButton(), this.torchButton());
       panel.append(button('Sov 8 timmar', () => g.sleep(8), '', !g.canRest()));
       panel.append(button('Packning (P)', () => this.open.pack()));
+      panel.append(button('Uppdrag (U)', () => this.open.quests()));
       if (g.char.spells.length) panel.append(button('Magi (M)', () => this.open.magic()));
       panel.classList.remove('fighting');
       return;

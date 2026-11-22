@@ -64,7 +64,14 @@ export function leaveParty(g: Game, a: Actor, why: 'avskedad' | 'vägrar' | 'fly
   const c = a.companion;
   if (c) {
     (g.state.departed ??= {})[c.recruit] = dayOf(g.state.time);
-    goHome(g, a);
+    const place = c.homeMap && c.homeMap !== g.state.mapId ? g.state.places[c.homeMap] : undefined;
+    if (place) {
+      // Hen bor på en annan karta och går hem dit: där finns hen när gruppen kommer tillbaka.
+      g.state.actors = g.state.actors.filter((x) => x !== a);
+      a.x = c.home.x;
+      a.y = c.home.y;
+      place.actors.push(a);
+    } else goHome(g, a);
   }
   const text = {
     avskedad: `${a.name} lämnar gruppen och går hem.`,
@@ -161,13 +168,15 @@ export function payWages(g: Game) {
 export function aidAfterCombat(g: Game) {
   const able = (m: Actor) =>
     canAct(m) && !m.down && m.kp > 1 && (['vänster arm', 'höger arm'] as const).every((l) => limbUsable(m, l)) && !hasEffect(m, 'flyr');
-  for (let round = 0; round < 20; round++) {
-    const patients = g.partyMembers().filter((m) => (m.unconscious || m.down) && m.bleeding.length);
+  // Den döende hinner som mest FYS rundor till; blödningen tar en KP var sjätte runda (tolkning: högst 20 rundor).
+  for (let round = 0; round < 100; round++) {
+    const patients = g.partyMembers().filter((m) => m.dying || ((m.unconscious || m.down) && m.bleeding.length));
     const helpers = g.partyMembers().filter((m) => able(m) && !patients.includes(m));
     if (!patients.length || !helpers.length) return;
+    if (round >= 20 && !patients.some((m) => m.dying)) return;
     for (const [i, h] of helpers.entries()) {
       const pt = patients[i % patients.length];
-      if (pt.alive && pt.bleeding.length) bandageOnce(g, h, pt);
+      if (pt.alive && (pt.dying || pt.bleeding.length)) bandageOnce(g, h, pt);
     }
     for (const pt of patients) tick(g, pt);
     g.state.time += ROUND_SECONDS;

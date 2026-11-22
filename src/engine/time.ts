@@ -4,7 +4,7 @@ import { WEAPONS } from '../data/weapons';
 import { ARMOR } from '../data/armor';
 import { die, roll } from './dice';
 import type { Game } from './game';
-import { onExpire } from './combat';
+import { onExpire, stabilize } from './combat';
 import { advancePoisons } from './poison';
 import { payWages } from './party';
 import {
@@ -213,6 +213,7 @@ export function medicine(g: Game, healer: Actor, patient: Actor, fv = g.skillFv(
   patient.medicineDay = dayOf(g.state.time);
   const check = skillCheck(fv, g.rng, g.woundPenaltyOf(healer));
   if (check.success) {
+    if (patient.dying) stabilize(g, patient, 'med Läkekonst');
     const worst = HIT_LOCATIONS.filter((l) => patient.locKp[l] < patient.locMax[l] && !patient.infections.some((i) => i.loc === l)).sort(
       (x, y) => patient.locKp[x] - patient.locMax[x] - (patient.locKp[y] - patient.locMax[y]),
     )[0];

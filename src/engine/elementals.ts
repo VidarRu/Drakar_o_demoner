@@ -24,7 +24,7 @@ import type { Actor, ElementKind } from './types';
 /**
  * Elementarer (Bok III s. 21–22 och 27). Alla har PSY 3T6, SMI 3T6 och STO 1T6, och för varje
  * effektgrad utöver den första +1T6 STO och +1T6 PSY. KP och STY är lika med STO. De saknar FYS och
- * INT, är immuna mot gift och styrs av magikern med full uppmärksamhet. Tolkningarna står i
+ * INT, är immuna mot gift och styrs av magikern utan att det kostar en handling. Tolkningarna står i
  * docs/regelbeslut.md.
  */
 
@@ -222,7 +222,7 @@ export function summonOrBanish(g: Game, caster: Actor, target: Actor, kind: Elem
   g.state.actors.push(e);
   g.state.combat?.order.push(id);
   addEffect(caster, { kind: 'styr', label: `Styr ${def.name.toLowerCase()}en`, sourceId: id });
-  g.log(`En ${def.name.toLowerCase()} uppenbarar sig (STO ${sto}, PSY ${psy}, SMI ${smi}). ${caster.name} måste styra den med full uppmärksamhet.`);
+  g.log(`En ${def.name.toLowerCase()} uppenbarar sig (STO ${sto}, PSY ${psy}, SMI ${smi}). ${caster.name} styr den.`);
   g.updateFov();
 }
 

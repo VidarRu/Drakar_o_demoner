@@ -527,6 +527,53 @@ button.danger {
 #dead {
   background: rgba(20, 4, 4, 0.82);
 }
+#modal {
+  z-index: 12;
+  background: rgba(8, 7, 10, 0.78);
+}
+.modal-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.quest {
+  margin: 0 0 12px;
+}
+.quest h4 {
+  margin: 0 0 4px;
+}
+.quest .status,
+.module-card .status {
+  color: var(--muted);
+  font-size: 12px;
+  font-style: italic;
+}
+.quest ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 14px;
+}
+.modules {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 10px;
+}
+.module-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+}
+.module-card h4 {
+  margin: 0;
+}
+.module-card p {
+  margin: 0;
+  font-size: 14px;
+}
 .card {
   width: min(560px, 100%);
   padding: 26px;

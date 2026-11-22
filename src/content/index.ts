@@ -1,24 +1,44 @@
 /**
- * Spelinnehåll. Allt här är data – nya vapen, varelser, yrken, personer och kartor
- * läggs till här utan att motorn behöver ändras.
+ * Spelinnehåll. Allt här är data – nya vapen, varelser, yrken, personer och kartor läggs till
+ * utan att motorn behöver ändras. Varje äventyrsmodul ligger i en egen mapp (se types.ts).
  *
- * OBS: värdena är provisoriska och ska stämmas av mot regelboken efterhand.
+ * Spelmotorn slår ihop modulernas varelser, personer, följeslagare och kartor i gemensamma
+ * register, så att en följeslagare från en modul fungerar i nästa. Därför måste id:n vara unika
+ * över alla moduler.
  */
-import type { Character, CompanionInfo, CreatureDef, NaturalWeaponDef, NpcDef } from '../engine/types';
+import type { Intent } from '../engine/intents';
 import type { MapDef } from '../engine/map';
-import { finalize, newDraft, type Draft } from '../engine/creation';
+import type { CreatureDef, NaturalWeaponDef, NpcDef } from '../engine/types';
+import { SPELTEST } from './speltest';
+import type { ModuleDef, RecruitDef } from './types';
 
-const list = <T extends { id: string }>(items: T[]): Record<string, T> =>
-  Object.fromEntries(items.map((i) => [i.id, i]));
+export type { Difficulty, ModuleDef, QuestDef, RecruitDef } from './types';
+
+/** Alla äventyrsmoduler. */
+export const MODULE_LIST: ModuleDef[] = [SPELTEST];
+
+const list = <T extends { id: string }>(items: T[], what: string): Record<string, T> => {
+  const out: Record<string, T> = {};
+  for (const i of items) {
+    if (out[i.id]) throw new Error(`${what} "${i.id}" finns i flera moduler`);
+    out[i.id] = i;
+  }
+  return out;
+};
+
+export const MODULES = list(MODULE_LIST, 'Modulen');
 
 /**
  * Naturliga vapen och obeväpnade anfall. Riktiga vapen, rustningar och sköldar finns i
  * regeldatan (src/data) och refereras med sina id.
  */
-export const NATURAL_WEAPONS = list<NaturalWeaponDef>([
-  { id: 'nave', name: 'Knytnäve', damage: '1T3', skill: 'slagsmal', useDamageBonus: true },
-  { id: 'bett', name: 'Bett', damage: '1T8', skill: 'bett', useDamageBonus: false },
-]);
+export const NATURAL_WEAPONS = list<NaturalWeaponDef>(
+  [
+    { id: 'nave', name: 'Knytnäve', damage: '1T3', skill: 'slagsmal', useDamageBonus: true },
+    { id: 'bett', name: 'Bett', damage: '1T8', skill: 'bett', useDamageBonus: false },
+  ],
+  'Vapnet',
+);
 
 /** Figurer för rollpersonens yrke, tills det finns egna för alla elva yrken. */
 export const PROFESSION_SPRITES: Record<string, string> = {
@@ -35,353 +55,19 @@ export const PROFESSION_SPRITES: Record<string, string> = {
   bard: 'tjuv',
 };
 
-const human = { STY: 11, STO: 13, FYS: 11, SMI: 11, INT: 11, PSY: 11, KAR: 11 };
+export const CREATURES = list<CreatureDef>(MODULE_LIST.flatMap((m) => m.creatures), 'Varelsen');
+export const NPCS = list<NpcDef>(MODULE_LIST.flatMap((m) => m.npcs), 'Personen');
+export const RECRUITS = list<RecruitDef>(MODULE_LIST.flatMap((m) => m.recruits), 'Följeslagaren');
+export const MAPS = list<MapDef>(MODULE_LIST.flatMap((m) => m.maps), 'Kartan');
 
-/** Varelser i äventyret. Värdena följer Bok II; KP räknas fram ur STO och FYS. */
-export const CREATURES = list<CreatureDef>([
-  {
-    id: 'varg',
-    name: 'Varg',
-    sprite: 'varg',
-    attrs: { STY: 11, STO: 7, FYS: 14, SMI: 16, INT: 2, PSY: 11, KAR: 5 },
-    skills: { bett: 10, upptacka_fara: 17, spara: 16, smyga: 9 },
-    weapon: 'bett',
-    naturalArmor: 1,
-    move: 16,
-    hostile: true,
-    humanoid: false,
-    sight: 6,
-  },
-  {
-    id: 'svartalf',
-    name: 'Svartalf',
-    sprite: 'svartalf',
-    attrs: { STY: 9, STO: 7, FYS: 11, SMI: 11, INT: 9, PSY: 11, KAR: 7 },
-    skills: { enhandssvard: 4, slagsmal: 4, upptacka_fara: 9, smyga: 7 },
-    weapon: 'kortsvard',
-    move: 10,
-    hostile: true,
-    humanoid: true,
-    darkvision: true,
-    sight: 6,
-    silver: '2T6',
-  },
-  {
-    id: 'svartalf_skytt',
-    name: 'Svartalfsskytt',
-    sprite: 'svartalf',
-    attrs: { STY: 9, STO: 7, FYS: 11, SMI: 12, INT: 9, PSY: 11, KAR: 7 },
-    skills: { bagar: 8, dolkar: 5, upptacka_fara: 10, smyga: 8 },
-    weapon: 'dolk',
-    ranged: { weapon: 'kortbage', ammo: 8 },
-    move: 10,
-    hostile: true,
-    humanoid: true,
-    darkvision: true,
-    sight: 8,
-    silver: '2T6',
-  },
-  {
-    id: 'svartalfshovding',
-    name: 'Svartalfshövdingen Grukk',
-    sprite: 'hovding',
-    attrs: { STY: 14, STO: 11, FYS: 13, SMI: 11, INT: 10, PSY: 11, KAR: 8 },
-    skills: { enhandssvard: 11, skoldar: 9, upptacka_fara: 9 },
-    weapon: 'bredsvard',
-    armor: ['harnesk_nitlader', 'nitladerhuva'],
-    shield: 'vanlig_skold',
-    move: 10,
-    hostile: true,
-    humanoid: true,
-    darkvision: true,
-    leader: true,
-    // En hövding som slåss till slutet: boken undantar hjältar och ledare av det slaget från moralen.
-    noMorale: true,
-    sight: 7,
-    silver: '6T6+20',
-    deathFlag: 'hovding_dod',
-  },
-  {
-    id: 'vardshusvard',
-    name: 'Värdshusvärden Bertil',
-    sprite: 'vard',
-    attrs: { ...human, STO: 15 },
-    skills: { enhandskross: 9, kopsla: 12 },
-    weapon: 'klubba',
-    move: 10,
-    hostile: false,
-    humanoid: true,
-    npc: 'vardshusvard',
-  },
-  {
-    id: 'smed',
-    name: 'Smeden Ylva',
-    sprite: 'smed',
-    attrs: { ...human, STY: 15 },
-    skills: { enhandskross: 12, 'hantverk:smide': 16, kopsla: 10 },
-    weapon: 'klubba',
-    armor: ['harnesk_lader'],
-    move: 10,
-    hostile: false,
-    humanoid: true,
-    npc: 'smed',
-  },
-  {
-    id: 'gumma',
-    name: 'Kloka gumman Asta',
-    sprite: 'gumma',
-    attrs: { ...human, STY: 7, PSY: 16 },
-    skills: { dolkar: 6, lakekonst: 15, ortkunskap: 15, drogkunskap: 12, kopsla: 13 },
-    weapon: 'dolk',
-    move: 9,
-    hostile: false,
-    humanoid: true,
-    npc: 'gumma',
-  },
-]);
-
-export const NPCS = list<NpcDef>([
-  {
-    id: 'vardshusvard',
-    persona:
-      'Bertil är en rund, pratglad värdshusvärd i byn Gråvad. Han är godmodig men snål, orolig för sina gäster och sin handel, och pratar gärna om mat och öl.',
-    knowledge:
-      'Svartalfer har slagit sig ner i en grotta öster om byn, längs stigen genom skogen. Deras hövding Grukk leder plundringståg mot resande. Vargar stryker runt i skogen. Bertil erbjuder 500 silvermynt till den som gör slut på hövdingen. En plats i sovsalen kostar 10 silvermynt per natt, och man kan hyra den en hel vecka för att vila upp sig och träna. Bertil säljer mat, kläder och utrustning för resan. Smeden Ylva säljer vapen, rustningar och sköldar, och kloka gumman Asta vid dammen sköter om sår och säljer örter.',
-    greeting: 'Välkommen till Gyllene Galten, främling! Du ser ut som någon som kan hantera ett vapen.',
-    topics: [
-      {
-        text: 'Vad är det som oroar byn?',
-        reply:
-          'Svartalfer! De har krupit in i grottan österut, bortom skogen. Deras hövding Grukk plundrar alla som tar stigen. Och vargarna har blivit djärvare.',
-      },
-      {
-        text: 'Berätta om byn.',
-        reply:
-          'Gråvad är inte mycket för världen, men Ylva i smedjan kan sitt hantverk och gumman Asta nere vid dammen lappar ihop den som fått stryk.',
-      },
-    ],
-    shop: { goods: ['mat', 'äventyr', 'behållare', 'kläder', 'diverse', 'verktyg'] },
-    intents: ['uppdrag_anta', 'overtala_beloning', 'uppdrag_beloning', 'overnatta', 'vila_vecka', 'handla', 'anfall'],
-  },
-  {
-    id: 'smed',
-    persona:
-      'Ylva är byns smed: fåordig, rak och stolt över sitt hantverk. Hon har föga tålamod med skrävlare men respekterar den som slåss för byn.',
-    knowledge:
-      'Hon säljer vapen, pilar, rustningar och sköldar och köper begagnade vapen för halva priset. Hon har en färdig ringbrynjeskjorta till salu för 1 500 silvermynt. Hon lagar slitna vapen, sköldar och rustningar för en tjugondel av priset per skadat ställe. Svartalfernas hövding bär ett bredsvärd och sköld och är farligare än sina underhuggare. Grottan ligger österut längs stigen.',
-    greeting: 'Hm. Behöver du något, eller står du bara i vägen för värmen?',
-    topics: [
-      {
-        text: 'Vad har du till salu?',
-        reply: 'En ringbrynjeskjorta, färdig i går. Femtonhundra silver. Den håller för mer än din läderlapp gör.',
-      },
-      {
-        text: 'Vad vet du om svartalferna?',
-        reply: 'Småttingarna är fega en och en. Hövdingen är det inte. Gå inte in dit sårad.',
-      },
-    ],
-    shop: { goods: ['närstridsvapen', 'avståndsvapen', 'rustningar', 'sköldar'] },
-    intents: ['kop_ringbrynja', 'laga_utrustning', 'handla', 'anfall'],
-  },
-  {
-    id: 'gumma',
-    persona:
-      'Asta är byns kloka gumma: gammal, skarpögd och lite kuslig. Hon talar i gåtor och ordspråk men menar väl.',
-    knowledge:
-      'Hon kan förbinda sår för 5 silvermynt, och vårda sår och infektioner med Läkekonst en gång om dagen för samma pris. Hon säljer läkeörter och andra droger som hon har plockat i skogen; vilka hon har inne skiftar från dag till dag. Hon vet att vargarna i skogen flyr ogärna och att svartalferna fruktar eld och dagsljus.',
-    greeting: 'Jaså, en vandrare. Jag såg dig i teet i morse. Du blöder snart, om du inte redan gör det.',
-    topics: [
-      {
-        text: 'Kan du berätta något om skogen?',
-        reply: 'Skogen minns allt. Vargarna är hungriga i år. Håll dig på stigen, så räcker det med att vara rädd.',
-      },
-    ],
-    shop: { goods: ['läkedroger', 'droger'] },
-    intents: ['forbind', 'vard', 'handla', 'anfall'],
-  },
-  {
-    id: 'hjalmar',
-    persona:
-      'Hjalmar är en grånad legoknekt som sitter i ett hörn på Gyllene Galten och väntar på arbete. Han är fåordig, praktisk och ärlig mot den som betalar. Han tar 20 silvermynt om dagen och slåss så länge hans uppdragsgivare står upp.',
-    knowledge:
-      'Han har hört att svartalferna i grottan österut leds av en hövding som heter Grukk. Han följer med den som betalar dagslönen, och han går om lönen uteblir. Han tycker att man ska ha en sköld och inte springa först in i en grotta.',
-    greeting: 'Behöver du ett svärd till? Jag tar tjugo silver om dagen. Yxan ingår.',
-    topics: [
-      { text: 'Vad har du gjort förut?', reply: 'Vaktat karavaner, slagits i andras krig. Jag lever än, så jag gjorde nog något rätt.' },
-      { text: 'Vad tror du om svartalferna?', reply: 'Fega en och en, farliga i flock. Håll ihop, så klarar vi oss.' },
-    ],
-    intents: ['folj_med', 'anfall'],
-  },
-  {
-    id: 'sigrid',
-    persona:
-      'Sigrid är en tystlåten jägarinna som känner skogen öster om Gråvad bättre än någon annan. Hon är försiktig och vill hellre skjuta från avstånd än slåss på nära håll. Hon följer med mot en lika stor del av silvret som hittas.',
-    knowledge:
-      'Hon vet att vargarna jagar i flock i skogen och att svartalferna har skyttar i grottan. Hon följer gärna med för en del av bytet men flyr om det går riktigt illa.',
-    greeting: 'Sch. Du skrämmer viltet. Vad vill du?',
-    topics: [
-      { text: 'Vad vet du om skogen?', reply: 'Vargarna har blivit djärvare sedan svartalferna kom. De driver dem framför sig.' },
-      { text: 'Vill du tjäna lite silver?', reply: 'Lika delar av det vi hittar. Och jag går först om det luktar illa.' },
-    ],
-    intents: ['folj_med', 'anfall'],
-  },
-  {
-    id: 'linnea',
-    persona:
-      'Linnea är en ung kvinna från Gråvad som går i lära hos kloka gumman Asta. Svartalferna dödade hennes far på stigen i våras, och hon vill hämnas. Hon kan förbinda sår och vårda skadade, men hon har aldrig varit i en riktig strid.',
-    knowledge:
-      'Hon vet var grottan ligger och att svartalferna skyr ljus. Hon följer med utan betalning, men hon kan få nog om det går illa.',
-    greeting: 'Ska du till grottan? Ta mig med. Jag vill se dem som dödade min far få sitt straff.',
-    topics: [
-      { text: 'Vad kan du?', reply: 'Lägga förband och sköta sår. Asta säger att jag har händerna för det.' },
-      { text: 'Är du inte rädd?', reply: 'Jo. Men jag är argare än jag är rädd.' },
-    ],
-    intents: ['folj_med', 'anfall'],
-  },
-]);
-
-/**
- * Personer som kan följa med rollpersonen (husregel, steg 7). De skapas med samma regler som
- * rollpersonen, så att de har ett fullständigt rollformulär. Varje äventyr har sina egna.
- */
-export interface RecruitDef {
-  id: string;
-  /** Visningsnamn i samtalet. */
-  name: string;
-  sprite: string;
-  /** Spelledarpersonen med dialog (NPCS). */
-  npc: string;
-  pay: CompanionInfo['pay'];
-  wage?: number;
-  morale: CompanionInfo['morale'];
-  character: () => Character;
+/** Modulernas egna samtalsval. */
+export const MODULE_INTENTS: Record<string, Intent> = {};
+for (const m of MODULE_LIST) {
+  for (const [id, intent] of Object.entries(m.intents ?? {})) {
+    if (MODULE_INTENTS[id]) throw new Error(`Samtalsvalet "${id}" finns i flera moduler`);
+    MODULE_INTENTS[id] = intent;
+  }
 }
 
-function recruitChar(fill: (d: Draft) => void): () => Character {
-  return () => {
-    const d = newDraft();
-    fill(d);
-    return finalize(d);
-  };
-}
-
-export const RECRUITS = list<RecruitDef>([
-  {
-    id: 'hjalmar',
-    name: 'Legoknekten Hjalmar',
-    sprite: 'knekt',
-    npc: 'hjalmar',
-    pay: 'dagslön',
-    wage: 20,
-    morale: 'ledare',
-    character: recruitChar((d) => {
-      d.name = 'Hjalmar';
-      d.profession = 'krigare';
-      d.bought = { STY: 15, FYS: 14, SMI: 12, INT: 9, PSY: 11, KAR: 9 };
-      d.swordDice = 7;
-      d.socialDice = 8;
-      d.capitalDice = 12;
-      d.profSkills = ['enhandsyxor', 'skoldar', 'bagar', 'dolkar', 'dra_vapen', 'avvapna', 'geografi', 'hasardspel', 'kulturkannedom:manniskor', 'simma', 'trastav', 'barsarkagang'];
-      d.targets = { enhandsyxor: 13, skoldar: 12, dra_vapen: 10, avvapna: 8, upptacka_fara: 9, forsta_hjalpen: 7 };
-      d.bought_items = { stridsyxa: 1, vanlig_skold: 1, harnesk_nitlader: 1, nitladerhuva: 1 };
-      d.equipped = { weapon: 'stridsyxa', shield: 'vanlig_skold', armor: ['harnesk_nitlader', 'nitladerhuva'] };
-      d.appearance = 'Grånad legoknekt med ärrat ansikte och en yxa som sett många strider.';
-    }),
-  },
-  {
-    id: 'sigrid',
-    name: 'Jägarinnan Sigrid',
-    sprite: 'jagarinna',
-    npc: 'sigrid',
-    pay: 'andel',
-    morale: 'alltid',
-    character: recruitChar((d) => {
-      d.name = 'Sigrid';
-      d.gender = 'kvinna';
-      d.profession = 'utbygdsjagare';
-      d.bought = { STY: 12, FYS: 12, SMI: 15, INT: 11, PSY: 12, KAR: 10 };
-      d.swordDice = 6;
-      d.socialDice = 4;
-      d.capitalDice = 9;
-      d.profSkills = ['bagar', 'dolkar', 'stickvapen', 'djurhelning:hund', 'drogkunskap', 'geografi', 'knopar', 'orientering', 'simma', 'spa_vader', 'ortkunskap', 'overlevnad'];
-      d.targets = { bagar: 13, dolkar: 9, smyga: 12, gomma_sig: 10, spara: 12, upptacka_fara: 11, forsta_hjalpen: 9 };
-      d.bought_items = { kortbage: 1, dolk: 1, pilar: 2, harnesk_lader: 1 };
-      d.equipped = { weapon: 'kortbage', armor: ['harnesk_lader'] };
-      d.appearance = 'Smidig och tystlåten jägarinna i grön kappa, med en båge över axeln.';
-    }),
-  },
-  {
-    id: 'linnea',
-    name: 'Bybon Linnea',
-    sprite: 'linnea',
-    npc: 'linnea',
-    pay: 'gratis',
-    morale: 'alltid',
-    character: recruitChar((d) => {
-      d.name = 'Linnea';
-      d.gender = 'kvinna';
-      d.profession = 'helare';
-      d.age = 'ung';
-      d.bought = { STY: 9, FYS: 12, SMI: 11, INT: 13, PSY: 14, KAR: 12 };
-      d.swordDice = 6;
-      d.socialDice = 3;
-      d.capitalDice = 3;
-      d.profSkills = ['dolkar', 'drogkunskap', 'geografi', 'kulturkannedom:manniskor', 'lakekonst', 'massage', 'orientering', 'simma', 'trastav', 'zoologi', 'ortkunskap', 'overlevnad'];
-      d.targets = { trastav: 8, lakekonst: 11, ortkunskap: 10, forsta_hjalpen: 12 };
-      d.bought_items = { trastav: 1 };
-      d.equipped = { weapon: 'trastav', armor: [] };
-      d.appearance = 'Ung kvinna med flätat hår och örtpåsar i bältet. Svartalferna dödade hennes far.';
-    }),
-  },
-]);
-
-/** Anteckningar som ges till språkmodellen beroende på vad som hänt i spelet. */
-export const FLAG_NOTES: Record<string, string> = {
-  uppdrag_antaget: 'Spelaren har lovat värdshusvärden att döda svartalfshövdingen Grukk.',
-  hovding_dod: 'Svartalfshövdingen Grukk är död – spelaren dödade honom.',
-  uppdrag_klart: 'Spelaren har fått sin belöning för att ha dödat hövdingen.',
-  hogre_beloning: 'Värdshusvärden har gått med på en högre belöning (750 silvermynt).',
-  kopt_ringbrynja: 'Spelaren har köpt smedens ringbrynjeskjorta.',
-};
-
-export const MAPS = list<MapDef>([
-  {
-    id: 'gravad',
-    name: 'Gråvad',
-    start: { char: '@', tile: ',' },
-    habitats: ['överallt', 'skog', 'ängar', 'åkerkanter', 'snårskog'],
-    spawns: {
-      i: { tile: '_', creature: 'vardshusvard' },
-      s: { tile: '_', creature: 'smed' },
-      o: { tile: '.', creature: 'gumma' },
-      w: { tile: '.', creature: 'varg' },
-      g: { tile: ':', creature: 'svartalf' },
-      b: { tile: ':', creature: 'svartalf_skytt' },
-      C: { tile: ':', creature: 'svartalfshovding' },
-      h: { tile: '_', recruit: 'hjalmar' },
-      j: { tile: '.', recruit: 'sigrid' },
-      l: { tile: '.', recruit: 'linnea' },
-    },
-    rows: [
-      'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',
-      'T..........T....TT......T...%%%%%%%%%%%%%%%T',
-      'T.#######.......T....T......%%::::%%%%:::%%T',
-      'T.#___h_#..........TT....T..%:::g::%%::::%%T',
-      'T.#_i___#....T..........T...%::::::::b:C:%%T',
-      'T.#_____#.........T.........%%::::%%%::::%%T',
-      'T.###+###......T......w..T..%%%:%%%%%%%%%%%T',
-      'T....,..............T.......%%%:%%%%%%%%%%%T',
-      'T....,....####.........T....%%::%%%%%%%%%%%T',
-      'T....,....#__#...T..........%:::g%%%%%%%%%%T',
-      'T....,,,,,+s_#........T.....%::::%%%%%%%%%%T',
-      'T....,....####....T......T..%%:%%%%%%%%%%%%T',
-      'T....@,,,,,,,,,,,,,,,,,,,,,,,,:%%%%%%%%%%%%T',
-      'T....,.......T...j...,...T..%%%%%%%%%%%%%%%T',
-      'T....,..~~~.......T..,......T...T....T.....T',
-      'T..o.,.~~~~~....T....,..w......T...T.......T',
-      'T..l.,..~~~..........,.......T.......T.....T',
-      'T.........T....T.....,,,,,..T...w....T.....T',
-      'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',
-    ],
-  },
-]);
+/** Modulen som en karta hör till. */
+export const MAP_MODULE: Record<string, string> = Object.fromEntries(MODULE_LIST.flatMap((m) => m.maps.map((map) => [map.id, m.id])));

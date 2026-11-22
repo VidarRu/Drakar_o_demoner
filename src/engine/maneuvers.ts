@@ -19,6 +19,7 @@ import {
   martialOk,
   short,
   skillMod,
+  stabilize,
   tick,
   weaponInfo,
   wound,
@@ -61,7 +62,8 @@ export function helpOptions(g: Game, a: Actor): HelpOption[] {
   const out: HelpOption[] = [];
   for (const m of g.partyMembers()) {
     if (m === a || distance(a.x, a.y, m.x, m.y) > 1) continue;
-    if (hands && m.bleeding.length) out.push({ kind: 'förband', target: m.id, label: `Lägg förband på ${m.name}` });
+    if (hands && m.dying) out.push({ kind: 'förband', target: m.id, label: `Rädda ${m.name} (döende)` });
+    else if (hands && m.bleeding.length) out.push({ kind: 'förband', target: m.id, label: `Lägg förband på ${m.name}` });
     if (hands && m.effects.some((e) => e.kind === 'dödsfara' && e.label === 'Kvävs')) out.push({ kind: 'kvävning', target: m.id, label: `Hjälp ${m.name} som kvävs` });
     if (hasEffect(m, 'liggande') && !m.unconscious) out.push({ kind: 'resa', target: m.id, label: `Res upp ${m.name}` });
     if (g.charOf(a)?.herbs.some((d) => HERBS[d.id]?.kind === 'läkedrog')) out.push({ kind: 'ört', target: m.id, label: `Ge ${m.name} en ört` });
@@ -72,6 +74,15 @@ export function helpOptions(g: Game, a: Actor): HelpOption[] {
 
 /** Första hjälpen på en blödande kroppsdel. */
 export function bandageOnce(g: Game, healer: Actor, patient: Actor): boolean {
+  if (patient.dying) {
+    // En döende stabiliseras av ett lyckat slag i Första hjälpen (husregel, steg 8).
+    const check = skillCheck(g.skillFv(healer, 'forsta_hjalpen'), g.rng, skillMod(g, healer, 'forsta_hjalpen'));
+    if (check.success) {
+      g.gainExperience(healer, 'forsta_hjalpen', check);
+      stabilize(g, patient, `av ${healer.name} (Första hjälpen, ${short(check)})`);
+    } else g.log(`${healer.name} försöker rädda ${patient.name} men misslyckas (Första hjälpen, ${short(check)}).`);
+    return check.success;
+  }
   const loc = patient.bleeding[0];
   if (!loc) return false;
   const check = skillCheck(g.skillFv(healer, 'forsta_hjalpen'), g.rng, skillMod(g, healer, 'forsta_hjalpen'));

@@ -23,6 +23,8 @@ import {
   RANGED_MODS,
   resistance,
   BLEED_INTERVAL,
+  DYING,
+  HIT_LOCATIONS,
   CRITICAL_LIMB,
   damageBonus,
   ENTANGLING_MISS,
@@ -154,7 +156,7 @@ export function skillMod(g: Game, a: Actor, skill: string): number {
 
 /** Kan aktören göra någonting alls den här rundan? */
 export function canAct(a: Actor): boolean {
-  return a.alive && !a.fled && !a.unconscious && !hasEffect(a, 'ingenHandling') && !hasEffect(a, 'liggande') && !hasEffect(a, 'rankor') && !hasEffect(a, 'styr') && !hasEffect(a, 'fasthållen') && !hasEffect(a, 'flämtar');
+  return a.alive && !a.fled && !a.unconscious && !hasEffect(a, 'ingenHandling') && !hasEffect(a, 'liggande') && !hasEffect(a, 'rankor') && !hasEffect(a, 'fasthållen') && !hasEffect(a, 'flämtar');
 }
 
 /** Hör till gruppen: rollpersonen, följeslagarna och elementarerna. */
@@ -223,7 +225,9 @@ export function effectiveMove(a: Actor, g?: Game): number {
     if (e.kind !== 'förflyttning') continue;
     m = e.half ? Math.floor(m / 2) : m + (e.mod ?? 0);
   }
-  if (a.down || a.kp <= 1) m = Math.min(m, 1);
+  // Med 1 KP kvar går man i halv fart (Vidar, steg 8); den som bara kan krypa tar en ruta.
+  if (a.kp <= 1 && !a.down) m = Math.floor(m / 2);
+  if (a.down) m = Math.min(m, 1);
   return Math.max(0, m);
 }
 
@@ -1074,7 +1078,15 @@ function checkTotal(g: Game, a: Actor) {
     kill(g, a);
     return;
   }
-  if (a.kp <= 0 && !a.unconscious) {
+  if (a.kp <= 0 && isPartyMember(g, a) && !a.dying) {
+    // Döden (husregel, steg 8): rollpersonen och följeslagarna faller medvetslösa och är döende.
+    const awake = !a.unconscious;
+    a.unconscious = true;
+    a.dying = true;
+    a.dyingRounds = 0;
+    g.log(`${a.name} ${awake ? 'faller medvetslös och ' : ''}är döende (${a.kp} KP, dör vid −${a.attrs.FYS}).`);
+    if (!someoneStanding(g, a)) dieAlone(g, a);
+  } else if (a.kp <= 0 && !a.unconscious) {
     a.unconscious = true;
     g.log(`${a.name} faller medvetslös.`);
   } else if (a.kp === 1 && !a.down) {
@@ -1082,10 +1094,48 @@ function checkTotal(g: Game, a: Actor) {
   }
 }
 
+/** Rollpersonen eller en följeslagare (inte elementarer); bara de omfattas av dödsregeln. */
+export function isPartyMember(g: Game, a: Actor): boolean {
+  return g.state.party.includes(a.id) && !a.elemental;
+}
+
+/** Står någon annan i gruppen upp, så att den döende inte är ensam? */
+export function someoneStanding(g: Game, a: Actor): boolean {
+  return g.partyMembers().some((m) => m !== a && !m.elemental && !isOut(m));
+}
+
+/** Ensam och döende: ingen hinner fram (Vidar, steg 8). */
+function dieAlone(g: Game, a: Actor) {
+  g.log(`Ingen i gruppen står upp och kan hjälpa ${a.name}.`);
+  kill(g, a);
+}
+
+/**
+ * Stabiliserar en döende (Första hjälpen, HELA, läkeört, Läkekonst eller ett eget FYS-slag):
+ * minusskadan försvinner, totala KP blir 1, blödningen stannar och hen vaknar (husregel, steg 8).
+ */
+export function stabilize(g: Game, a: Actor, how: string) {
+  if (!a.alive || !a.dying) return;
+  a.dying = false;
+  a.dyingRounds = 0;
+  a.kp = Math.max(a.kp, 1);
+  for (const l of HIT_LOCATIONS) if (a.locKp[l] < 0) a.locKp[l] = 0;
+  if (a.locKp.huvud <= 0) {
+    a.locKp.huvud = 1;
+    a.disabled = a.disabled.filter((l) => l !== 'huvud');
+  }
+  a.bleeding = [];
+  a.bleedTimer = 0;
+  if (!hasEffect(a, 'dödsfara') && !hasEffect(a, 'medvetslös')) a.unconscious = false;
+  g.log(`${a.name} stabiliseras ${how}${a.unconscious ? '' : ' och vaknar'} med 1 KP.`);
+  g.changed();
+}
+
 export function kill(g: Game, a: Actor) {
   if (!a.alive) return;
   a.alive = false;
   a.unconscious = false;
+  a.dying = false;
   if (a.id === g.state.playerId) {
     g.state.mode = 'dead';
     g.state.combat = null;
@@ -1598,12 +1648,40 @@ export function tick(g: Game, a: Actor) {
     a.unconscious = false;
     g.log(`${a.name} vaknar.`);
   }
+  if (a.dying) {
+    dyingRound(g, a);
+    return;
+  }
   if (a.bleeding.length) {
     a.bleedTimer++;
     if (a.bleedTimer % BLEED_INTERVAL === 0) {
       g.log(`${a.name} blöder (−${a.bleeding.length} KP).`);
       wound(g, a, a.bleeding.length, null);
     }
+  }
+}
+
+/**
+ * En runda för den som är döende: 1 KP går förlorad (blödningen räknas inte under tiden). Var
+ * tionde runda i strid, medan kamraterna är upptagna, slår hen ett Normalt FYS-slag för att
+ * stabilisera sig. Den som är ensam dör.
+ */
+function dyingRound(g: Game, a: Actor) {
+  if (!someoneStanding(g, a)) {
+    dieAlone(g, a);
+    return;
+  }
+  a.dyingRounds = (a.dyingRounds ?? 0) + 1;
+  a.kp -= DYING.lossPerRound;
+  if (a.kp <= -a.attrs.FYS) {
+    g.log(`${a.name} förblöder.`);
+    kill(g, a);
+    return;
+  }
+  if (g.state.mode === 'combat' && a.dyingRounds % DYING.selfCheckEvery === 0) {
+    const check = attributeCheck(a.attrs.FYS, g.rng, DYING.selfCheck);
+    if (check.success) stabilize(g, a, `av egen kraft (Normalt FYS-slag, ${short(check)})`);
+    else g.log(`${a.name} kämpar för livet men glider längre bort (Normalt FYS-slag, ${short(check)}; ${a.kp} KP).`);
   }
 }
 
@@ -1650,13 +1728,11 @@ export function nextTurn(g: Game) {
           ? 'är medvetslös'
           : hasEffect(a, 'liggande')
             ? 'ligger ner'
-            : hasEffect(a, 'styr')
-              ? 'styr sin elementar'
-              : hasEffect(a, 'fasthållen')
-                ? 'hålls fast'
-                : hasEffect(a, 'flämtar')
-                  ? 'står och flämtar'
-                  : 'kan inte göra något';
+            : hasEffect(a, 'fasthållen')
+              ? 'hålls fast'
+              : hasEffect(a, 'flämtar')
+                ? 'står och flämtar'
+                : 'kan inte göra något';
         g.log(`${a.name} ${why}.`);
       }
       if (hasEffect(a, 'fasthållen')) breakHold(g, a);
@@ -1745,9 +1821,9 @@ export function endCombat(g: Game, message: string) {
   // Kamraterna tar hand om dem som ligger medvetslösa och blöder.
   aidAfterCombat(g);
   if (!p.alive) return;
-  const knocked = g.partyMembers().filter((m) => m.unconscious || hasEffect(m, 'dödsfara'));
+  const knocked = g.partyMembers().filter((m) => m.unconscious || m.dying || hasEffect(m, 'dödsfara'));
   for (const m of knocked) {
-    if (m.bleeding.length || hasEffect(m, 'dödsfara') || m.critical.some((l) => l === 'bröstkorg' || l === 'mage')) {
+    if (m.dying || m.bleeding.length || hasEffect(m, 'dödsfara') || m.critical.some((l) => l === 'bröstkorg' || l === 'mage')) {
       g.log(`${m.name} ligger medvetslös och ingen kan hjälpa.`);
       kill(g, m);
       if (!p.alive) return;

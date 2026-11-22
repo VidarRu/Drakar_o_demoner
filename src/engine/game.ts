@@ -1,4 +1,4 @@
-import { CREATURES, MAPS, PROFESSION_SPRITES, RECRUITS } from '../content';
+import { CREATURES, MAPS, MODULES, PROFESSION_SPRITES, RECRUITS } from '../content';
 import { ABILITY_BY_ID } from '../data/abilities';
 import { ARMOR } from '../data/armor';
 import { RACES } from '../data/races';
@@ -38,7 +38,7 @@ import type { Actor, Attrs, Character, GameState } from './types';
 export const FOV_RADIUS = 8;
 
 /** Vyer som spelmotorn kan be gränssnittet öppna. */
-export type UiView = 'training' | 'shop';
+export type UiView = 'training' | 'shop' | 'exit';
 const LOG_LIMIT = 300;
 
 /** Visuell effekt som gränssnittet kan visa (t.ex. skadesiffror). */
@@ -154,6 +154,64 @@ export function actorFromCharacter(char: Character, id: string, x: number, y: nu
   );
 }
 
+
+/**
+ * Placerar ut kartans varelser och de personer som kan följa med. Varelser med en dödsflagga som
+ * redan är satt (t.ex. en hövding som dödats) kommer inte tillbaka.
+ */
+export function spawnActors(state: GameState, map: GameMap, rng: Rng) {
+  for (const s of map.spawns) {
+    if (s.recruit) {
+      // En person som redan följer med gruppen står inte kvar på sin plats.
+      if (state.actors.some((a) => a.companion?.recruit === s.recruit)) continue;
+      const r = RECRUITS[s.recruit];
+      const ch = r.character();
+      const a = actorFromCharacter(ch, `a${state.nextId++}`, s.x, s.y, r.sprite);
+      a.kind = 'npc';
+      a.npc = r.npc;
+      a.companion = { recruit: r.id, pay: r.pay, wage: r.wage, morale: r.morale, home: { x: s.x, y: s.y }, homeMap: map.id };
+      state.companions[a.id] = ch;
+      state.actors.push(a);
+      continue;
+    }
+    const def = CREATURES[s.creature!];
+    if (def.deathFlag && state.flags[def.deathFlag]) continue;
+    state.actors.push(
+      makeActor(
+        {
+          id: `a${state.nextId++}`,
+          defId: def.id,
+          name: def.name,
+          kind: def.npc ? 'npc' : 'monster',
+          sprite: def.sprite,
+          x: s.x,
+          y: s.y,
+          attrs: { ...def.attrs },
+          skills: { ...def.skills },
+          weapon: def.weapon,
+          armor: [...(def.armor ?? [])],
+          naturalArmor: def.naturalArmor ?? 0,
+          shield: def.shield,
+          move: def.move,
+          hostile: def.hostile,
+          detailed: def.humanoid,
+          sight: def.sight ?? 6,
+          darkvision: !!def.darkvision,
+          silver: def.silver ? roll(def.silver, rng) : 0,
+        },
+        {
+          npc: def.npc,
+          deathFlag: def.deathFlag,
+          leader: def.leader,
+          noMorale: def.noMorale,
+          fear: def.fear,
+          ...(def.ranged ? { ranged: def.ranged.weapon, rangedAmmo: def.ranged.ammo } : {}),
+        },
+      ),
+    );
+  }
+}
+
 const slugName = (n: string) => n.toLowerCase().replace(/[^a-zåäö]+/g, '_');
 
 /**
@@ -174,11 +232,18 @@ export class Game {
     this.updateFov();
   }
 
-  static create(char: Character, rng: Rng = Math.random, mapId = 'gravad'): Game {
+  /** Ny rollperson: börjar i modulens första karta (som standard speltestmodulen Gråvad). */
+  static create(char: Character, rng: Rng = Math.random, moduleId = 'speltest'): Game {
+    const mod = MODULES[moduleId];
+    const mapId = mod.start;
     const map = parseMap(MAPS[mapId]);
     const player = actorFromCharacter(char, 'player', map.start.x, map.start.y);
     const state: GameState = {
-      version: 6,
+      version: 7,
+      moduleId,
+      completed: [],
+      places: {},
+      moduleFlags: {},
       time: time.START_TIME,
       character: char,
       companions: {},
@@ -196,53 +261,7 @@ export class Game {
       log: [],
       nextId: 1,
     };
-    for (const s of map.spawns) {
-      if (s.recruit) {
-        const r = RECRUITS[s.recruit];
-        const ch = r.character();
-        const a = actorFromCharacter(ch, `a${state.nextId++}`, s.x, s.y, r.sprite);
-        a.kind = 'npc';
-        a.npc = r.npc;
-        a.companion = { recruit: r.id, pay: r.pay, wage: r.wage, morale: r.morale, home: { x: s.x, y: s.y } };
-        state.companions[a.id] = ch;
-        state.actors.push(a);
-        continue;
-      }
-      const def = CREATURES[s.creature!];
-      state.actors.push(
-        makeActor(
-          {
-            id: `a${state.nextId++}`,
-            defId: def.id,
-            name: def.name,
-            kind: def.npc ? 'npc' : 'monster',
-            sprite: def.sprite,
-            x: s.x,
-            y: s.y,
-            attrs: { ...def.attrs },
-            skills: { ...def.skills },
-            weapon: def.weapon,
-            armor: [...(def.armor ?? [])],
-            naturalArmor: def.naturalArmor ?? 0,
-            shield: def.shield,
-            move: def.move,
-            hostile: def.hostile,
-            detailed: def.humanoid,
-            sight: def.sight ?? 6,
-            darkvision: !!def.darkvision,
-            silver: def.silver ? roll(def.silver, rng) : 0,
-          },
-          {
-            npc: def.npc,
-            deathFlag: def.deathFlag,
-            leader: def.leader,
-            noMorale: def.noMorale,
-            fear: def.fear,
-            ...(def.ranged ? { ranged: def.ranged.weapon, rangedAmmo: def.ranged.ammo } : {}),
-          },
-        ),
-      );
-    }
+    spawnActors(state, map, rng);
     const game = new Game(state, rng);
     game.log(`${char.name} anländer till ${map.name}.`);
     return game;
@@ -385,7 +404,15 @@ export class Game {
       this.checkAmbush();
     }
     this.changed();
+    // En utgång ur modulen: gränssnittet frågar om gruppen vill lämna äventyret.
+    if (this.state.mode === 'explore' && this.exitHere()) this.openUi('exit');
     return true;
+  }
+
+  /** Utgången som ledaren står på, om någon. */
+  exitHere(): { x: number; y: number; name: string } | undefined {
+    const p = this.leader;
+    return this.map.exits.find((e) => e.x === p.x && e.y === p.y);
   }
 
   /** Fiender som ser någon i gruppen som inte är dold. */
@@ -767,6 +794,8 @@ export class Game {
 
   /** Läker KP i totala KP och fördelar samma mängd på de mest skadade kroppsdelarna. */
   heal(amount: number, p: Actor = this.player) {
+    // Läkning (HELA, läkeörter) stabiliserar en döende först (husregel, steg 8).
+    if (amount > 0 && p.dying) combat.stabilize(this, p, 'av läkningen');
     const before = p.kp;
     p.kp = Math.min(p.maxKp, p.kp + amount);
     let left = p.kp - before;
