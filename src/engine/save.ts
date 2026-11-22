@@ -1,7 +1,7 @@
 import type { GameState } from './types';
 
-/** Version 6: följeslagare, elementarer och fler handlingar i strid. Äldre sparningar kan inte läsas. */
-const KEY = 'dod-save-v6';
+/** Version 7: äventyrsmoduler, uppdrag och kartor som sparas när gruppen lämnar dem. Äldre sparningar kan inte läsas. */
+const KEY = 'dod-save-v7';
 
 export function saveGame(state: GameState) {
   try {
@@ -16,7 +16,7 @@ export function loadGame(): GameState | null {
     const raw = localStorage.getItem(KEY);
     if (!raw) return null;
     const state = JSON.parse(raw) as GameState;
-    return state.version === 6 ? state : null;
+    return state.version === 7 ? state : null;
   } catch {
     return null;
   }

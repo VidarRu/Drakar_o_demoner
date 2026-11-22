@@ -279,7 +279,10 @@ Reglerna följer Bok III s. 21–22 och 27. Alla åtta sorterna finns, var och e
   - Elementarer kan förinta varandra enligt listorna i boken (grad mot grad).
 - **Undinen** rör sig tio rutor per SR i vatten, men vattnet går inte att beträda i spelet, så den rör sig en ruta per SR på land (tolkning). Gnomens malmsökande, sylfens bärförmåga och glacialens och thermens tunnlar används inte än.
 
-## Äventyrsmoduler (beslutat i steg 8, inte byggt än)
+## Äventyrsmoduler (beslutat i steg 8)
+
+Byggt: modulformatet, uppdragsloggen, epilogen, utgångarna och skärmen mellan äventyren. Inte byggt än: världskartan, stridskartorna, resekartan och slumpmötena.
+
 
 - **En modul per mapp:** varje äventyrsmodul ligger i en egen mapp under `src/content/` och innehåller allt om äventyret: kartor, personer, varelser, uppdrag, de som kan värvas och anteckningarna till språkmodellen.
 - **Gråvad blir speltestmodulen,** en övningsmodul som inte behöver ingå i kampanjen. Den har bara en mötesplatskarta och ingen världskarta; alla andra moduler har samma upplägg med världskarta. Vägen vid västra kanten blir modulens utgång.

@@ -34,6 +34,7 @@ import { spellCl } from '../engine/rules';
 import { buy, buyPrice, canHaggle, discount, haggle, sell, sellable, wares } from '../engine/trade';
 import type { Actor } from '../engine/types';
 import { $, el } from './hud';
+import { renderQuestLog } from './module';
 
 function button(text: string, onClick: () => void, cls = '', disabled = false, title = ''): HTMLButtonElement {
   const b = el('button', cls, text);
@@ -366,5 +367,6 @@ export function mountPanels(g: Game) {
   const pack = new PackUi(g, panel);
   const magic = new MagicUi(g, panel);
   new ShopUi(g, panel);
-  return { pack, magic };
+  const quests = { open: () => panel.open('Uppdrag', (body) => body.append(renderQuestLog(g))) };
+  return { pack, magic, quests };
 }

@@ -28,22 +28,31 @@ stridskonsterna eller varelsernas detaljer.
 | 5 | Tid och utveckling: spelklocka, läkning, Läkekonst, infektioner, amputation, PSY-poäng, EP och träning | Klart (`src/engine/time.ts`, `src/ui/training.ts`) |
 | 6 | Magi, avståndsstrid, örter och gifter, bärförmåga och handel | Klart (`src/engine/magic.ts`, `combat.ts`, `poison.ts`, `inventory.ts`, `trade.ts`, `src/ui/panels.ts`) |
 | 7 | Följeslagare, elementarer, smygarläge, Avväpna, Fasthållning och stridskonster | Klart (`src/engine/party.ts`, `elementals.ts`, `maneuvers.ts`, `stealth.ts`) |
-| 8 | Äventyrsmoduler och utveckling mellan äventyren, plus beslutade ändringar | **Nästa**: börja med ett samtal, se nedan |
+| 8 | Äventyrsmoduler och utveckling mellan äventyren, plus beslutade ändringar | **Pågår**: dödsregeln, elementarerna och modulformatet är klara; se nedan |
 
 ## Steg 8: äventyrsmoduler och utveckling mellan äventyren
 
-Samtalet har börjat. Vidar har bestämt dödsregeln och hur modulerna byggs upp (se avsnittet Äventyrsmoduler i `docs/regelbeslut.md`). Kvar att prata om: utvecklingen mellan äventyren (lärare, bibliotek, fler sätt att få EP, mellanspelet) och i vilken ordning steg 8 byggs. Ursprungliga punkter:
+Vidar har bestämt dödsregeln och hur modulerna byggs upp (avsnitten Strid och Äventyrsmoduler i
+`docs/regelbeslut.md`).
 
-- **Hur en äventyrsmodul är uppbyggd:** kartor, personer, uppdrag, varelser, personer som kan värvas (några per modul) och hur modulerna hänger ihop i den större spelmekaniken. Gruppen och rollformulären följer redan med i sparfilen.
-- **Hur rollpersonen förbättras mellan äventyren:** träning, lärare, bibliotek och fler sätt att få erfarenhet.
+### Klart i steg 8
 
-### Ändringar som är beslutade men inte byggda
+- **Döden** (`combat.ts`): `checkTotal` gör rollpersonen och följeslagarna döende (`Actor.dying`) på 0 KP. `dyingRound` tar 1 KP per runda och slår FYS-slaget var tionde runda i strid (`DYING` i `rules/tables.ts`), `stabilize` sätter KP 1. Första hjälpen (`bandageOnce`), `Game.heal` (HELA och läkeörter) och Läkekonst (`medicine`) stabiliserar. Den som är ensam dör (`someoneStanding`). `aidAfterCombat` räddar döende efter striden. Med 1 KP går man i halv fart.
+- **Elementarer:** effekten `styr` spärrar inte längre magikern.
+- **Modulformatet** (`src/content/`): varje modul är en `ModuleDef` (`src/content/types.ts`) i en egen mapp. Gråvad är speltestmodulen (`src/content/speltest/`). `src/content/index.ts` slår ihop modulernas varelser, personer, följeslagare, kartor och samtalsval i gemensamma register (`CREATURES`, `NPCS`, `RECRUITS`, `MAPS`, `MODULE_INTENTS`), så id:n måste vara unika över alla moduler. Gråvads egna samtalsval (uppdraget, ringbrynjan) ligger nu i modulen.
+- **Uppdrag, epilog och utgångar** (`src/engine/modules.ts`): `questLog` räknar fram uppdragsloggen ur modulens flaggor (`QuestDef.start`, `done`, `failed`, `steps`). `pendingEpilogue`, `stayAfterEpilogue` och `leaveModule` sköter slutet. Kartor kan ha utgångar (`MapDef.exits`); `Game.stepPlayer` öppnar frågan (`openUi('exit')`). Gråvads utgång är vägen vid västra kanten.
+- **Mellan modulerna:** `startModule` tar gruppen (med skador, packning, pengar och tid) till nästa moduls startkarta. Kartan som lämnas sparas i `GameState.places` och modulens flaggor i `GameState.moduleFlags`; `GameState.flags` är alltid den nuvarande modulens. `spawnActors` placerar inte ut personer som redan följer med eller varelser vars dödsflagga är satt. En följeslagare som lämnar gruppen på en annan karta går hem till sin (`CompanionInfo.homeMap`).
+- **Gränssnittet** (`src/ui/module.ts`): uppdragsloggen (knappen Uppdrag, tangenten U), epilogen med "Avsluta äventyret" och "Stanna kvar", frågan vid utgången och skärmen "Mellan äventyren" där nästa modul väljs. När rollpersonen dör finns den senaste sparningen kvar ("Ladda senaste sparningen").
+- Sparformatet är version 7 (`dod-save-v7`); äldre sparningar läses inte.
 
-Bygg dem tidigt i steg 8 (detaljerna står i `docs/regelbeslut.md`):
+### Nästa i steg 8
 
-1. **Döden (husregel):** på 0 KP dör man inte direkt. Man faller medvetslös och förlorar 1 KP per stridsrunda så länge man är medvetslös, och dör först vid minus lika mycket som FYS. Rollpersonens död avslutar äventyret, även om följeslagare lever. Samspelet med blödning, förband och stabilisering bestämdes i början av steg 8 (se `docs/regelbeslut.md`).
-2. **Elementarer:** att styra elementaren kostar ingen handling. Magikern kan parera, lägga nya besvärjelser och agera som vanligt. Ta bort spärren från effekten `styr` i `canAct` (`src/engine/combat.ts`), men behåll effekten som markering för att magikern styr en elementar. Uppdatera testet i `tests/step7.test.ts` som förväntar sig att magikern inte kan agera.
-3. Elementarer försvinner när striden är slut, som nu.
+1. **Vidars första äventyr:** han laddar upp ett äldre äventyr, och det byggs om till en modul med egna ord.
+2. **Världskartan** för modulen: rutnät ovanifrån, en ruta per timme, gruppen som en figur, fiender som ikoner som vandrar och jagar, smyga förbi, stridsmöten på färdiga stridskartor efter terrängen, och mötesplatser som man går in i och ut ur. `GameState.places` är redan byggt för att spara kartor man lämnar. `Game.map` är i dag `readonly` och byggs när spelet startar; att byta karta inom en modul kräver att kartvyn (`WorldScene`) byggs om.
+3. **Resekartan** för kampanjen, med modulerna som klickbara ikoner. Restid bestäms senare.
+4. **Utvecklingen mellan äventyren** (lärare, bibliotek, fler sätt att få EP, mellanspelet): inte diskuterat än. Bok I:s avsnitt om träning behövs.
+5. **Slumpmöten** i vildmarken: Vidar vill ha dem, men tabellerna saknas.
+6. **Sparning på server** (till exempel Supabase), senare.
 
 ### Senare: besvärjelser
 
@@ -64,7 +73,6 @@ Vid något tillfälle ska vi diskutera fiender som lägger besvärjelser, och va
 - **Smygarläge** (`src/engine/stealth.ts`): `toggleSneak` och `sneakRound`. `Actor.sneaking` och `hidden`. Anfall från smygarläge (`ambush` i `combat.ts`) följer Bok II. `sneakMod` har modifikationerna. Facklor: `Actor.torchOut`, `torchLit`, och luminalens och umbrans glober i `lightMod`.
 - **Stridskonster** i `combat.ts`: `martialOk`, obeväpnad parering och avväpning i `tryParry`, Stålsättning (`steel`), Vidvinkelsyn i `flankMod`, Blind strid och Liggande strid.
 - **Gränssnittet:** gruppanelen ovanför stridspanelen (klicka för att välja vem som visas), elementarens status och handlingar, val av anfallssätt, Fint, Smyg, facklan, hjälp åt kamrater, Släpp taget och Rulla. Träningsvyn har en flik per gruppmedlem. Kameran följer den som har turen. Nya figurer: knekt, jagarinna, linnea och åtta elementarer (`src/game/art/sprites.ts`).
-- Sparformatet är version 6 (`dod-save-v6`); äldre sparningar läses inte.
 
 ## Steg 6 i korthet
 
@@ -114,13 +122,13 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 133 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 147 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
-`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan.
+`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna.
 
 För att provköra gränssnittet: starta `npx vite` och styr sidan med Playwright. Ett snabbt sätt är
 att skapa ett spel med `Game.create(testCharacter())`, lägga `JSON.stringify(g.state)` i
-`localStorage` under nyckeln `dod-save-v6` och klicka på "Fortsätt äventyret". Från sidan går det att
+`localStorage` under nyckeln `dod-save-v7` och klicka på "Fortsätt äventyret". Från sidan går det att
 importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och `await import('/tests/helpers.ts')`.
 
 ## Öppna frågor till Vidar
@@ -129,6 +137,5 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 - Ska spelaren få fler figurer, en per yrke eller ras?
 - Tolkningarna i steg 6 som Vidar inte uttryckligen har godkänt: säljpriset (halva listpriset), högsta rabatt 50 %, att hälften av pilarna hittas igen, vilka vapen som inte är av järn, och hur ELD, BLIXT och EXPLOSION träffar (se `docs/regelbeslut.md`).
 - Övriga tolkningar i steg 7 har Vidar godkänt (se `docs/regelbeslut.md`).
-- Hur dödsregeln samspelar med blödning och förband.
-- Hur en äventyrsmodul ska byggas upp, och hur rollpersonen utvecklas mellan äventyren (steg 8).
+- Hur rollpersonen utvecklas mellan äventyren (steg 8).
 - Fiender som lägger besvärjelser, och verkan för alla besvärjelser i regelboken.

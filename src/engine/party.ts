@@ -64,7 +64,14 @@ export function leaveParty(g: Game, a: Actor, why: 'avskedad' | 'vägrar' | 'fly
   const c = a.companion;
   if (c) {
     (g.state.departed ??= {})[c.recruit] = dayOf(g.state.time);
-    goHome(g, a);
+    const place = c.homeMap && c.homeMap !== g.state.mapId ? g.state.places[c.homeMap] : undefined;
+    if (place) {
+      // Hen bor på en annan karta och går hem dit: där finns hen när gruppen kommer tillbaka.
+      g.state.actors = g.state.actors.filter((x) => x !== a);
+      a.x = c.home.x;
+      a.y = c.home.y;
+      place.actors.push(a);
+    } else goHome(g, a);
   }
   const text = {
     avskedad: `${a.name} lämnar gruppen och går hem.`,

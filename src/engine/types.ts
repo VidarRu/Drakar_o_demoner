@@ -358,6 +358,8 @@ export interface CompanionInfo {
   morale: 'alltid' | 'ledare';
   /** Platsen där personen bor och dit hen går om hen lämnar gruppen. */
   home: { x: number; y: number };
+  /** Kartan där hen bor. Lämnar hen gruppen någon annanstans går hen sin väg. */
+  homeMap?: string;
 }
 
 export type ElementKind = 'luft' | 'eld' | 'jord' | 'vatten' | 'mörker' | 'ljus' | 'köld' | 'värme';
@@ -412,7 +414,8 @@ export interface DroppedItem {
   bv?: number;
 }
 
-export type Mode = 'explore' | 'combat' | 'dialog' | 'dead';
+/** 'ended': äventyrsmodulen är avslutad och gruppen är mellan äventyren. */
+export type Mode = 'explore' | 'combat' | 'dialog' | 'dead' | 'ended';
 
 /** En handlares pris den här dagen (Köpslå) och vad hen har inne. */
 export interface TradeState {
@@ -423,8 +426,23 @@ export interface TradeState {
   herbs?: string[];
 }
 
+/** En karta som gruppen har lämnat: det som finns kvar där när den kommer tillbaka. */
+export interface PlaceState {
+  actors: Actor[];
+  explored: number[];
+  dropped: DroppedItem[];
+}
+
 export interface GameState {
-  version: 6;
+  version: 7;
+  /** Äventyrsmodulen som spelas (src/content). */
+  moduleId: string;
+  /** Moduler där huvuduppdraget är klart. */
+  completed: string[];
+  /** Kartor som gruppen har lämnat, per kart-id. */
+  places: Record<string, PlaceState>;
+  /** Flaggorna från moduler som gruppen har lämnat, per modul. `flags` är den nuvarande modulens. */
+  moduleFlags: Record<string, Record<string, boolean>>;
   /** Speltid i sekunder sedan dag 1 klockan 00:00. */
   time: number;
   /** Rollformuläret för rollpersonen. */
@@ -443,6 +461,7 @@ export interface GameState {
   explored: number[];
   mode: Mode;
   combat: CombatState | null;
+  /** Den nuvarande modulens flaggor (uppdrag och händelser). */
   flags: Record<string, boolean>;
   dropped: DroppedItem[];
   /** Skräckkällor (varelsetyper) som rollpersonen har mött förut. */

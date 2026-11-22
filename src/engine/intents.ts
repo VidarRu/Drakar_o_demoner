@@ -3,11 +3,12 @@ import type { MeleeWeaponDef } from '../data/types';
 import { WEAPONS } from '../data/weapons';
 import { armorBv } from './combat';
 import { roll } from './dice';
-import { EXPERIENCE, REPAIR_PERCENT } from './rules';
+import { REPAIR_PERCENT } from './rules';
 import { canMedicine, clockText, medicine } from './time';
 import type { Game } from './game';
 import type { Actor } from './types';
 import { recruit, recruitProblem } from './party';
+import { MODULE_INTENTS } from '../content';
 
 /**
  * En spelmekanisk handling som kan utföras i ett samtal. Språkmodellen får aldrig
@@ -22,13 +23,9 @@ export interface Intent {
   ends?: boolean;
 }
 
-/** Priser enligt Bok III: sovsal 10 sm per natt, ringbrynjeskjorta 1 500 sm. */
+/** Priser enligt Bok III: sovsal 10 sm per natt. */
 const REST_COST = 10;
 const HEAL_COST = 5;
-const MAIL_COST = 1500;
-const MAIL = 'ringbrynjeskjorta';
-const REWARD = 500;
-const HIGHER_REWARD = 750;
 
 /** Det smeden kan laga: föremål med sänkt BV, högsta BV efter lagning och pris per BV-poäng. */
 export function repairs(g: Game, smith: Actor): { key: string; name: string; from: number; to: number; each: number }[] {
@@ -54,7 +51,8 @@ export function repairs(g: Game, smith: Actor): { key: string; name: string; fro
 /** En säng i sovsalen per person i gruppen. */
 const beds = (g: Game) => g.partyMembers().length;
 
-export const INTENTS: Record<string, Intent> = {
+/** Samtalsval som finns i alla moduler. Modulerna lägger till sina egna (ModuleDef.intents). */
+const COMMON_INTENTS: Record<string, Intent> = {
   folj_med: {
     label: (_g, npc) => {
       const c = npc.companion;
@@ -63,42 +61,6 @@ export const INTENTS: Record<string, Intent> = {
     available: (g, npc) => !!npc.companion && !recruitProblem(g, npc),
     ends: true,
     apply: (g, npc) => recruit(g, npc.id),
-  },
-  uppdrag_anta: {
-    label: () => 'Åta dig att döda svartalfshövdingen',
-    available: (g) => !g.state.flags.uppdrag_antaget && !g.state.flags.uppdrag_klart,
-    apply: (g) => {
-      g.state.flags.uppdrag_antaget = true;
-      return `Spelaren åtar sig uppdraget att döda svartalfshövdingen Grukk i grottan österut. Belöningen är ${REWARD} silvermynt.`;
-    },
-  },
-  overtala_beloning: {
-    label: () => 'Pruta upp belöningen (Övertala)',
-    available: (g) =>
-      !!g.state.flags.uppdrag_antaget && !g.state.flags.prutat && !g.state.flags.uppdrag_klart,
-    apply: (g) => {
-      g.state.flags.prutat = true;
-      const check = g.playerCheck('overtala');
-      if (check.success) {
-        g.state.flags.hogre_beloning = true;
-        return `Spelaren lyckas övertala värdshusvärden: belöningen höjs till ${HIGHER_REWARD} silvermynt.`;
-      }
-      return `Spelaren försöker pruta upp belöningen men misslyckas. Belöningen förblir ${REWARD} silvermynt och frågan är avgjord.`;
-    },
-  },
-  uppdrag_beloning: {
-    label: () => 'Hämta belöningen för hövdingens död',
-    available: (g) => !!g.state.flags.hovding_dod && !!g.state.flags.uppdrag_antaget && !g.state.flags.uppdrag_klart,
-    apply: (g) => {
-      const reward = g.state.flags.hogre_beloning ? HIGHER_REWARD : REWARD;
-      g.player.silver += reward;
-      g.state.flags.uppdrag_klart = true;
-      for (const m of g.partyMembers()) {
-        const ch = g.charOf(m)!;
-        ch.bonusEp = (ch.bonusEp ?? 0) + EXPERIENCE.questBonus;
-      }
-      return `Spelaren berättar att hövdingen är död och får sin belöning på ${reward} silvermynt. (Uppdraget ger också ${EXPERIENCE.questBonus} bonus-EP att fördela vid träningen.)`;
-    },
   },
   overnatta: {
     label: (g) => `Övernatta (${beds(g) * REST_COST} silver${beds(g) > 1 ? `, ${beds(g)} sängar` : ''})`,
@@ -172,16 +134,6 @@ export const INTENTS: Record<string, Intent> = {
         : 'Spelaren har inte råd att låta smeden laga något.';
     },
   },
-  kop_ringbrynja: {
-    label: () => `Köp ringbrynjeskjortan (${MAIL_COST} silver)`,
-    available: (g) => g.player.silver >= MAIL_COST && !g.player.armor.includes(MAIL),
-    apply: (g) => {
-      g.player.silver -= MAIL_COST;
-      g.equipArmor(MAIL);
-      g.state.flags.kopt_ringbrynja = true;
-      return `Spelaren köper ringbrynjeskjortan för ${MAIL_COST} silvermynt och tar på sig den (absorberar ${ARMOR[MAIL].abs} på bröstkorg och mage).`;
-    },
-  },
   handla: {
     label: () => 'Handla',
     available: () => true,
@@ -201,3 +153,6 @@ export const INTENTS: Record<string, Intent> = {
     },
   },
 };
+
+/** Alla samtalsval: de gemensamma och modulernas. */
+export const INTENTS: Record<string, Intent> = { ...COMMON_INTENTS, ...MODULE_INTENTS };

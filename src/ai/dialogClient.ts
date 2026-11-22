@@ -1,4 +1,5 @@
-import { FLAG_NOTES, NPCS } from '../content';
+import { NPCS } from '../content';
+import { flagNotes } from '../engine/modules';
 import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
 import type { Game } from '../engine/game';
@@ -38,9 +39,7 @@ export const setAccessCode = (code: string) => {
 export async function requestTurn(game: Game, npc: Actor, history: DialogEntry[]): Promise<DialogTurn | null> {
   const def = NPCS[npc.npc!];
   const p = game.player;
-  const notes = Object.keys(game.state.flags)
-    .filter((f) => game.state.flags[f] && FLAG_NOTES[f])
-    .map((f) => FLAG_NOTES[f]);
+  const notes = flagNotes(game);
   try {
     const res = await fetch('/api/dialog', {
       method: 'POST',

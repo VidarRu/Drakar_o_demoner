@@ -43,7 +43,7 @@ Utan AI-nyckel används förskriven dialog, så spelet går att spela helt grati
 | `src/ai/`, `api/` | Dialog via språkmodell, med förskriven reservdialog. |
 | `tests/` | Tester för regelmotorn och innehållet. |
 
-Nytt äventyrsinnehåll läggs till i `src/content/index.ts`. Regelvärden ligger i
+Varje äventyrsmodul ligger i en egen mapp under `src/content/` (Gråvad är `src/content/speltest/`) och läggs till i `MODULE_LIST` i `src/content/index.ts`. Regelvärden ligger i
 `src/engine/rules/` och `src/data/`, och alla tolkningar och husregler står i
 `docs/regelbeslut.md`.
 
