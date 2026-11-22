@@ -123,7 +123,8 @@ describe('varelser', () => {
 
 describe('besvärjelser och utrustning', () => {
   it('besvärjelserna är kompletta', () => {
-    expect(SPELL_LIST).toHaveLength(66);
+    // 66 i boken, där FRAMMANA/SKICKA BORT ELEMENTAR är uppdelad i en besvärjelse per sorts elementar (8).
+    expect(SPELL_LIST).toHaveLength(73);
     unique(SPELL_LIST.map((s) => s.id));
     for (const s of SPELL_LIST) {
       expect(s.sv).toBeGreaterThanOrEqual(1);

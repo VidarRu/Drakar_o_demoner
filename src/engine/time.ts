@@ -6,6 +6,7 @@ import { die, roll } from './dice';
 import type { Game } from './game';
 import { onExpire } from './combat';
 import { advancePoisons } from './poison';
+import { payWages } from './party';
 import {
   AMPUTATION_WEEKS,
   attributeCheck,
@@ -75,9 +76,14 @@ function healDay(a: Actor) {
  */
 export function advanceTime(g: Game, seconds: number, activity: Activity) {
   if (seconds <= 0) return;
-  const a = g.player;
   const before = g.state.time;
   g.state.time += seconds;
+  for (const a of g.partyMembers()) passTime(g, a, seconds, activity, before);
+  payWages(g);
+}
+
+/** Tiden går för en rollperson eller följeslagare. */
+function passTime(g: Game, a: Actor, seconds: number, activity: Activity, before: number) {
   const hours = seconds / HOUR;
   const resting = activity !== 'aktiv';
 
@@ -116,11 +122,12 @@ export function advanceTime(g: Game, seconds: number, activity: Activity) {
     });
   }
   if (seconds > 5) advancePoisons(g, a);
-  if (activity === 'sömn' && seconds >= RACES[g.state.character.race].sleepHours * HOUR) {
+  const race = RACES[(g.charOf(a) ?? g.state.character).race];
+  if (activity === 'sömn' && seconds >= race.sleepHours * HOUR) {
     a.epBlocked = [];
     a.effects = a.effects.filter((e) => !e.untilRest);
   }
-  checkInfections(g);
+  checkInfections(g, a);
   settle(a);
 }
 
@@ -134,7 +141,8 @@ export function rollInfections(g: Game, a: Actor) {
   a.effects = a.effects.filter((e) => e.kind !== 'infektionsrisk');
   for (const w of a.combatWounds) byLoc.set(w.loc, (byLoc.get(w.loc) ?? 0) + w.dmg * INFECTION[w.kind] * factor);
   a.combatWounds = [];
-  if (!a.alive || a.kind !== 'player' || g.state.character.race === 'alv') return;
+  const ch = g.charOf(a);
+  if (!a.alive || !ch || ch.race === 'alv') return;
   for (const [loc, chance] of byLoc) {
     if (a.infections.some((i) => i.loc === loc)) continue;
     // Sår under ringbrynja blir inte infekterade.
@@ -148,8 +156,7 @@ export function rollInfections(g: Game, a: Actor) {
   }
 }
 
-function checkInfections(g: Game) {
-  const a = g.player;
+function checkInfections(g: Game, a: Actor) {
   for (const inf of [...a.infections]) {
     if (g.state.time < inf.until) continue;
     a.infections = a.infections.filter((i) => i !== inf);
@@ -172,7 +179,8 @@ function checkInfections(g: Game) {
 export function amputate(g: Game, a: Actor, loc: HitLocation) {
   const loss = a.locMax[loc];
   a.attrs.FYS = Math.max(1, a.attrs.FYS - loss);
-  if (a.kind === 'player') g.state.character.attrs.FYS = a.attrs.FYS;
+  const ch = g.charOf(a);
+  if (ch) ch.attrs.FYS = a.attrs.FYS;
   const kp = maxKp(a.attrs);
   const locs = locationKp(kp);
   for (const l of HIT_LOCATIONS) {
@@ -189,7 +197,7 @@ export function amputate(g: Game, a: Actor, loc: HitLocation) {
   else a.injuries.push({ loc, id: 'amputerad', text: 'Amputerad.', cl: 0, lost: true });
   if (!a.disabled.includes(loc)) a.disabled.push(loc);
   g.log(`${a.name}s ${loc} amputeras. FYS sjunker med ${loss} till ${a.attrs.FYS}, och det tar ${AMPUTATION_WEEKS} veckor att hämta sig.`);
-  if (a.kind === 'player') advanceTime(g, AMPUTATION_WEEKS * 7 * DAY, 'vila');
+  if (a.id === g.state.playerId) advanceTime(g, AMPUTATION_WEEKS * 7 * DAY, 'vila');
 }
 
 // ------------------------------------------------------------------ Läkekonst
@@ -214,7 +222,7 @@ export function medicine(g: Game, healer: Actor, patient: Actor, fv = g.skillFv(
     if (inf) patient.effects = patient.effects.filter((e) => !e.label.startsWith(`Infektion i ${inf.loc}`));
     settle(patient);
     g.log(`Läkekonst (T20: ${check.roll} mot ${check.target}): ${patient.name} läker 1 KP${inf ? ` och infektionen i ${inf.loc} hävs` : ''}.`);
-    if (healer.kind === 'player') g.gainExperience(healer, 'lakekonst', check);
+    if (g.charOf(healer)) g.gainExperience(healer, 'lakekonst', check);
   } else g.log(`Läkekonst (T20: ${check.roll} mot ${check.target}): misslyckas.`);
   return check;
 }
@@ -226,7 +234,7 @@ export function medicine(g: Game, healer: Actor, patient: Actor, fv = g.skillFv(
  * Färdigheter i kategori B förbättras bara genom träning.
  */
 export function gainExperience(g: Game, a: Actor, skill: string, check: Check) {
-  if (a.kind !== 'player' || !check.success) return;
+  if (!g.charOf(a) || !check.success) return;
   const def = SKILLS[skill.split(':')[0]];
   if (!def || def.category === 'B' || a.epBlocked.includes(skill)) return;
   const n = check.result === 'perfekt' ? roll(EXPERIENCE.perfect, g.rng) : EXPERIENCE.success;
@@ -235,8 +243,8 @@ export function gainExperience(g: Game, a: Actor, skill: string, check: Check) {
 }
 
 /** Grundkostnaden i EP för att höja en färdighet: primär 2, yrkesfärdighet 3, sekundär 5. */
-export function baseCost(g: Game, skill: string): number {
-  if (g.state.character.profSkills.includes(skill)) return SKILL_BASE_COST.yrke;
+export function baseCost(g: Game, skill: string, a: Actor = g.player): number {
+  if ((g.charOf(a) ?? g.char).profSkills.includes(skill)) return SKILL_BASE_COST.yrke;
   return SKILLS[skill.split(':')[0]]?.type === 'primär' ? SKILL_BASE_COST.primär : SKILL_BASE_COST.sekundär;
 }
 
@@ -246,7 +254,7 @@ export function skillCap(g: Game, a: Actor, skill: string): number {
   if (!def) return 0;
   const attr = def.cappedByAttr ?? (def.attr !== 'spec' ? def.attr : undefined);
   if (def.cappedBy) return Math.min(a.skills[def.cappedBy] ?? 0, attr ? a.attrs[attr] : 99);
-  if (attr && (def.type === 'sekundär' || def.category === 'B') && !g.state.character.profSkills.includes(skill)) return a.attrs[attr];
+  if (attr && (def.type === 'sekundär' || def.category === 'B') && !(g.charOf(a) ?? g.char).profSkills.includes(skill)) return a.attrs[attr];
   return 99;
 }
 
@@ -257,13 +265,13 @@ export function canConvert(a: Actor): boolean {
 
 export function raiseCost(g: Game, a: Actor, skill: string): number {
   const fv = a.skills[skill] ?? 0;
-  return fvCost(baseCost(g, skill), fv, fv + 1);
+  return fvCost(baseCost(g, skill, a), fv, fv + 1);
 }
 
 /** Höjer en färdighet ett steg med dess egna EP, och bonus-EP om de inte räcker. */
 export function raiseSkill(g: Game, skill: string): boolean {
   const a = g.player;
-  const ch = g.state.character;
+  const ch = g.char;
   const fv = a.skills[skill] ?? 0;
   const cost = raiseCost(g, a, skill);
   const own = a.ep[skill] ?? 0;
@@ -302,15 +310,17 @@ export function selfTrain(g: Game, skill: string): boolean {
 
 /** Mellan äventyren: lyckas ett Normalt PSY-slag blir en fobi ett steg lindrigare. */
 export function easePhobias(g: Game) {
-  const ch = g.state.character;
   const steps = ['mild', 'normal', 'svår'] as const;
-  ch.phobias = (ch.phobias ?? []).flatMap((ph) => {
-    const check = attributeCheck(g.player.attrs.PSY, g.rng, 'Normalt');
-    if (!check.success) return [ph];
-    const i = steps.indexOf(ph.level);
-    g.log(`Fobin mot ${ph.source} ${i === 0 ? 'försvinner' : `mildras till ${steps[i - 1]}`}.`);
-    return i === 0 ? [] : [{ ...ph, level: steps[i - 1] }];
-  });
+  for (const a of g.partyMembers()) {
+    const ch = g.charOf(a)!;
+    ch.phobias = (ch.phobias ?? []).flatMap((ph) => {
+      const check = attributeCheck(a.attrs.PSY, g.rng, 'Normalt');
+      if (!check.success) return [ph];
+      const i = steps.indexOf(ph.level);
+      g.log(`${a.name}s fobi mot ${ph.source} ${i === 0 ? 'försvinner' : `mildras till ${steps[i - 1]}`}.`);
+      return i === 0 ? [] : [{ ...ph, level: steps[i - 1] }];
+    });
+  }
 }
 
 /** Vilken sorts sår ett vapen ger, för infektioner. Trubbiga vapen och nävar infekterar inte. */

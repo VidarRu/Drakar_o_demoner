@@ -27,7 +27,10 @@ export class WorldScene extends Phaser.Scene {
   private lightImg!: ImageData;
   /** Grottmörker per ljuspunkt, utjämnat så att övergången till dagsljus blir mjuk. */
   private ambient!: Float32Array;
-  private glow!: Phaser.GameObjects.Image;
+  /** Ett varmt sken per fackla eller luminal. */
+  private glows: Phaser.GameObjects.Image[] = [];
+  /** Figuren som kameran följer. */
+  private followId = '';
   private zoom = 2;
   private sprites = new Map<string, Phaser.GameObjects.Image>();
   /** Antal steg varje figur tagit, för att växla fot i gå-animationen. */
@@ -104,7 +107,6 @@ export class WorldScene extends Phaser.Scene {
     });
 
     this.sync();
-    cam.startFollow(this.sprites.get(g.player.id)!, true, 0.12, 0.12);
 
     g.onChange(() => this.sync());
     g.onFx((fx) => this.showFx(fx));
@@ -143,6 +145,12 @@ export class WorldScene extends Phaser.Scene {
       b.fillStyle(a.kind === 'player' ? 0x5fd070 : 0xd04a3a, 1);
       b.fillRect(s.x - 10, s.y - 19, Math.max(1, Math.round((20 * a.kp) / a.maxKp)), 2);
     }
+    // Den som styrs: en ring vid fötterna när gruppen är fler än en.
+    const me = this.sprites.get(g.player.id);
+    if (me && g.state.party.length + g.state.actors.filter((a) => a.alive && a.elemental).length > 1) {
+      o.lineStyle(1, 0xf0d070, 0.9);
+      o.strokeEllipse(me.x, me.y + 12, 20, 7);
+    }
   }
 
   private tileOf(p: Phaser.Input.Pointer): Point {
@@ -152,7 +160,7 @@ export class WorldScene extends Phaser.Scene {
 
   private targetAt(t: Point): Actor | undefined {
     const a = this.g.actorAt(t.x, t.y);
-    return a && a.id !== this.g.player.id && this.g.isVisible(t.x, t.y) ? a : undefined;
+    return a && a.id !== this.g.player.id && (this.g.isVisible(t.x, t.y) || a.kind === 'player') ? a : undefined;
   }
 
   private hover(t: Point) {
@@ -176,10 +184,15 @@ export class WorldScene extends Phaser.Scene {
     const target = this.targetAt(t);
 
     if (g.state.mode === 'explore') {
+      // Ett klick på någon i gruppen visar hen i panelerna.
+      if (target?.kind === 'player') {
+        g.setFocus(target.id);
+        return;
+      }
       const path = g.pathTo(t.x, t.y, !!target);
       if (!path) return;
       await this.walk(path, (step) => g.stepPlayer(step));
-      const p = g.player;
+      const p = g.leader;
       if (target?.kind === 'npc' && g.state.mode === 'explore' && distance(p.x, p.y, target.x, target.y) <= 1) {
         this.onTalk(target);
       }
@@ -246,10 +259,10 @@ export class WorldScene extends Phaser.Scene {
         s = this.add.image(tx, ty, a.sprite).setDepth(actorDepth(a.y));
         this.sprites.set(a.id, s);
       }
-      s.setVisible(a.id === g.player.id || g.isVisible(a.x, a.y));
-      // Medvetslösa ligger ner; utslagna sjunker ihop.
+      s.setVisible(a.kind === 'player' || g.isVisible(a.x, a.y));
+      // Medvetslösa ligger ner; utslagna sjunker ihop; den som smyger oupptäckt syns svagt.
       s.setAngle(a.unconscious ? 90 : 0);
-      s.setAlpha(a.unconscious || a.down ? 0.75 : 1);
+      s.setAlpha(a.hidden ? 0.5 : a.unconscious || a.down ? 0.75 : 1);
       if (s.x !== tx || s.y !== ty) {
         if (tx !== s.x) s.setFlipX(tx < s.x);
         this.tweens.killTweensOf(s);
@@ -275,6 +288,13 @@ export class WorldScene extends Phaser.Scene {
       }
     }
 
+    // Kameran följer den som har turen i strid, och ledaren annars.
+    const who = g.state.mode === 'combat' ? g.player : g.leader;
+    const target = this.sprites.get(who.id);
+    if (target && this.followId !== who.id) {
+      this.followId = who.id;
+      this.cameras.main.startFollow(target, true, 0.12, 0.12);
+    }
     this.reach = g.reachableTiles();
     if (!this.enemiesActing && g.state.mode === 'combat' && !g.isPlayerTurn()) void this.runEnemies();
   }
@@ -339,19 +359,27 @@ export class WorldScene extends Phaser.Scene {
       ctx.fillRect(0, 0, 128, 128);
       this.textures.addCanvas('glow', c);
     }
-    this.glow = this.add.image(0, 0, 'glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(945).setScale((TORCH_RADIUS * TILE * 1.6) / 128);
+  }
+
+  /** Ljuskällorna: tända facklor i gruppen och luminaler (fem rutor per grad). */
+  private lightSources(): { x: number; y: number; r: number }[] {
+    const out: { x: number; y: number; r: number }[] = [];
+    for (const a of this.g.state.actors) {
+      if (!a.alive || a.kind !== 'player') continue;
+      const s = this.sprites.get(a.id);
+      if (!s) continue;
+      if (a.elemental?.kind === 'ljus') out.push({ x: s.x, y: s.y, r: 5 * a.elemental.grade });
+      else if (!a.elemental && !a.torchOut) out.push({ x: s.x, y: s.y, r: TORCH_RADIUS });
+    }
+    return out;
   }
 
   private drawLight(time: number) {
     const { map } = this.g;
-    const p = this.sprites.get(this.g.player.id);
-    if (!p) return;
     const w = map.w * LIGHT_RES;
     const h = map.h * LIGHT_RES;
     const flicker = Math.sin(time / 130) * 0.06 + Math.sin(time / 57 + 1.3) * 0.04;
-    const radius = TORCH_RADIUS * LIGHT_RES * (1 + flicker);
-    const cx = (p.x / TILE) * LIGHT_RES;
-    const cy = (p.y / TILE) * LIGHT_RES;
+    const lights = this.lightSources().map((l) => ({ cx: (l.x / TILE) * LIGHT_RES, cy: (l.y / TILE) * LIGHT_RES, radius: l.r * LIGHT_RES * (1 + flicker), r: l.r, x: l.x, y: l.y }));
     const data = this.lightImg.data;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
@@ -359,8 +387,11 @@ export class WorldScene extends Phaser.Scene {
         const amb = this.ambient[i];
         let a = 0;
         if (amb > 0.001) {
-          const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy) / radius;
-          const lit = d >= 1 ? 0 : 1 - d * d;
+          let lit = 0;
+          for (const l of lights) {
+            const d = Math.hypot(x + 0.5 - l.cx, y + 0.5 - l.cy) / l.radius;
+            if (d < 1) lit = Math.max(lit, 1 - d * d);
+          }
           a = amb * (1 - lit * 0.92);
         }
         data[i * 4 + 3] = a * 255;
@@ -370,8 +401,20 @@ export class WorldScene extends Phaser.Scene {
     this.light.refresh();
     this.light.setFilter(Phaser.Textures.FilterMode.LINEAR);
 
-    const here = this.ambient[Math.min(h - 1, Math.max(0, Math.floor(cy))) * w + Math.min(w - 1, Math.max(0, Math.floor(cx)))];
-    this.glow.setPosition(p.x, p.y).setAlpha((here / CAVE_DARK) * (0.2 + flicker * 0.6));
+    while (this.glows.length < lights.length) this.glows.push(this.add.image(0, 0, 'glow').setBlendMode(Phaser.BlendModes.ADD).setDepth(945));
+    this.glows.forEach((glow, n) => {
+      const l = lights[n];
+      if (!l) {
+        glow.setVisible(false);
+        return;
+      }
+      const here = this.ambient[Math.min(h - 1, Math.max(0, Math.floor(l.cy))) * w + Math.min(w - 1, Math.max(0, Math.floor(l.cx)))];
+      glow
+        .setVisible(true)
+        .setPosition(l.x, l.y)
+        .setScale((l.r * TILE * 1.6) / 128)
+        .setAlpha((here / CAVE_DARK) * (0.2 + flicker * 0.6));
+    });
   }
 
   private drawFog() {

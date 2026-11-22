@@ -91,7 +91,24 @@ export const SPELL_LIST: SpellDef[] = [
   spell('elementarmagi', 6, 'ÖPPNA', 'F', 'beröring', 'omedelbar', 'Öppnar lås och lock. Kan bryta FÖRSEGLA.'),
   spell('elementarmagi', 7, 'VIGGFÅNGARE', 'F', 'personlig', 'omedelbar', 'Under åska: lockar till sig en blixt (5T6) och omvandlar en del av skadan till PSY.'),
   spell('elementarmagi', 8, 'VIRVELSKÖLD', 'F', 'personlig', T(1, 'SR'), 'Luftvirvel som stöter bort projektiler, åt båda hållen.'),
-  spell('elementarmagi', 9, 'FRAMMANA/SKICKA BORT ELEMENTAR', 'F', S(10, 'rutor'), T(1, 'SR'), 'Kallar fram eller skickar bort en elementar. Varje sorts elementar är en egen besvärjelse.'),
+  // FRAMMANA/SKICKA BORT ELEMENTAR: varje sorts elementar är en egen besvärjelse (Bok III s. 21–22, 27).
+  ...(
+    [
+      ['SYLF', 'luft', 'Luftens elementar: snabb, kan blåsa omkull och styra pilar. Skadas inte av vanliga vapen.'],
+      ['SALAMANDER', 'eld', 'Eldens elementar: sveper in målet i lågor (1T6 per grad) och skadar vapen som träffar den.'],
+      ['GNOM', 'jord', 'Jordens elementar: slår med nävarna (1T4 per grad, CL 6 + 2 per grad).'],
+      ['UNDIN', 'vatten', 'Vattnets elementar: sveper in och dränker (1T8 per SR). Långsam på land.'],
+      ['UMBRA', 'mörker', 'Mörkrets elementar: en glob av mörker och angrepp med skräck. Skadas inte av vanliga vapen.'],
+      ['LUMINAL', 'ljus', 'Ljusets elementar: lyser upp och bländar. Skadas inte av vanliga vapen.'],
+      ['GLACIAL', 'köld', 'Köldens elementar: kramar (1T4 per grad) och kyler vapen. Kräver något fruset att uppstå ur.'],
+      ['THERM', 'värme', 'Värmens elementar: sveper in i hetta (1T4 per grad) och värmer vapen. Bara magi skadar den.'],
+    ] as const
+  ).map(([name, element, desc]) =>
+    spell('elementarmagi', 9, `FRAMMANA ${name}`, 'F', S(10, 'rutor'), T(1, 'SR'), `${desc} Kan också skicka bort en elementar av samma sort.`, {
+      effect: { kind: 'elementar', element },
+      aim: 'valfri',
+    }),
+  ),
   spell('elementarmagi', 10, 'ASTRALVAPEN', 'F', Sdiv(2, 'rutor'), T(1, 'SR'), 'Ett eggvapen av magisk energi. En E per kg som vapnet väger.'),
   spell('elementarmagi', 11, 'EXPLOSION', 'FK', S(10, 'rutor'), 'omedelbar', '5 per E i skada inom E meter, minus 1 per ruta utanför. Bländar alla som ser den.', { effect: { kind: 'explosion', perGrade: 5 }, aim: 'fiende' }),
 

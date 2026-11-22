@@ -1278,3 +1278,67 @@ button.danger {
   font-size: 12px;
   color: var(--muted);
 }
+
+/* ---------- Gruppen (steg 7) ---------- */
+
+#party {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 8px;
+}
+#party .member {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px 3px 3px;
+  font-size: 12px;
+  border: 1px solid rgba(107, 90, 58, 0.6);
+  border-radius: 4px;
+  background: #140f14;
+  color: var(--muted);
+  cursor: pointer;
+  position: relative;
+}
+#party .member img {
+  width: 30px;
+  height: 30px;
+  image-rendering: pixelated;
+  border: 1px solid #0b090c;
+}
+#party .member.focus {
+  border-color: var(--gold);
+  color: #fff3d0;
+  box-shadow: 0 0 6px rgba(227, 196, 118, 0.5);
+}
+#party .member.out {
+  opacity: 0.55;
+}
+#party .member .kp {
+  display: block;
+  width: 56px;
+  height: 4px;
+  margin-top: 3px;
+  background: #2a1a1a;
+}
+#party .member .kp i {
+  display: block;
+  height: 100%;
+  background: #5fd070;
+}
+#party .member .tag {
+  color: var(--gold);
+  font-size: 11px;
+}
+#party .member .dismiss {
+  margin-left: 4px;
+  padding: 0 5px;
+  font-size: 11px;
+  line-height: 16px;
+}
+#combat label.check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}

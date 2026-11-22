@@ -50,8 +50,8 @@ export async function requestTurn(game: Game, npc: Actor, history: DialogEntry[]
         player: {
           name: p.name,
           profession: PROFESSIONS[p.profession!].name,
-          race: RACES[game.state.character.race].name,
-          appearance: game.state.character.appearance || undefined,
+          race: RACES[game.char.race].name,
+          appearance: game.char.appearance || undefined,
           condition: p.kp >= p.maxKp ? 'oskadd' : p.kp <= p.maxKp / 2 ? 'svårt sårad' : 'lätt sårad',
           silver: p.silver,
         },

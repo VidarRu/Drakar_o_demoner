@@ -7,13 +7,14 @@ import { EXPERIENCE, REPAIR_PERCENT } from './rules';
 import { canMedicine, clockText, medicine } from './time';
 import type { Game } from './game';
 import type { Actor } from './types';
+import { recruit, recruitProblem } from './party';
 
 /**
  * En spelmekanisk handling som kan utföras i ett samtal. Språkmodellen får aldrig
  * avgöra utfall – den får bara veta resultatet och spela vidare utifrån det.
  */
 export interface Intent {
-  label: (g: Game) => string;
+  label: (g: Game, npc: Actor) => string;
   available: (g: Game, npc: Actor) => boolean;
   /** Utför handlingen och returnerar en beskrivning av vad som hände. */
   apply: (g: Game, npc: Actor) => string;
@@ -50,7 +51,19 @@ export function repairs(g: Game, smith: Actor): { key: string; name: string; fro
   return out;
 }
 
+/** En säng i sovsalen per person i gruppen. */
+const beds = (g: Game) => g.partyMembers().length;
+
 export const INTENTS: Record<string, Intent> = {
+  folj_med: {
+    label: (_g, npc) => {
+      const c = npc.companion;
+      return c?.pay === 'dagslön' ? `Be personen följa med (${c.wage} silver om dagen)` : c?.pay === 'andel' ? 'Be personen följa med (mot en del av bytet)' : 'Be personen följa med';
+    },
+    available: (g, npc) => !!npc.companion && !recruitProblem(g, npc),
+    ends: true,
+    apply: (g, npc) => recruit(g, npc.id),
+  },
   uppdrag_anta: {
     label: () => 'Åta dig att döda svartalfshövdingen',
     available: (g) => !g.state.flags.uppdrag_antaget && !g.state.flags.uppdrag_klart,
@@ -80,25 +93,29 @@ export const INTENTS: Record<string, Intent> = {
       const reward = g.state.flags.hogre_beloning ? HIGHER_REWARD : REWARD;
       g.player.silver += reward;
       g.state.flags.uppdrag_klart = true;
-      g.state.character.bonusEp = (g.state.character.bonusEp ?? 0) + EXPERIENCE.questBonus;
+      for (const m of g.partyMembers()) {
+        const ch = g.charOf(m)!;
+        ch.bonusEp = (ch.bonusEp ?? 0) + EXPERIENCE.questBonus;
+      }
       return `Spelaren berättar att hövdingen är död och får sin belöning på ${reward} silvermynt. (Uppdraget ger också ${EXPERIENCE.questBonus} bonus-EP att fördela vid träningen.)`;
     },
   },
   overnatta: {
-    label: () => `Övernatta (${REST_COST} silver)`,
-    available: (g) => g.player.silver >= REST_COST,
+    label: (g) => `Övernatta (${beds(g) * REST_COST} silver${beds(g) > 1 ? `, ${beds(g)} sängar` : ''})`,
+    available: (g) => g.player.silver >= beds(g) * REST_COST,
     apply: (g) => {
-      g.player.silver -= REST_COST;
+      const cost = beds(g) * REST_COST;
+      g.player.silver -= cost;
       g.sleep(8);
-      return `Spelaren betalar ${REST_COST} silvermynt och sover över natten. Klockan är nu ${clockText(g.state.time)}.`;
+      return `Spelaren betalar ${cost} silvermynt och sover över natten${beds(g) > 1 ? ' med sitt sällskap' : ''}. Klockan är nu ${clockText(g.state.time)}.`;
     },
   },
   vila_vecka: {
-    label: () => `Vila en vecka och träna (${REST_COST * 7} silver)`,
-    available: (g) => g.player.silver >= REST_COST * 7,
+    label: (g) => `Vila en vecka och träna (${beds(g) * REST_COST * 7} silver)`,
+    available: (g) => g.player.silver >= beds(g) * REST_COST * 7,
     ends: true,
     apply: (g) => {
-      g.player.silver -= REST_COST * 7;
+      g.player.silver -= beds(g) * REST_COST * 7;
       g.restWeek();
       g.log(`${g.player.name} vilar en vecka på värdshuset. Klockan är nu ${clockText(g.state.time)}.`);
       g.openUi('training');

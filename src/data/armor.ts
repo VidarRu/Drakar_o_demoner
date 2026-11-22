@@ -38,6 +38,7 @@ function piece(
     price,
     metal: METAL.includes(material),
     noisy: NOISY.includes(material),
+    light: material === 'tyg' || material === 'läder',
     ...(material === 'ringbrynja' || material === 'förstärkt ringbrynja' ? { noInfection: true } : {}),
     ...extra,
   };

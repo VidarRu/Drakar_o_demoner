@@ -39,22 +39,22 @@ export function itemInfo(id: string): ItemInfo | undefined {
 }
 
 /** Vikten av ett föremål för rollpersonen (rustningsvikter beror på kroppsbyggnaden). */
-function weightOf(g: Game, id: string): number {
+function weightOf(g: Game, id: string, a: Actor = g.player): number {
   const info = itemInfo(id);
   if (!info) return 0;
-  if (info.kind === 'rustning') return (info.weight * armorWeightPercent(g.state.character.attrs)) / 100;
+  if (info.kind === 'rustning') return (info.weight * armorWeightPercent((g.charOf(a) ?? g.char).attrs)) / 100;
   if (info.category === 'kläder') return 0;
   return info.weight;
 }
 
 /** Bördan i kg: allt i packningen, halva vikten för rustning på kroppen, mynt och ammunition. */
-export function carriedWeight(g: Game): number {
-  const ch = g.state.character;
-  const p = g.player;
+export function carriedWeight(g: Game, p: Actor = g.player): number {
+  const ch = g.charOf(p);
+  if (!ch) return 0;
   const worn = [...p.armor];
   let kg = 0;
   for (const id of ch.inventory) {
-    const w = weightOf(g, id);
+    const w = weightOf(g, id, p);
     const i = worn.indexOf(id);
     if (i >= 0) {
       worn.splice(i, 1);
@@ -68,15 +68,15 @@ export function carriedWeight(g: Game): number {
 
 /** Bördans modifikation på förflyttning, SMI och SMI-färdigheter. null: för tungt att röra sig med. */
 export function loadMod(g: Game, a: Actor): number | null {
-  if (a.id !== g.state.playerId) return 0;
-  return encumbrance(carriedWeight(g), a.attrs.STY);
+  if (!g.charOf(a)) return 0;
+  return encumbrance(carriedWeight(g, a), a.attrs.STY);
 }
 
 /** Över STY × 5 kan inga SMI-färdigheter användas, och över STY × 6 kan man inte röra sig. */
 export function smiBlocked(g: Game, a: Actor): boolean {
-  if (a.id !== g.state.playerId) return false;
+  if (!g.charOf(a)) return false;
   const mod = loadMod(g, a);
-  return mod === null || carriedWeight(g) > a.attrs.STY * 5;
+  return mod === null || carriedWeight(g, a) > a.attrs.STY * 5;
 }
 
 /** Avdraget för bördan på en färdighet (bara SMI-baserade). */
@@ -88,17 +88,16 @@ export function loadPenalty(g: Game, a: Actor, skill: string): number {
 // ------------------------------------------------------------------ järn och magi
 
 /** Föremål av järn som rollpersonen har i handen eller på kroppen, eller för mycket järn i packningen. */
-export function ironProblem(g: Game): string | null {
-  const p = g.player;
+export function ironProblem(g: Game, p: Actor = g.player): string | null {
   for (const id of p.armor) if (ARMOR[id]?.metal && (p.bv[id] ?? 1) > 0) return `${ARMOR[id].name} är av metall och omsluter dig.`;
   for (const slot of ['weapon', 'offhand'] as const) {
     const id = slot === 'weapon' ? p.weapon : p.offhand;
     if (id && WEAPONS[id] && !NON_IRON_WEAPONS.has(id)) return `Du håller ${WEAPONS[id].name.toLowerCase()} av järn i handen.`;
   }
   let iron = 0;
-  for (const id of g.state.character.inventory) {
+  for (const id of (g.charOf(p) ?? g.char).inventory) {
     if (id === p.weapon || id === p.offhand || p.armor.includes(id)) continue;
-    if ((WEAPONS[id] && !NON_IRON_WEAPONS.has(id)) || ARMOR[id]?.metal || IRON_ITEMS.has(id)) iron += weightOf(g, id);
+    if ((WEAPONS[id] && !NON_IRON_WEAPONS.has(id)) || ARMOR[id]?.metal || IRON_ITEMS.has(id)) iron += weightOf(g, id, p);
   }
   if (iron > IRON_LIMIT_KG) return `Du bär ${Math.round(iron * 10) / 10} kg järn i packningen (högst ${IRON_LIMIT_KG} kg).`;
   return null;
@@ -109,7 +108,7 @@ export function ironProblem(g: Game): string | null {
 export type EquipSlot = WeaponSlot | 'shield';
 
 function ownedFree(g: Game, id: string): boolean {
-  const ch = g.state.character;
+  const ch = g.char;
   const p = g.player;
   const owned = ch.inventory.filter((x) => x === id).length;
   const used = [p.weapon, p.offhand, p.shield, ...p.armor].filter((x) => x === id).length;
@@ -150,21 +149,21 @@ export function equipProblem(g: Game, id: string, slot: EquipSlot | 'armor'): st
 /** BV för ett föremål i packningen sparas så att slitaget följer med när det tas fram igen. */
 function storeBv(g: Game, key: string, id: string | undefined) {
   if (!id || g.player.bv[key] === undefined) return;
-  (g.state.character.itemBv ??= {})[id] = g.player.bv[key];
+  (g.char.itemBv ??= {})[id] = g.player.bv[key];
   delete g.player.bv[key];
 }
 
 function restoreBv(g: Game, key: string, id: string, full: number | null) {
-  const stored = g.state.character.itemBv?.[id];
+  const stored = g.char.itemBv?.[id];
   if (full === null) return;
   g.player.bv[key] = stored ?? full;
-  if (stored !== undefined) delete g.state.character.itemBv![id];
+  if (stored !== undefined) delete g.char.itemBv![id];
 }
 
 /** Lägger undan det som finns i en hand. */
 export function stow(g: Game, slot: EquipSlot) {
   const p = g.player;
-  const ch = g.state.character;
+  const ch = g.char;
   if (slot === 'weapon') {
     storeBv(g, 'weapon', p.weapon);
     p.weapon = 'nave';
@@ -185,7 +184,7 @@ export function equip(g: Game, id: string, slot: EquipSlot): string | null {
   const problem = equipProblem(g, id, slot);
   if (problem) return problem;
   const p = g.player;
-  const ch = g.state.character;
+  const ch = g.char;
   if (slot === 'shield') {
     stow(g, 'shield');
     p.shield = id;
@@ -221,7 +220,7 @@ export function removeArmor(g: Game, id: string) {
   if (g.state.mode !== 'explore' || !p.armor.includes(id)) return;
   storeBv(g, id, id);
   p.armor = p.armor.filter((x) => x !== id);
-  g.state.character.equipped.armor = [...p.armor];
+  g.char.equipped.armor = [...p.armor];
   g.log(`${p.name} tar av ${ARMOR[id].name.toLowerCase()}.`);
 }
 
@@ -229,11 +228,11 @@ export function removeArmor(g: Game, id: string) {
 export function wearArmor(g: Game, id: string): string | null {
   const problem = equipProblem(g, id, 'armor');
   if (problem) return problem;
-  const stored = g.state.character.itemBv?.[id];
+  const stored = g.char.itemBv?.[id];
   g.equipArmor(id);
   if (stored !== undefined) {
     g.player.bv[id] = stored;
-    delete g.state.character.itemBv![id];
+    delete g.char.itemBv![id];
   }
   g.log(`${g.player.name} tar på ${ARMOR[id].name.toLowerCase()}.`);
   return null;
@@ -250,7 +249,7 @@ export function spendAction(g: Game, text?: string) {
 
 /** Tar bort ett föremål ur packningen (sålt eller förbrukat). Utrustade föremål läggs undan först. */
 export function removeItem(g: Game, id: string): boolean {
-  const ch = g.state.character;
+  const ch = g.char;
   const p = g.player;
   const i = ch.inventory.indexOf(id);
   if (i < 0) return false;

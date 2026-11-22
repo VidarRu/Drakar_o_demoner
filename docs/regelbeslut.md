@@ -88,9 +88,9 @@ Regelvärdena finns i koden:
   - Slitna vapen och sköldar repareras hos en smed för 5 % av priset per återställd BV-poäng. Ett vapen kan bara lagas upp till sitt ursprungliga BV, och aldrig högre än smedens FV i Smide.
 - **Rustningens BV** är dubbla abs. Varje träff vars skada överstiger abs drar 1 BV från den träffade delen. Vid BV 0 är delen sönder och skyddar inte förrän den lagas.
 - **Skador i kroppsdelar:** för varje kroppsdel utom huvudet som står på 0 KP eller lägre får man −2 på alla färdighetsslag. Mindre skador ger inget avdrag. (Huvudet på 0 KP gör en medvetslös.)
-- **Fummel som träffar "närmsta vän"** träffar en följeslagare. Finns ingen följeslagare slås det om.
+- **Fummel som träffar "närmsta vän"** träffar en följeslagare (för en fiende: en annan fiende) inom vapnets räckhåll, intill för sköld och nävar, och i skottlinjen för avståndsvapen. Finns ingen sådan slås det om.
 - **Besegrade fiender dör.** Fångar tas bara om en spelledarperson eller ett uppdrag kräver det.
-- **Moral** gäller bara SLP och fiender, aldrig rollpersonen. Slaget är 1T20 mot PSY + modifikationerna, där fler kamrater är bra och fler fiender dåligt. Ett lyckat slag betyder att varelsen står kvar, ett misslyckat att den flyr eller ger upp. En etta lyckas alltid och en tjugo misslyckas alltid.
+- **Moral** gäller bara SLP, fiender och följeslagare (se steg 7), aldrig rollpersonen. Slaget är 1T20 mot PSY + modifikationerna, där fler kamrater är bra och fler fiender dåligt. Ett lyckat slag betyder att varelsen står kvar, ett misslyckat att den flyr eller ger upp. En etta lyckas alltid och en tjugo misslyckas alltid.
 - **Vanlig strid** (bara totala KP, utan parering) används för djur och monster. Humanoider strider detaljerat med träffområden.
 
 ### Tolkningar i striden (steg 4)
@@ -113,14 +113,14 @@ Dessa val gjordes när striden byggdes. Vidar har godkänt dem eller ändrat dem
 - **Kritisk skada** (dubbla kroppsdelens KP): huvudet dödar direkt, bål och mage ger medvetslöshet och död inom FYS rundor, och armar och ben slår på tabellen för kritiska skador (1T10). Bestående skador sparas på rollpersonen.
 - **Blödning:** varje kroppsdel på 0 KP blöder 1 KP var sjätte runda tills någon lägger förband (Första hjälpen, en kroppsdel per lyckat slag, kräver två hela armar). Utanför strid räknas varje steg som en runda.
 - **Besegrade fiender:** en fiende på 0 KP eller lägre, eller som bara kan krypa, är ur striden. När striden är slut dör de besegrade av sina sår.
+- **Döden (husregel, beslutad efter steg 7, inte byggd än):** den som hamnar på 0 KP dör inte direkt utan faller medvetslös och förlorar sedan 1 KP per stridsrunda så länge hen är medvetslös. Först vid minus lika mycket som FYS dör hen. I dag dör man direkt vid −FYS och tappar bara KP genom blödning (1 KP var sjätte runda per kroppsdel), så det här ska byggas om i nästa steg. Hur regeln samspelar med blödning, förband och kamraternas hjälp behöver bestämmas då.
 - **Rollpersonen medvetslös:** fienderna fortsätter att anfalla (+10 mot orörligt mål). Tar striden slut medan rollpersonen är medvetslös förblöder hen om något blöder, eftersom ingen kan hjälpa. Annars vaknar hen efter 1T4 timmar och ligger sedan så många dygn som behövs för att få positiva KP (1 KP per dygn).
 - **Moralslag** slås vid rundans början av varje fiende, en gång per orsak: ledaren har fallit, hälften av gruppen är borta, eller varelsen har förlorat mer än halva sina KP. Hövdingen Grukk lyder inte under moralen (en sådan ledare slåss till slutet). En flyende varelse som försvinner ur sikte lämnar platsen. Blir en humanoid trängd ger den upp och släpper vapnet; ett trängt djur vänder sig till motanfall.
-- **Skräck:** bara rollpersonen slår på Skräcktabellen, en gång per varelse när hen först ser den, och en gång till om varelsen aktivt försöker skrämma. Har rollpersonen mött samma sorts varelse förut gäller −2. Bara den högsta modifikationen räknas. Effekter som varar "tills skräckkällan försvinner" upphör när den dör, flyr eller kommer ur sikte.
+- **Skräck:** bara rollpersonen och följeslagarna slår på Skräcktabellen (fiender slår moral), en gång per varelse när hen först ser den, och en gång till om varelsen aktivt försöker skrämma. Har rollpersonen mött samma sorts varelse förut gäller −2. Bara den högsta modifikationen räknas. Effekter som varar "tills skräckkällan försvinner" upphör när den dör, flyr eller kommer ur sikte.
 - **Fummeltabellerna** är skrivna som data med egna ord. Effekter som varar i dagar räknas ned för varje natts vila. "Tills någon masserar dig" upphör vid nästa vila. Kläder som måste rättas till kostar en hel runda (knappen "Rätta till").
-- **Kvävning efter fummel:** fummel 19 på närstridstabellen ("sväljer tungan") är en klassiker och står kvar. Man kvävs om ingen hjälper till inom 15 rundor. När det finns följeslagare ska en av dem kunna lägga sin handling på att hjälpa; så länge rollpersonen är ensam dör hen.
+- **Kvävning efter fummel:** fummel 19 på närstridstabellen ("sväljer tungan") är en klassiker och står kvar. Man kvävs om ingen hjälper till inom 15 rundor. En kamrat intill kan lägga sin handling på att hjälpa; ett lyckat slag i Första hjälpen får tungan på plats (tolkning). Den som är ensam dör.
 - **Tappade föremål** hamnar på marken och plockas upp genom att gå dit. I strid kostar det handlingen. Fiender som dör släpper sina vapen och sköldar.
 - **Smeden Ylva** har FV 16 i Smide.
-- **Stridskonster och Avväpna** ska diskuteras med Vidar längre fram, innan de byggs.
 - **Specialregler** för vapen och situationer läggs till efter hand.
 
 ## Tid, läkning och utveckling (byggt i steg 5)
@@ -164,7 +164,6 @@ Vidar svarade på frågorna om magin i steg 6. Husreglerna markeras som husregel
   - KNÄCKA tar skölden om målet har en, annars vapnet.
   - LÄDERHUD ger +2 i absorbering; KAR −2 räknas inte än.
 - **Magiskolans FV** höjs bara genom träning med lärare eller egna studier i ett magibibliotek. Inget av det finns i Gråvad, så träningsvyn höjer inte magiskolor.
-- **Elementarerna** och följeslagare väntar till ett senare steg.
 
 ## Avståndsstrid (byggt i steg 6)
 
@@ -209,4 +208,66 @@ Alla droger i Bok II finns som data i `src/data/herbs.ts`, med egna beskrivninga
   - Medvetslös av gift ligger rollpersonen tills giftet är borta, och tiden går under tiden.
   - Gifter med egen verkan (t.ex. jägarbane, kråkmossa, krigarfasa) verkar om motståndsslaget misslyckas, när den lindriga verkan skulle ha börjat.
 - **Motgift och NEUTRALISERA GIFT** sänker giftets STY; örtugsblomma häver ismossans gift helt.
+
+## Följeslagare (byggt i steg 7)
+
+Vidar bestämde upplägget i steg 7 och godkände efteråt tolkningarna i avsnitten om följeslagare, smygarläge, Avväpna, Fasthållning, stridskonster och elementarer (de är markerade som tolkning för att visa att de inte står i böckerna). Undantagen är elementarernas styrning och döden, som han ändrade; se respektive punkt.
+
+- **Gruppen** är rollpersonen och upp till fem följeslagare, alltså högst sex. Följeslagarna har ett eget rollformulär med samma regler som rollpersonen (skapade med Bok I:s regler), och de följer med mellan äventyren. Varje äventyrsmodul har egna personer som kan värvas.
+- **Spelaren styr varje följeslagare** på dennes tur i strid, precis som rollpersonen. Utanför strid går de i ett led efter rollpersonen; den som inte kan gå bärs av de andra (tolkning).
+- **I Gråvad** finns tre som kan följa med:
+  - Legoknekten Hjalmar (krigare) tar 20 silvermynt om dagen. Lönen för den första dagen betalas när han går med, och sedan dras den från rollpersonens silver varje ny dag. Kan rollpersonen inte betala går han.
+  - Jägarinnan Sigrid (utbygdsjägare) tar en lika stor del av silvret som hittas hos besegrade fiender. Belöningar från uppdrag delas inte (tolkning).
+  - Bybon Linnea (helare, Astas lärling) följer med gratis för att hämnas sin far.
+- **Moral:** Sigrid och Linnea slår moralslag som fiender gör (när rollpersonen faller, när hälften av gruppen är borta och när de förlorat mer än halva KP). Hjalmar slår bara när rollpersonen faller. Den som flyr vägrar fortsätta och går hem när striden är slut. Den som lämnat gruppen vill inte gå med igen samma dag (tolkning).
+- **Rollpersonens död** avslutar äventyret, även om följeslagare lever (Vidar har godkänt det). En fallen följeslagares ägodelar blir kvar på platsen, och rollpersonen tar hand om hens silver.
+- **Följeslagarna är rollpersoner** i reglerna (tolkning): de slår Dra vapen och på Skräcktabellen, får EP, läker, får infektioner och tränar för sig. Bonus-EP från uppdraget ges till var och en. Sovsalen kostar en säng per person.
+- **Hjälpa en kamrat:** den som står intill kan lägga förband (Första hjälpen), hjälpa den som kvävs, resa upp den som ligger, ge en läkeört och utanför strid använda Läkekonst. I strid tar det handlingen.
+- **Efter striden** lägger kamraterna förband på dem som ligger medvetslösa och blöder: ett slag i Första hjälpen per runda och hjälpare, i högst 20 rundor, medan blödningen fortsätter (tolkning). Den som blöder när ingen kan hjälpa dör, som tidigare.
+- **Samtal** förs av rollpersonen, och det är rollpersonen som betalar (tolkning).
+
+## Smygarläge och anfall bakifrån (byggt i steg 7)
+
+- **Smygarläge (husregel):** den som smyger slår Smyga varje runda (varje steg utanför strid) som en fiende skulle kunna se hen. Lyckas slaget förblir hen oupptäckt, och fienderna ser hen inte. Misslyckas det är hen upptäckt och slutar smyga. Var och en i gruppen slår för sig; den som inte smyger syns som vanligt.
+- **Modifikationer:** tänd fackla i mörker −10, dagsljus inom halva fiendens synhåll −5. Rustning som klirrar halverar Smyga (regeln från steg 4); inget annat avdrag för rustning. Man smyger i halv fart i strid (Bok I). Den som redan är upptäckt i strid kan inte börja smyga så länge en fiende ser hen (tolkning).
+- **Facklan** kan släckas och tändas. Den som släcker sin fackla strider själv i mörker (−15) om ingen annans fackla lyser på målet och hen saknar mörkersyn.
+- **Anfall från smygarläge** följer Bok II s. 21: anfallaren slår Smyga, och lyckas det slår försvararen Upptäcka fara med anfallarens differensvärde som avdrag. Misslyckas försvararen får hen inte parera. Det gäller från alla håll, inte bara bakifrån (tolkning), och +7 bakifrån och +3 från sidan gäller som vanligt. Anfallet avslöjar den som smög.
+
+## Avväpna, Fasthållning och stridskonster (byggt i steg 7)
+
+- **Avväpna (husregel):** anfallet kan inte pareras och gör ingen skada. Går det in slår man Avväpna, och lyckas det ställs STY + FV i Avväpna mot försvararens STY på motståndstabellen. Vapnet hamnar 1T3+1 meter bort, i spelet 1–3 rutor (1T3). Det krävs ett vapen eller en käpp i handen.
+- **Fasthållning** (Bok II s. 21): ett anfall med CL (STO + SMI + STY) / 3 som kan pareras. Går det in ställs STY mot STY. Varje runda slår den som håller ett nytt motståndsslag på sin tur; misslyckas det kommer den andra loss. Ingen av dem kan göra något annat (den som håller kan släppa taget), och den som hålls fast räknas som orörligt mål för andra (+10) (tolkning).
+- **Stridskonster:** alla tekniker som går att använda i strid finns. De kräver tomma händer, ingen sköld och högst läderrustning (tyg eller läder). Normalt slag och normal spark använder det bästa av Stridskonster och Slagsmål. Tolkningar:
+  - Hoppspark och dubbelspark kräver att man flyttat minst en ruta först (ansatsen), når två rutor och träffar huvud eller bröst. Går sparken inte in slår man ett Normalt SMI-slag: lyckat ger en förlorad nästa runda, misslyckat att man ligger. Båda ger −2 på nästa initiativ, liksom rundsparken.
+  - Rundspark som missar: ingen handling eller parering nästa runda.
+  - Dubbelslag och dubbelspark tar den andra motståndaren automatiskt (närmast intill), om det finns någon.
+  - Bakåtspark når bara rutan rakt bakom.
+  - Bedövningsslag: gör det skada slår offret ett Svårt FYS-slag eller misslyckas med sin nästa attack eller parering.
+  - Lågt kast fäller offret i sin ruta i 1T2 SR. Högt kast kastar offret 1T3 rutor och det slår ett Svårt SMI-slag eller tar 1T3 i skada. Båda kan pareras. Högt kast görs direkt, inte sist i rundan.
+  - Låsning drar ned och låser offret. Offret tar sig loss på sin tur med halva SMI mot anfallarens FV på motståndstabellen.
+  - Fint slås samtidigt som anfallet; lyckas den halveras motståndarens parering.
+  - Avväpning är en obeväpnad parering mot vapen. Lyckas den parerar anfallaren avväpningen med sitt vapen, och misslyckas det flyger vapnet 1T3 rutor. Vid ett perfekt slag (och inget perfekt anfall) tar försvararen vapnet.
+  - Obeväpnad parering av vapen, Liggande strid, Blind strid, Initiativbonus och Stålsättning är alltid påkopplade (Stålsättning slås automatiskt vid skada utom mot huvudet). Vidvinkelsyn (270°) flyttar varje riktning ett steg framåt: anfall från sidan ger inget, och anfall bakifrån och snett bakifrån ger bara +3.
+  - Uppresning slås automatiskt när man fällts. Fallteknik är en handling, Rulla: lyckas slaget får man rulla upp till 5 rutor och kan inte huggas med närstridsvapen förrän sin nästa tur; misslyckas det blir man liggande. Fallskada finns inte i spelet.
+
+## Elementarer (byggt i steg 7)
+
+Reglerna följer Bok III s. 21–22 och 27. Alla åtta sorterna finns, var och en som en egen besvärjelse (FRAMMANA SYLF och så vidare) med skolvärde 9.
+
+- **Att frammana:** man väljer sig själv som mål. Att välja en elementar av samma sort skickar bort den (E mot elementarens grad på motståndstabellen). SKINGRA kan också förstöra en elementar.
+- **Grundegenskaper** som i boken: PSY 3T6, SMI 3T6, STO 1T6, och +1T6 STO och +1T6 PSY för varje E utöver den första. KP och STY är STO. Elementaren saknar FYS och INT och är immun mot gift. Den varar S × 1 SR.
+- **Att styra elementaren (Vidar, efter steg 7, inte byggt än):** att styra elementaren kostar ingen handling. Magikern kan agera som vanligt medan elementaren finns, till exempel parera och lägga nya besvärjelser. Spelaren styr elementaren på dess egen tur. I dag hindrar effekten `styr` magikern från att agera och parera; det ska tas bort i nästa steg. Magikern kan bara styra en åt gången. Blir magikern medvetslös eller dör försvinner elementaren. Den kan också släppas.
+- **Bara i strid:** elementarer frammanas i strid och återvänder till sitt element när striden är slut (Vidar har godkänt det).
+- **Elementet (tolkning):** luft finns överallt, jord under bar mark, eld och värme ur en tänd fackla intill magikern, vatten ur dammen inom tio rutor, mörker i grottan eller på natten, ljus i dagsljus eller ur en fackla. Fruset finns inte i Gråvad, så glacialen kan inte frammanas där.
+- **Anfall:** gnomen 1T4 per grad med CL 6 + 2 per grad, glacialen och thermen 1T4 per grad med CL 8 + E. Boken anger ingen CL för salamandern (1T6 per grad) och undinen (1T8 per SR); de får 8 + E (tolkning). Alla anfall har vapenlängd 0 och strider som djur, utan träffområden.
+- **Materiella vapen:** sylf, umbra och luminal skadas inte; thermen bara av magiska vapen (FÖRTROLLA VAPEN), och vanliga vapen tappar 1 BV; undinen tar halv skada. Vapen som träffar salamandern tar 1T6 per grad, och de som träffar gnomen tar lika mycket skada som de gjorde om anfallaren inte klarar PSY × 5 på 1T100. Skada på vapen räknas som vid parering: överstiger den BV tappar vapnet 1 BV (tolkning). Järnvapen som träffar glacialen rostar och tappar 1 BV.
+- **Eld och köld:** umbran och glacialen tar dubbel skada av ELD, luminalen och thermen är immuna mot den. Glacialen är immun mot FROST och KALLA HANDEN, och thermen tar dubbel skada av dem.
+- **Särskilda handlingar** (tar elementarens tur):
+  - Sylfen blåser omkull någon intill (STO mot STO) och styr nästa skott åt en kamrat: +1 på CL och +1T3 i skada per grad.
+  - Salamandern hettar upp en kamrats metallvapen (+1T6 i lika många SR som graden, men vapnet tar 1T6 per grad) och läker sig ur en tänd fackla (1T6 per grad).
+  - Umbran sveper in någon i skräck: PSY mot PSY. En rollperson slår på Skräcktabellen med graden som skräckvärde; en fiende slår moral (tolkning). Inom fem rutor per grad slutar facklorna lysa och mörkersyn fungerar inte.
+  - Luminalen lyser upp fem rutor per grad och kan blända fienderna som ser den (Normalt PSY-slag, Svårt för varelser med mörkersyn), i 2T6 SR. Gruppen vet vad som kommer och bländas inte (tolkning).
+  - Glacialen och thermen kyler eller värmer ett metallvapen: +1T4 per grad i 1T4+5 SR, och 5 % per grad att vapnet splittras eller smälter vid första träffen. Alla levande inom två rutor slår ett Svårt FYS-slag varje runda eller står och flämtar, även gruppen.
+  - Elementarer kan förinta varandra enligt listorna i boken (grad mot grad).
+- **Undinen** rör sig tio rutor per SR i vatten, men vattnet går inte att beträda i spelet, så den rör sig en ruta per SR på land (tolkning). Gnomens malmsökande, sylfens bärförmåga och glacialens och thermens tunnlar används inte än.
 

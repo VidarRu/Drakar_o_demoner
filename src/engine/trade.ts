@@ -111,7 +111,7 @@ export function buy(g: Game, npc: Actor, id: string): string | null {
   if (!ware) return 'Det säljer handlaren inte.';
   const price = buyPrice(g, npc, ware.price);
   const p = g.player;
-  const ch = g.state.character;
+  const ch = g.char;
   if (p.silver < price) return 'Du har inte råd.';
   p.silver -= price;
   if (ware.herb) ch.herbs.push(prepareDose(g, id, npc.skills[herbSkill(HERBS[id])] ?? 0));
@@ -126,7 +126,7 @@ export function buy(g: Game, npc: Actor, id: string): string | null {
 export function sellable(g: Game, npc: Actor): Ware[] {
   const sold = new Set(wares(g, npc).filter((w) => !w.herb).map((w) => w.id));
   const out: Ware[] = [];
-  for (const id of new Set(g.state.character.inventory)) {
+  for (const id of new Set(g.char.inventory)) {
     const info = itemInfo(id);
     if (info && sold.has(id)) out.push({ id, name: info.name, price: sellPrice(g, npc, info.price), weight: info.weight });
   }

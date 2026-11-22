@@ -134,7 +134,24 @@ export interface ActiveEffect {
     /** Kroppsdelen `loc` går inte att använda en tid (gift). */
     | 'lem'
     /** En kroppsfunktion är utslagen (gift); bara texten visas. */
-    | 'funktion';
+    | 'funktion'
+    // ------------------------------------------------ följeslagare och fler handlingar (steg 7)
+    /** Hålls fast (Fasthållning eller Låsning): `sourceId` håller, `mod` är värdet för att ta sig loss. */
+    | 'fasthållen'
+    /** Håller fast `sourceId` och kan inte göra något annat. */
+    | 'håller'
+    /** Styr elementaren `sourceId` med full uppmärksamhet. */
+    | 'styr'
+    /** Rullar (Fallteknik): kan inte huggas med närstridsvapen förrän nästa tur. */
+    | 'rullar'
+    /** Nästa skott får hjälp av en sylf: `mod` på CL och `grade` × 1T3 i skada. */
+    | 'sylfstyrd'
+    /** Vapnet i `slot` är upphettat eller nedkylt av en elementar: extra skada `label`. */
+    | 'vapenElement'
+    /** Står och flämtar i kylan eller hettan kring en elementar. */
+    | 'flämtar'
+    /** −2 på nästa initiativslag (hoppspark, rundspark). */
+    | 'initiativ';
   /** Kort text till rollformuläret och loggen. */
   label: string;
   mod?: number;
@@ -163,6 +180,8 @@ export interface ActiveEffect {
   poison?: string;
   /** Kroppsdelen som effekten gäller. */
   loc?: HitLocation;
+  /** Tärningsuttryck för extra skada (elementarernas hetta och köld). */
+  dice?: string;
 }
 
 /** Ett gift som verkar i kroppen (Bok II s. 50–51). */
@@ -307,6 +326,47 @@ export interface Actor {
   poisons?: Poisoning[];
   /** Gift som är stryket på vapnet och verkar vid nästa träff som skadar. */
   weaponPoison?: HerbDose;
+  /** Följeslagare: hur hen följer med och vem hen är i äventyret. */
+  companion?: CompanionInfo;
+  /** Elementar som en magiker har frammanat. */
+  elemental?: ElementalInfo;
+  /** Smygarläge: försöker hålla sig dold. `hidden` = oupptäckt just nu. */
+  sneaking?: boolean;
+  hidden?: boolean;
+  /** Facklan är släckt (rollpersoner och följeslagare bär annars en tänd fackla). */
+  torchOut?: boolean;
+  /** Stridskonstens tekniker (från rollformuläret). */
+  techniques?: string[];
+  /** Skräck och moral: följeslagare som flytt och vägrar fortsätta. */
+  refused?: boolean;
+}
+
+/** Hur en följeslagare följer med: dagslön, en del av bytet eller gratis (husregel). */
+export interface CompanionInfo {
+  /** Rekryterbar person i äventyret (src/content). */
+  recruit: string;
+  pay: 'dagslön' | 'andel' | 'gratis';
+  /** Dagslön i silvermynt. */
+  wage?: number;
+  /** Senaste dagen som lönen är betald för. */
+  paidDay?: number;
+  /** Moral: 'alltid' slår som fiender, 'ledare' bara när rollpersonen faller. */
+  morale: 'alltid' | 'ledare';
+  /** Platsen där personen bor och dit hen går om hen lämnar gruppen. */
+  home: { x: number; y: number };
+}
+
+export type ElementKind = 'luft' | 'eld' | 'jord' | 'vatten' | 'mörker' | 'ljus' | 'köld' | 'värme';
+
+/** En frammanad elementar (Bok III s. 21–22, 27). */
+export interface ElementalInfo {
+  kind: ElementKind;
+  /** Elementarens grad (effektgraden den frammanades med). */
+  grade: number;
+  /** Magikern som styr den. */
+  caster: string;
+  /** Rundor kvar. */
+  rounds: number;
 }
 
 export interface CombatState {
@@ -331,12 +391,17 @@ export interface CombatState {
   pending?: PendingSpell[];
   /** Pilar och lod som rollpersonen har skjutit, för att plocka upp efter striden. */
   fired?: Record<string, number>;
+  /** Anfallssättet som väljs för nästa klick: vanligt anfall, Avväpna, Fasthållning eller en teknik. */
+  attackMode?: string;
+  /** Fint tillsammans med nästa anfall (stridskonsttekniken Fint). */
+  feint?: boolean;
 }
 
 /** Ett föremål som ligger på marken (tappat i strid). */
 export interface DroppedItem {
   item: string;
-  slot: WeaponSlot | 'shield' | 'armor';
+  /** 'item' är ett föremål ur packningen (en fallen följeslagares ägodelar). */
+  slot: WeaponSlot | 'shield' | 'armor' | 'item';
   owner: string;
   x: number;
   y: number;
@@ -355,11 +420,19 @@ export interface TradeState {
 }
 
 export interface GameState {
-  version: 5;
+  version: 6;
   /** Speltid i sekunder sedan dag 1 klockan 00:00. */
   time: number;
   /** Rollformuläret för rollpersonen. */
   character: Character;
+  /** Rollformulären för följeslagarna, per aktörs-id. De följer med mellan äventyren. */
+  companions: Record<string, Character>;
+  /** Gruppen: rollpersonen först, sedan följeslagarna (aktörs-id). Högst sex. */
+  party: string[];
+  /** Gruppmedlemmen som visas och styrs utanför strid. I strid är det den vars tur det är. */
+  focus?: string;
+  /** Rekryterbara personer som lämnat gruppen och dagen de gick (de vill inte genast tillbaka). */
+  departed?: Record<string, number>;
   mapId: string;
   playerId: string;
   actors: Actor[];
