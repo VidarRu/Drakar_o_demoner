@@ -767,6 +767,8 @@ export class Game {
 
   /** Läker KP i totala KP och fördelar samma mängd på de mest skadade kroppsdelarna. */
   heal(amount: number, p: Actor = this.player) {
+    // Läkning (HELA, läkeörter) stabiliserar en döende först (husregel, steg 8).
+    if (amount > 0 && p.dying) combat.stabilize(this, p, 'av läkningen');
     const before = p.kp;
     p.kp = Math.min(p.maxKp, p.kp + amount);
     let left = p.kp - before;

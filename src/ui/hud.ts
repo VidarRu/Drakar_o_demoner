@@ -120,7 +120,7 @@ export class Hud {
         const fill = el('i');
         fill.style.width = `${Math.max(0, (100 * m.kp) / m.maxKp)}%`;
         kp.append(fill);
-        const tags = [m.sneaking ? 'smyger' : '', m.unconscious ? 'medvetslös' : '', m.elemental ? `${m.elemental.rounds} SR` : ''].filter(Boolean).join(', ');
+        const tags = [m.sneaking ? 'smyger' : '', m.dying ? `döende ${m.kp} KP` : m.unconscious ? 'medvetslös' : '', m.elemental ? `${m.elemental.rounds} SR` : ''].filter(Boolean).join(', ');
         text.append(el('b', '', m.name), kp);
         if (tags) text.append(el('span', 'tag', tags));
         card.append(img, text);
@@ -200,10 +200,11 @@ export class Hud {
     if (p.companion) states.push(p.companion.pay === 'dagslön' ? `Följer med för ${p.companion.wage} silver om dagen` : p.companion.pay === 'andel' ? 'Följer med för en del av bytet' : 'Följer med utan betalning');
     const passive = passiveTechniques(p);
     if (passive.length) states.push(`Stridskonst: ${passive.join(', ')}`);
-    if (p.unconscious) states.push('Medvetslös');
+    if (p.dying) states.push(`Döende: förlorar 1 KP per runda och dör vid −${p.attrs.FYS} KP`);
+    else if (p.unconscious) states.push('Medvetslös');
     if (p.down) states.push('Utslagen – kan bara krypa');
     if (p.kp === 2) states.push('2 KP: halverad CL');
-    if (p.kp === 1) states.push('1 KP: kan inte använda färdigheter');
+    if (p.kp === 1) states.push('1 KP: kan inte använda färdigheter, halv förflyttning');
     if (p.bleeding.length) states.push(`Blöder: ${p.bleeding.join(', ')}`);
     for (const label of new Set(p.effects.map((e) => e.label))) states.push(label);
     for (const inj of p.injuries) states.push(`${inj.loc}: ${inj.text}`);

@@ -140,7 +140,7 @@ export interface ActiveEffect {
     | 'fasthållen'
     /** Håller fast `sourceId` och kan inte göra något annat. */
     | 'håller'
-    /** Styr elementaren `sourceId` med full uppmärksamhet. */
+    /** Styr elementaren `sourceId` (markering; kostar ingen handling). */
     | 'styr'
     /** Rullar (Fallteknik): kan inte huggas med närstridsvapen förrän nästa tur. */
     | 'rullar'
@@ -256,6 +256,10 @@ export interface Actor {
   bleeding: HitLocation[];
   /** Rundor sedan blödningen senast tog en KP. */
   bleedTimer: number;
+  /** Döende (husregel, steg 8): medvetslös på 0 KP eller lägre, förlorar 1 KP per runda. */
+  dying?: boolean;
+  /** Rundor som hen har varit döende (för FYS-slaget var tionde runda). */
+  dyingRounds?: number;
   /** Kroppsdelar som inte går att använda (0 KP eller kritiskt skadade). */
   disabled: HitLocation[];
   /** Kroppsdelar som redan har slagit på tabellen för kritiska skador. */

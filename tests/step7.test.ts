@@ -398,7 +398,7 @@ describe('elementarer', () => {
     expect(elementSourceProblem(g, p, 'eld')).toContain('eld');
   });
 
-  it('en gnom frammanas i strid, styrs av spelaren och kräver magikerns fulla uppmärksamhet', () => {
+  it('en gnom frammanas i strid och styrs av spelaren, och magikern kan agera som vanligt', () => {
     const g = Game.create(mage(), seededRng(2));
     const p = g.leader;
     const foe = placeDuel(g, p);
@@ -413,7 +413,8 @@ describe('elementarer', () => {
     expect(gnome!.skills.elementar).toBe(10);
     expect(combat.weaponInfo(gnome!).damage).toBe('2T4');
     expect(combat.hasEffect(p, 'styr')).toBe(true);
-    expect(combat.canAct(p)).toBe(false);
+    expect(combat.canAct(p)).toBe(true);
+    expect(combat.canUseSkills(p)).toBe(true);
   });
 
   it('sylfen skadas inte av materiella vapen, undinen tar halv skada', () => {

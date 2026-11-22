@@ -392,6 +392,16 @@ export const REPAIR_PERCENT = 5;
 /** Blödning: −1 KP från totala KP var sjätte runda per kroppsdel som nått 0. */
 export const BLEED_INTERVAL = 6;
 
+/**
+ * Döden (husregel, steg 8): den döende förlorar 1 KP per runda och dör vid −FYS. Var tionde runda
+ * i strid slås ett Normalt FYS-slag för att stabilisera sig.
+ */
+export const DYING = {
+  lossPerRound: 1,
+  selfCheckEvery: 10,
+  selfCheck: 'Normalt' as const,
+};
+
 /** Skadeeffekter på totala KP. */
 export const WOUND_LIMITS = {
   /** CL halveras. */
