@@ -32,7 +32,7 @@ stridskonsterna eller varelsernas detaljer.
 
 ## Steg 8: äventyrsmoduler och utveckling mellan äventyren
 
-Vidar vill börja steg 8 med ett samtal, inte med kod. Prata igenom med honom:
+Samtalet har börjat. Vidar har bestämt dödsregeln och hur modulerna byggs upp (se avsnittet Äventyrsmoduler i `docs/regelbeslut.md`). Kvar att prata om: utvecklingen mellan äventyren (lärare, bibliotek, fler sätt att få EP, mellanspelet) och i vilken ordning steg 8 byggs. Ursprungliga punkter:
 
 - **Hur en äventyrsmodul är uppbyggd:** kartor, personer, uppdrag, varelser, personer som kan värvas (några per modul) och hur modulerna hänger ihop i den större spelmekaniken. Gruppen och rollformulären följer redan med i sparfilen.
 - **Hur rollpersonen förbättras mellan äventyren:** träning, lärare, bibliotek och fler sätt att få erfarenhet.
@@ -41,7 +41,7 @@ Vidar vill börja steg 8 med ett samtal, inte med kod. Prata igenom med honom:
 
 Bygg dem tidigt i steg 8 (detaljerna står i `docs/regelbeslut.md`):
 
-1. **Döden (husregel):** på 0 KP dör man inte direkt. Man faller medvetslös och förlorar 1 KP per stridsrunda så länge man är medvetslös, och dör först vid minus lika mycket som FYS. Rollpersonens död avslutar äventyret, även om följeslagare lever. Bestäm med Vidar hur det samspelar med blödning, förband och kamraternas hjälp.
+1. **Döden (husregel):** på 0 KP dör man inte direkt. Man faller medvetslös och förlorar 1 KP per stridsrunda så länge man är medvetslös, och dör först vid minus lika mycket som FYS. Rollpersonens död avslutar äventyret, även om följeslagare lever. Samspelet med blödning, förband och stabilisering bestämdes i början av steg 8 (se `docs/regelbeslut.md`).
 2. **Elementarer:** att styra elementaren kostar ingen handling. Magikern kan parera, lägga nya besvärjelser och agera som vanligt. Ta bort spärren från effekten `styr` i `canAct` (`src/engine/combat.ts`), men behåll effekten som markering för att magikern styr en elementar. Uppdatera testet i `tests/step7.test.ts` som förväntar sig att magikern inte kan agera.
 3. Elementarer försvinner när striden är slut, som nu.
 

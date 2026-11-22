@@ -113,8 +113,15 @@ Dessa val gjordes när striden byggdes. Vidar har godkänt dem eller ändrat dem
 - **Kritisk skada** (dubbla kroppsdelens KP): huvudet dödar direkt, bål och mage ger medvetslöshet och död inom FYS rundor, och armar och ben slår på tabellen för kritiska skador (1T10). Bestående skador sparas på rollpersonen.
 - **Blödning:** varje kroppsdel på 0 KP blöder 1 KP var sjätte runda tills någon lägger förband (Första hjälpen, en kroppsdel per lyckat slag, kräver två hela armar). Utanför strid räknas varje steg som en runda.
 - **Besegrade fiender:** en fiende på 0 KP eller lägre, eller som bara kan krypa, är ur striden. När striden är slut dör de besegrade av sina sår.
-- **Döden (husregel, beslutad efter steg 7, inte byggd än):** den som hamnar på 0 KP dör inte direkt utan faller medvetslös och förlorar sedan 1 KP per stridsrunda så länge hen är medvetslös. Först vid minus lika mycket som FYS dör hen. I dag dör man direkt vid −FYS och tappar bara KP genom blödning (1 KP var sjätte runda per kroppsdel), så det här ska byggas om i nästa steg. Hur regeln samspelar med blödning, förband och kamraternas hjälp behöver bestämmas då.
-- **Rollpersonen medvetslös:** fienderna fortsätter att anfalla (+10 mot orörligt mål). Tar striden slut medan rollpersonen är medvetslös förblöder hen om något blöder, eftersom ingen kan hjälpa. Annars vaknar hen efter 1T4 timmar och ligger sedan så många dygn som behövs för att få positiva KP (1 KP per dygn).
+- **Döden (husregel, beslutad i steg 8, inte byggd än):** gäller rollpersonen och följeslagarna; fiender på 0 KP är ur striden som förut. Kritiska skador fungerar som tidigare.
+  - Den som hamnar på 0 KP faller medvetslös och förlorar 1 KP per stridsrunda (varje steg utanför strid) så länge hen är medvetslös. Vid minus lika mycket som FYS dör hen.
+  - Blödningen (1 KP var sjätte runda per kroppsdel) räknas inte medan man är medvetslös; förlusten på 1 KP per runda ersätter den.
+  - Förlusten upphör när någon stabiliserar den medvetslöse: ett lyckat slag i Första hjälpen, HELA, en läkeört eller Läkekonst.
+  - **Stabilisera sig själv (husregel):** den som ligger medvetslös medan kamraterna är upptagna av striden slår ett FYS-slag var tionde runda. Lyckas det är hen stabiliserad.
+  - **Stabiliserad:** all minusskada försvinner och totala KP blir 1.
+  - Är man ensam (ingen i gruppen står upp) finns ingen chans: ingen hinner fram, och inga stabiliseringsslag slås. Man dör.
+
+- **Rollpersonen medvetslös:** fienderna fortsätter att anfalla (+10 mot orörligt mål). (Det som följer gäller tills dödsregeln ovan är byggd.) Tar striden slut medan rollpersonen är medvetslös förblöder hen om något blöder, eftersom ingen kan hjälpa. Annars vaknar hen efter 1T4 timmar och ligger sedan så många dygn som behövs för att få positiva KP (1 KP per dygn).
 - **Moralslag** slås vid rundans början av varje fiende, en gång per orsak: ledaren har fallit, hälften av gruppen är borta, eller varelsen har förlorat mer än halva sina KP. Hövdingen Grukk lyder inte under moralen (en sådan ledare slåss till slutet). En flyende varelse som försvinner ur sikte lämnar platsen. Blir en humanoid trängd ger den upp och släpper vapnet; ett trängt djur vänder sig till motanfall.
 - **Skräck:** bara rollpersonen och följeslagarna slår på Skräcktabellen (fiender slår moral), en gång per varelse när hen först ser den, och en gång till om varelsen aktivt försöker skrämma. Har rollpersonen mött samma sorts varelse förut gäller −2. Bara den högsta modifikationen räknas. Effekter som varar "tills skräckkällan försvinner" upphör när den dör, flyr eller kommer ur sikte.
 - **Fummeltabellerna** är skrivna som data med egna ord. Effekter som varar i dagar räknas ned för varje natts vila. "Tills någon masserar dig" upphör vid nästa vila. Kläder som måste rättas till kostar en hel runda (knappen "Rätta till").
@@ -271,3 +278,17 @@ Reglerna följer Bok III s. 21–22 och 27. Alla åtta sorterna finns, var och e
   - Elementarer kan förinta varandra enligt listorna i boken (grad mot grad).
 - **Undinen** rör sig tio rutor per SR i vatten, men vattnet går inte att beträda i spelet, så den rör sig en ruta per SR på land (tolkning). Gnomens malmsökande, sylfens bärförmåga och glacialens och thermens tunnlar används inte än.
 
+## Äventyrsmoduler (beslutat i steg 8, inte byggt än)
+
+- **En modul per mapp:** varje äventyrsmodul ligger i en egen mapp under `src/content/` och innehåller allt om äventyret: kartor, personer, varelser, uppdrag, de som kan värvas och anteckningarna till språkmodellen.
+- **Gråvad blir speltestmodulen,** en övningsmodul som inte behöver ingå i kampanjen. Den har bara en mötesplatskarta och ingen världskarta; alla andra moduler har samma upplägg med världskarta.
+- **Kartor:** varje modul har en världskarta och flera mötesplatskartor (till exempel en by eller en grotta). Båda är rutnät ovanifrån.
+  - På världskartan rör sig gruppen mellan områden. Fiender syns där som en ikon som rör sig. Går gruppen ihop med en fiende börjar ett stridsmöte, och när striden är slut kommer gruppen tillbaka ut på världskartan.
+  - Det skiljer sig från att gå in på en mötesplatskarta, som en grotta, där man rör sig och strider som i Gråvad i dag.
+- **Uppdrag:** varje modul har ett huvuduppdrag och kan ha flera sidouppdrag. Gränssnittet har en uppdragslogg.
+- **Slutet på en modul:** när huvuduppdraget är klart kan en kort epilog visas, och en knapp avslutar äventyret. Världskartan har en eller flera utgångar där man kan lämna modulen. Är huvuduppdraget inte klart frågar spelet om man verkligen vill lämna; det är också ett sätt att fly när det går illa.
+- **Fristående eller kampanj:** modulerna ska kunna spelas fristående. I kampanjen finns en resekarta utan rutnät, där varje modul är en klickbar ikon (till exempel en stads siluett) som förstoras när man klickar, så att man kan välja äventyret. Kampanjen har en övergripande berättelse, men man väljer själv i vilken ordning modulerna spelas. Man kan återvända till en modul, men det som redan är spelat finns inte kvar att göra.
+- **Det som följer med mellan modulerna:** gruppen och rollformulären, packningen, pengarna, speltiden och skadorna. Val i en modul ska kunna märkas längre fram, till exempel ryktet.
+- **Svårighetsgrad:** systemet har inga nivåer, så varje modul får en rekommenderad svårighetsgrad: lätt, medel eller svår.
+- **Innehållet:** Vidar laddar upp äldre äventyr som skrevs till rollspelet, och modulerna byggs utifrån dem (med egna ord, som allt annat).
+- **Slumpmöten i vildmarken** ska finnas. Tabellerna saknas och tas fram senare.
