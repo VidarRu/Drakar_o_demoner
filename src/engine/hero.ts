@@ -2,7 +2,11 @@
  * Hjältepoäng, belöningar, PSY-höjning och att bli igenkänd (steg 8, Bok I s. 63–65 och Vidars
  * husregler). Besluten står i docs/regelbeslut.md under Utveckling mellan äventyren.
  */
-import { MODULES } from '../content';
+import { CREATURES, MODULES, NPCS } from '../content';
+import { CREATURES as CREATURE_STATS } from '../data/creatures';
+import type { AbilityPassive } from '../data/types';
+import { slug } from './creation';
+import { applyLuck } from './talents';
 import { ABILITIES, ABILITY_BY_ID, abilityFor, type AbilityDef } from '../data/abilities';
 import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
@@ -35,13 +39,103 @@ export function abilitiesOf(ch: Character): { def: AbilityDef; choice?: AbilityC
 
 export const hasAbility = (ch: Character, id: string) => abilitiesOf(ch).some((a) => a.def.id === id);
 
+/** Yrkena vars yrkesförmåga personen har: det egna och det från Kluven personlighet. */
+export function professionsOf(ch: Character): string[] {
+  const out = [ch.profession];
+  for (const { def, choice } of abilitiesOf(ch)) {
+    if (def.effect.kind === 'extraProfessionAbility' && choice?.profession && PROFESSIONS[choice.profession]) out.push(choice.profession);
+  }
+  return [...new Set(out)];
+}
+
+/** Alla passiva regelvärden från de särskilda förmågorna och yrkesförmågorna. */
+export function passivesOf(ch: Character): AbilityPassive[] {
+  const out: AbilityPassive[] = [];
+  for (const { def } of abilitiesOf(ch)) if (def.passive) out.push(def.passive);
+  for (const id of professionsOf(ch)) {
+    const p = PROFESSIONS[id]?.ability.passive;
+    if (p) out.push(p);
+  }
+  return out;
+}
+
+type NumericPassive = 'initiative' | 'fear' | 'psyResist' | 'elementResist';
+
+/** Summan av ett passivt värde. Varelser utan rollformulär har inga förmågor. */
+export function passive(ch: Character | undefined | null, key: NumericPassive): number {
+  return ch ? passivesOf(ch).reduce((n, p) => n + (p[key] ?? 0), 0) : 0;
+}
+
+/** Permanenta tillägg på CL i en färdighet (Starka nypor, Övertygande tonfall …). */
+export function passiveCl(ch: Character | undefined | null, skill: string): number {
+  if (!ch) return 0;
+  const id = skill.split(':')[0];
+  return passivesOf(ch).reduce((n, p) => n + (p.cl?.[id] ?? 0), 0);
+}
+
+/** Tillägg på CL vid anfall med vapen (Precisionssinne). */
+export function weaponCl(ch: Character | undefined | null): number {
+  return ch ? passivesOf(ch).reduce((n, p) => n + (p.cl?.vapen ?? 0), 0) : 0;
+}
+
+/** Varelsens folkslag eller ras, som det står i regeldatan (för Baneman). */
+export function folkOf(g: Game, a: Actor): string | null {
+  const ch = g.charOf(a);
+  if (ch) return ch.race;
+  if (a.elemental) return null;
+  const def = CREATURES[a.defId];
+  if (def) return def.folk ?? (CREATURE_STATS[def.id] ? def.id : null);
+  return NPCS[a.defId] ? 'manniska' : null;
+}
+
+/** Gäller valet för Baneman det här folkslaget? Äldre val är fritext, t.ex. "orcher". */
+export function foeMatches(choice: string | undefined, folk: string | null): boolean {
+  if (!choice || !folk) return false;
+  const s = slug(choice);
+  return s === folk || (folk.length >= 3 && s.startsWith(folk));
+}
+
+/** Tillägget på CL när anfallaren har Baneman mot försvararens folkslag. */
+export function banemanCl(g: Game, att: Actor, def: Actor): number {
+  const ch = g.charOf(att);
+  if (!ch) return 0;
+  const folk = folkOf(g, def);
+  return abilitiesOf(ch).reduce((n, { def: d, choice }) => n + (d.passive?.foeCl && foeMatches(choice?.foe, folk) ? d.passive.foeCl : 0), 0);
+}
+
+/** Har figuren en särskild förmåga? Varelser utan rollformulär har inga. */
+export function actorHas(g: Game, a: Actor, id: string): boolean {
+  const ch = g.charOf(a);
+  return !!ch && hasAbility(ch, id);
+}
+
+/** Har figuren ett yrkes yrkesförmåga (sitt eget eller via Kluven personlighet)? */
+export function actorProfession(g: Game, a: Actor, id: string): boolean {
+  const ch = g.charOf(a);
+  return !!ch && professionsOf(ch).includes(id);
+}
+
+/** Ett vanligt djur ur regeldatan (inte en legendarisk varelse). */
+export function isCommonAnimal(g: Game, a: Actor): boolean {
+  if (g.charOf(a) || a.elemental) return false;
+  const folk = folkOf(g, a);
+  return !!folk && CREATURE_STATS[folk]?.group === 'djur';
+}
+
+/** Djurvän: djuret väljer inte personen som mål, om personen inte har anfallit det. */
+export function spares(g: Game, animal: Actor, target: Actor): boolean {
+  return isCommonAnimal(g, animal) && actorHas(g, target, 'djurvan') && !animal.provokedBy?.includes(target.id);
+}
+
+/** Den som anfaller ett djur är inte längre fredad av Djurvän mot det. */
+export function provokeAnimal(g: Game, att: Actor, animal: Actor) {
+  if (!isCommonAnimal(g, animal) || !actorHas(g, att, 'djurvan')) return;
+  if (!(animal.provokedBy ??= []).includes(att.id)) animal.provokedBy.push(att.id);
+}
+
 /** Tillägget på initiativet från yrket, förmågorna och stridskonsten. */
 export function initiativeOf(ch: Character): number {
-  return (
-    (ch.profession === 'krigare' ? INITIATIVE_MODS.stridsvana : 0) +
-    abilitiesOf(ch).reduce((n, a) => n + (a.def.passive?.initiative ?? 0), 0) +
-    (ch.techniques.includes('initiativbonus') ? INITIATIVE_MODS.initiativbonus : 0)
-  );
+  return passive(ch, 'initiative') + (ch.techniques.includes('initiativbonus') ? INITIATIVE_MODS.initiativbonus : 0);
 }
 
 /** KP-faktorn från Extremt smärttålig. */
@@ -279,6 +373,8 @@ const UPGRADE: Record<CheckResult, CheckResult> = { fummel: 'misslyckat', missly
  * perfekt, och ett perfekt slag ger tillbaka poängen. Poängen dras när slaget slås.
  */
 export function heroic(g: Game, a: Actor | undefined, check: Check): Check {
+  // Turgubbe och Tjuvtur läggs på först: de ändrar CL, hjältepoängen ändrar utfallet.
+  check = applyLuck(g, a, check);
   if (!a?.heroArmed) return check;
   a.heroArmed = false;
   const ch = g.charOf(a);

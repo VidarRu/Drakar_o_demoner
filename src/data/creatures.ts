@@ -1,4 +1,5 @@
 import type { CreatureStats, NaturalAttack } from './types';
+import { RACE_LIST } from './races';
 
 /**
  * Varelser (Bok II s. 25–48) med typvärden. KP och SB räknas alltid fram med formlerna
@@ -431,3 +432,13 @@ export const DEMONIC_ABILITIES: string[] = [
   'Vingar: flyger lika fort som den går.',
   'Naturligt skydd +1T10+1.',
 ];
+
+/**
+ * Folkslag och raser att välja för Baneman: de spelbara raserna och de legendariska varelserna.
+ * Id:t är detsamma som i regeldatan, så att det kan jämföras med varelsernas `folk`.
+ */
+export const FOLK_LIST: [string, string][] = (() => {
+  const out = new Map<string, string>(RACE_LIST.map((r) => [r.id, r.name]));
+  for (const c of CREATURE_LIST) if (c.group === 'legendarisk' && !out.has(c.race ?? c.id)) out.set(c.id, c.name);
+  return [...out].sort((a, b) => a[1].localeCompare(b[1], 'sv'));
+})();

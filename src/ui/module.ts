@@ -2,6 +2,7 @@ import type { Game } from '../engine/game';
 import { leaveModule, mainQuestDone, moduleOf, nextModules, pendingEpilogue, questLog, stayAfterEpilogue, startModule } from '../engine/modules';
 import { ATTR_KEYS, type AbilityChoice, type Actor, type AttrKey, type GameState } from '../engine/types';
 import { ABILITY_BY_ID } from '../data/abilities';
+import { FOLK_LIST } from '../data/creatures';
 import { PROFESSIONS } from '../data/professions';
 import { skillName } from '../engine/creation';
 import { abilityTiers, chooseHeroAbility, choiceKind, heroShopProblem, raiseAttribute, rollHeroAbility, skillOptions } from '../engine/hero';
@@ -212,11 +213,15 @@ export class ModuleUi {
         out.push(b);
         read = () => ({ skills: [a.value, b.value] });
       } else read = () => ({ skill: a.value });
-    } else if (kind === 'språk' || kind === 'folkslag') {
+    } else if (kind === 'språk') {
       const input = el('input');
-      input.placeholder = kind === 'språk' ? 'Språk' : 'Folkslag eller ras';
+      input.placeholder = 'Språk';
       out.push(input);
-      read = () => (kind === 'språk' ? { language: input.value } : { foe: input.value });
+      read = () => ({ language: input.value });
+    } else if (kind === 'folkslag') {
+      const s = select(FOLK_LIST);
+      out.push(s);
+      read = () => ({ foe: s.value });
     } else if (kind === 'yrke') {
       const s = select(Object.values(PROFESSIONS).filter((p) => p.id !== ch.profession).map((p) => [p.id, p.name]));
       out.push(s);

@@ -361,3 +361,70 @@ Vidar bestämde upplägget i steg 8 efter Bok I s. 62–64 (Hur man blir bättre
   - För de andra lyckas 1T20 på 20 − PSY eller lägre och ger +1. En etta ger 1T3+1, och över PSY 19 ger bara en etta +1.
   - **Vilken regel (Vidar):** den som kan magi (har FV i en magiskola) slår med 25 − PSY, och den som inte kan magi med 20 − PSY. Det spelar ingen roll hur kampen vanns.
 - God PSY-potential ger −5 på slaget, och ett resultat på 0 eller lägre räknas som 1.
+
+## Förmågor, besvärjelser och väder (beslutat efter steg 8)
+
+Vidar godkände förslagen i `docs/forslag-magi-och-formagor.md` den 23 november 2026. Där står vad
+varje besvärjelse och förmåga ska göra. Besluten flyttas hit allteftersom de byggs.
+
+### Beslut
+
+- **Fiendernas magi (Vidar):** fienderna följer exakt samma magiregler som gruppen. En svartalfisk häxkonstnär kommer in i Gråvads grotta som provfiende.
+- **Alla besvärjelser ska verka (Vidar),** enligt förslaget och i den ordning som står där.
+- **ÖKA och MINSKA (Vidar):** STO och FYS ändrar KP medan besvärjelsen varar. Förlorade KP står kvar när den tar slut.
+- **Turgubbe (Vidar):** högst +3 på ett och samma slag, för 1 PSY per poäng.
+- **Gudarnas gunstling (Vidar):** gäller en gång per äventyr.
+- **Den andra handen (Vidar):** ger avdrag för den som inte är dubbelhänt eller ambidextriös. Avdraget hämtas ur Bok I när det byggs.
+- **FÖRÄNDRA (Vidar):** ett järnvapen kan förvandlas till ett trävapen.
+
+### Förmågor med regelvärden (byggt)
+
+- **Passiva värden:** de särskilda förmågorna och yrkesförmågorna har sina regelvärden som `passive` i `src/data/abilities.ts` och `src/data/professions.ts`. `passivesOf`, `passive`, `passiveCl` och `weaponCl` i `src/engine/hero.ts` räknar ihop dem. Varelser utan rollformulär har inga förmågor.
+- **Tillägg på CL i färdigheter** (Starka nypor, Övertygande tonfall, Stirrande blick, Magikänsla, Mycket uppmärksam) räknas in i `skillMod`, alltså i alla färdighetsslag utanför anfall och parering. Mycket uppmärksam gäller också Upptäcka fara när någon smyger fram till anfall. Magikänsla gäller Känna magi i alla skolor.
+- **Precisionssinne (tolkning):** +1 på CL vid anfall med vapen, i närstrid och på avstånd. Inte på parering och inte med naturliga vapen.
+- **Baneman:** +5 på CL vid anfall mot det valda folkslaget. Valet görs ur en lista med raserna och de legendariska varelserna (`FOLK_LIST`). Varelserna i modulerna anger sitt folkslag med `CreatureDef.folk` (svartalfsskytten och Grukk är svartalfer); utan det används varelsens id om det finns i regeldatan, och personer räknas som människor. Äldre val i fritext jämförs med början av ordet, så "orcher" träffar orcher.
+- **Extremt orädd och Snusförnuft (tolkning):** −5 på slaget på Skräcktabellen. Förmågan hör till personen och räknas utöver den högsta modifikationen, som annars är den enda som gäller.
+- **Orubblig vilja:** +5 på PSY när någon gör motstånd mot en besvärjelse och mot umbrans skräck.
+- **Härdig mot element och Härdad av havet:** +5 på FYS mot KALLA HANDEN och mot glacialens och thermens köld och hetta. Härdad av havet gäller också STO och STY, men inget sådant slag finns i spelet än.
+- **Kluven personlighet** ger den andra yrkesförmågans värden (`professionsOf`), till exempel krigarens Stridsvana.
+
+### Förmågor som används i spel (byggt)
+
+Regelvärdena står i `ABILITY_RULES` i `src/engine/rules/tables.ts`, och det mesta av koden i
+`src/engine/talents.ts`. Det som står som tolkning väntar på Vidars godkännande.
+
+- **God bågskytt:** räckvidden för projektilvapen (bågar, armborst, slungor och blåsrör) gångras med 1,25 och avrundas nedåt till hela rutor. Kastvapen räknas inte.
+- **Järnnäve:** obeväpnade anfall gör alltid högsta skada, med SB.
+- **Snabb uppfattning:** +5 på CL vid parering i närstrid, med vapen och sköld. Den som ser skytten kan parera pilar och lod med ett närstridsvapen (inte med skölden), och kastvapen med vapnet eller skölden. Ett perfekt skott kan inte pareras.
+- **Djurvän:** vanliga djur (gruppen djur i regeldatan, inte de legendariska varelserna) väljer inte personen som mål och upptäcker inte gruppen för hens skull. Den som anfaller djuret, med vapen, skott eller skadlig magi, är inte fredad av det djuret längre (`Actor.provokedBy`).
+- **Gott läkekött (tolkning):** all naturlig läkning går dubbelt så fort. Spelet skiljer inte på skador av våld och av annat, och nästan alla skador kommer från vapen eller elementarbesvärjelser.
+- **God mental kontroll:** PSY-poängen kommer tillbaka dubbelt så fort.
+- **Turgubbe (Vidar):** knappen köper +1 på CL för 1 PSY på nästa egna slag, högst +3. Ett tryck till efter taket stänger av den. PSY dras när slaget slås.
+- **Tjuvtur:** samma knapp, 1–3 PSY, två gånger mellan varje sömn (fyra för alver). Sömnen återställer den.
+- **Turen läggs på efter tärningen (tolkning):** tillägget räknas in i `heroic`, som alla slag går igenom. Bara slag 2–19 kan gå från misslyckat till lyckat; omslagen för perfekt och fummel räknas inte om. Turen kan inte ta PSY till 0, och den läggs på före en hjältepoäng.
+- **Gudarnas gunstling (Vidar och tolkning):** när KP når 0 slås 1T100, och på 25 eller lägre kommer alla KP tillbaka (också i kroppsdelarna). Kritiska skador, förlorade kroppsdelar och blödningar står kvar. Det slås varje gång KP når 0, tills guden har räddat personen en gång under äventyret; det börjar om när modulen lämnas.
+- **Riddarslag:** ett anfallssätt för riddare med ett närstridsvapen, för 5 PSY. Med sikte på en kroppsdel blir det inget avdrag för siktet; utan sikte gör anfallet högsta skada med högsta SB. Rustning och parering gäller som vanligt. PSY dras även om anfallet missar (tolkning).
+- **Anfall bakifrån (lönnmördare):** gäller när offret inte märker anfallaren som smyger fram (Smyga lyckas och Upptäcka fara misslyckas). Ett misslyckat anfall gör normal skada, ett lyckat dubbel och ett perfekt fyrdubbel, alltid utan SB. Ett fummel är ett fummel. Bara mot humanoider och inte med stridskonsternas slag och grepp. **Storleken (tolkning):** "högst 2 m längre" blir att offret har högst 10 STO mer än lönnmördaren.
+- **Handpåläggning (helare):** en hjälphandling på den som helaren kan röra vid, också på sig själv.
+  - Läka: 1 KP för 1 PSY. I strid läker varje tur 1 KP; utanför strid läker helaren så mycket som PSY räcker till, och lika många rundor går.
+  - Bota gift: PSY/2 mot det starkaste giftets STY på motståndstabellen, för lika många PSY som STY.
+  - Bota en infektion (tolkning): infektionerna och deras feber räknas som sjukdom med svårighetsgraden 10, och det kostar 10 PSY.
+  - PSY dras också när det misslyckas, och får inte gå ned till 0 (tolkning).
+- **Meditation (munk):** munken väljer en färdighet. Varje hel runda ger +1, högst till FV (alltså dubbla FV), och gäller nästa slag i färdigheten inom en minut (12 rundor). I strid tar varje runda turen. Utanför strid mediterar munken tills det inte går högre, och tiden går under tiden. Tolkning: tillägget räknas som CL.
+- **God kroppskontroll:** en handling med ett Normalt FYS-slag. Lyckas det får personen +5 STY i tre rundor, och det räknas in i skadebonusen, i greppet om tunga vapen och i STY mot STY. Två försök om dagen; ett misslyckat försök räknas också (tolkning).
+
+### Vädret (Vidar)
+
+Vädret byggs i steg 7 i förslagets ordning. Upplägget:
+
+- **Två mätare** med fem steg var:
+  - Himlen: klart, halvklart, mulet, regn, åska.
+  - Vinden: stiltje, svag vind, frisk vind, hård vind, storm.
+- **Ändras en gång per halvdygn** (tolkning: klockan sex och arton). Varje mätare kan gå ett steg upp, ett steg ned eller stå kvar.
+- **Ytterlägena är mindre sannolika.** Förslag på chanser (tolkning, 1T6 för varje mätare):
+  - På mittsteget (mulet, frisk vind): ned på 1–2, kvar på 3–4, upp på 5–6.
+  - Ett steg från ytterläget (halvklart, regn, svag vind, hård vind): mot ytterläget bara på 6, mot mitten på 1–2, kvar på 3–5.
+  - I ytterläget (klart, åska, stiltje, storm): tillbaka på 1–3, kvar på 4–6.
+- **Modulerna** kan ange vädret vid start eller låsa det. Inomhus och i grottor märks det inte.
+- **Verkan:** regn släcker facklor utomhus, ger −2 på avståndsstrid och gör att FINNA VATTEN inte fungerar. Vinden påverkar skott och båtar; värdena bestäms när det byggs. Väderbesvärjelserna (VINDKONTROLL, REGNKONTROLL, NEDKALLA ÅSKVIGG och VIGGFÅNGARE) flyttar mätarna eller kräver ett visst väder.
+

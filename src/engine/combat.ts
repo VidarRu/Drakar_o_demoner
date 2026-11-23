@@ -8,7 +8,8 @@ import { breakConcentration, forgetOnKnockout, resolvePending } from './magic';
 import { poisonOnHit, updatePoisons } from './poison';
 import { die, maxRoll, roll } from './dice';
 import type { Game } from './game';
-import { heroic, markPsyWin } from './hero';
+import { actorHas, banemanCl, heroic, markPsyWin, passive, passiveCl, provokeAnimal, spares, weaponCl } from './hero';
+import { backstabMultiplier, backstabs, godsFavor } from './talents';
 import { advanceTime, amputate, rollInfections, woundKind } from './time';
 import { dissolve, elementalAttacks, elementalRound, elementalTakes, elementalWeapon } from './elementals';
 import { aidAfterCombat, fallenCompanion, leaveParty, shareLoot } from './party';
@@ -36,6 +37,7 @@ import {
   grip,
   HIT_TABLE,
   INITIATIVE_DIE,
+  ABILITY_RULES,
   LIMB_PSY_CHECK,
   LOCATION_WOUND_PENALTY,
   lookup,
@@ -103,7 +105,7 @@ function consume(a: Actor, e: ActiveEffect) {
 
 const RANGED_GROUPS = new Set(['bagar', 'armborst', 'slunga', 'kastvapen', 'blasror']);
 
-function scopeMatches(scope: Scope | undefined, kind: 'anfall' | 'parering' | 'annan', skill: string, slot?: string, effectSlot?: string): boolean {
+function scopeMatches(scope: Scope | undefined, kind: 'anfall' | 'parering' | 'annan', skill: string, slot?: string, effectSlot?: string, effectSkill?: string): boolean {
   const spell = skill.startsWith('spell:');
   const attr = spell ? 'PSY' : SKILLS[skill.split(':')[0]]?.attr;
   const combat = kind !== 'annan';
@@ -134,6 +136,8 @@ function scopeMatches(scope: Scope | undefined, kind: 'anfall' | 'parering' | 'a
       return spell;
     case 'ejMagi':
       return !spell;
+    case 'färdighet':
+      return !!effectSkill && effectSkill === skill;
     default:
       return false;
   }
@@ -150,10 +154,15 @@ function clEffects(a: Actor): ActiveEffect[] {
  * gifter och andra effekter. Används för Första hjälpen, Dra vapen, Köpslå och liknande.
  */
 export function skillMod(g: Game, a: Actor, skill: string): number {
-  let mod = woundPenalty(a) + loadPenalty(g, a, skill);
-  for (const e of clEffects(a)) if (!e.half && scopeMatches(e.scope, 'annan', skill)) mod += e.mod ?? 0;
+  let mod = woundPenalty(a) + loadPenalty(g, a, skill) + passiveCl(g.charOf(a), skill);
+  for (const e of clEffects(a)) if (!e.half && scopeMatches(e.scope, 'annan', skill, undefined, undefined, e.skill)) mod += e.mod ?? 0;
   if (hasEffect(a, 'blind')) mod += BLIND_CL;
   return mod;
+}
+
+/** Förbrukar effekter som gäller ett antal slag efter ett färdighetsslag utanför strid (Meditation). */
+export function consumeSkillEffects(a: Actor, skill: string) {
+  for (const e of clEffects(a)) if (e.uses !== undefined && scopeMatches(e.scope, 'annan', skill, undefined, undefined, e.skill)) consume(a, e);
 }
 
 /** Kan aktören göra någonting alls den här rundan? */
@@ -284,7 +293,7 @@ export function weaponInfo(a: Actor, slot: WeaponSlot = 'weapon'): WeaponInfo {
     };
   }
   const m = w as MeleeWeaponDef;
-  const twoHanded = grip(m.styReq, a.attrs.STY, m.twoHandedOnly) !== 'en hand';
+  const twoHanded = grip(m.styReq, strength(a), m.twoHandedOnly) !== 'en hand';
   // Rollpersonen håller ett enhandsvapen med båda händerna när den andra handen är fri (+1T2).
   // Varelserna gör det inte: det är ett val som spelledaren inte gör åt dem.
   const freeHand = isParty(a) && !a.shield && !a.offhand && limbUsable(a, shieldArm(a));
@@ -293,7 +302,7 @@ export function weaponInfo(a: Actor, slot: WeaponSlot = 'weapon'): WeaponInfo {
     id,
     name: m.name,
     damage: m.damage,
-    skill: weaponSkill(m, a.attrs.STY),
+    skill: weaponSkill(m, strength(a)),
     sb: true,
     natural: false,
     unarmed: false,
@@ -313,9 +322,14 @@ export function armsFor(a: Actor, item: WeaponSlot | 'shield', w?: WeaponInfo): 
   return w?.twoHanded || w?.twoHandBonus ? [a.swordArm, shieldArm(a)] : [a.swordArm];
 }
 
+/** STY med God kroppskontroll och liknande. */
+export function strength(a: Actor): number {
+  return a.attrs.STY + a.effects.filter((e) => e.kind === 'styrka').reduce((n, e) => n + (e.mod ?? 0), 0);
+}
+
 export function damageExpr(a: Actor, w: WeaponInfo): string {
   const parts = [w.damage];
-  const sb = w.sb ? damageBonus(a.attrs) : '';
+  const sb = w.sb ? damageBonus({ ...a.attrs, STY: strength(a) }) : '';
   if (sb) parts.push(sb);
   if (w.twoHandBonus) parts.push(TWO_HAND_BONUS);
   return parts.join('+');
@@ -329,7 +343,9 @@ export function weaponMagic(a: Actor, slot: string): number {
 function rollDamage(g: Game, a: Actor, w: WeaponInfo, perfect: boolean): number {
   const expr = damageExpr(a, w);
   const magic = weaponMagic(a, w.slot);
-  return Math.max(0, (perfect ? maxRoll(expr) : roll(expr, g.rng)) + magic);
+  // Järnnäve: obeväpnad gör man alltid maximal skada.
+  const iron = w.unarmed && actorHas(g, a, 'jarnnave');
+  return Math.max(0, (perfect || iron ? maxRoll(expr) : roll(expr, g.rng)) + magic);
 }
 
 /** Extra absorbering på hela kroppen från SKYDD och LÄDERHUD. */
@@ -566,7 +582,7 @@ export function computeCl(
   }
   let halfSmi = false;
   for (const e of clEffects(a)) {
-    if (!scopeMatches(e.scope, kind, skill, slot, e.slot)) continue;
+    if (!scopeMatches(e.scope, kind, skill, slot, e.slot, e.skill)) continue;
     if (e.half) halfSmi = true;
     else {
       mod += e.mod ?? 0;
@@ -589,6 +605,17 @@ export function computeCl(
   }
   if (dark) cl = Math.max(1, cl);
   return { fv, cl, notes, used };
+}
+
+/** Förmågornas tillägg på ett anfall: Precisionssinne med vapen och Baneman mot det valda folkslaget. */
+function abilityMods(g: Game, att: Actor, def: Actor, natural?: boolean): [string, number][] {
+  const out: [string, number][] = [];
+  const ch = g.charOf(att);
+  const precision = natural ? 0 : weaponCl(ch);
+  if (precision) out.push(['precisionssinne', precision]);
+  const bane = banemanCl(g, att, def);
+  if (bane) out.push(['baneman', bane]);
+  return out;
 }
 
 export function rollCl(g: Game, x: Cl): Check {
@@ -649,6 +676,8 @@ export interface AttackOptions {
   fv?: number;
   /** Anfallaren vänder sig inte mot målet (bakåtspark). */
   keepFacing?: boolean;
+  /** Riddarslag: sikte på en kroppsdel utan avdrag, eller högsta skada med högsta SB. */
+  knight?: boolean;
 }
 
 /** Resultatet av ett anfall, för handlingar som bygger på det (Avväpna, Fasthållning, kast). */
@@ -659,6 +688,7 @@ export function attackOnce(g: Game, att: Actor, def: Actor, slot: WeaponSlot, op
   const c = g.state.combat;
   const w = opt.weapon ?? weaponInfo(att, slot);
   if (!opt.keepFacing) face(att, def.x, def.y);
+  provokeAnimal(g, att, def);
 
   // Fallteknik: den som rullar kan inte huggas med närstridsvapen.
   if (hasEffect(def, 'rullar') && !w.natural) {
@@ -675,11 +705,12 @@ export function attackOnce(g: Game, att: Actor, def: Actor, slot: WeaponSlot, op
   const flank = flankMod(att, def);
   if (flank) situational.push([flank === 7 ? 'bakifrån' : 'från sidan', flank]);
   const aim = isParty(att) && att.id === g.player.id && def.detailed && !opt.locs ? (c?.aim ?? null) : null;
-  if (aim) situational.push([`siktar på ${aim}`, MELEE_MODS['Sikte på viss kroppsdel']]);
+  if (aim) situational.push([`siktar på ${aim}`, opt.knight ? 0 : MELEE_MODS['Sikte på viss kroppsdel']]);
   const light = lightMod(g, att, def);
   if (light) situational.push([light === -15 ? 'mörker' : 'fackelsken', light]);
   const bonuses = def.effects.filter((e) => e.kind === 'motståndarBonus');
   for (const b of bonuses) situational.push(['motståndarens miss', b.mod ?? 0]);
+  situational.push(...abilityMods(g, att, def, w.natural));
 
   const x = computeCl(g, att, 'anfall', w.skill, w.natural && opt.weapon ? [] : armsFor(att, slot, w), situational, slot, undefined, undefined, opt.fv);
   if (!x) {
@@ -710,15 +741,27 @@ export function attackOnce(g: Game, att: Actor, def: Actor, slot: WeaponSlot, op
   const head = `${att.name} anfaller ${def.name} med ${w.name.toLowerCase()} (${check.automatic ? 'lyckas automatiskt' : `T20: ${check.roll} mot ${x.cl}`}${mods})`;
 
   const loc = opt.locs ? opt.locs[die(opt.locs.length, g.rng) - 1] : aim;
+  // Riddarslag utan sikte: högsta skada med högsta SB (rustning och parering gäller som vanligt).
+  const knightDamage = opt.knight && !aim ? maxRoll(damageExpr(att, w)) + weaponMagic(att, w.slot) : undefined;
   const landed = (perfect: boolean) => {
     if (opt.onHit && opt.onHit(g, att, def, check) === 'klart') return;
-    hit(g, att, def, w, { perfect, aim: loc });
+    hit(g, att, def, w, { perfect, aim: loc, damage: perfect ? undefined : knightDamage });
   };
   if (check.result === 'fummel') {
     g.log(`${head}: fummel!`);
     g.emit(att.id, 'Fummel!', 'miss');
     fumble(g, att, w.natural ? 'obeväpnad' : 'närstrid', slot);
     return 'fummel';
+  }
+  // Lönnmördarens Anfall bakifrån: även ett misslyckat anfall träffar, och skadan utan SB
+  // gångras med 1, 2 eller 4.
+  if (unaware && backstabs(g, att, def, w, !!opt.onHit || !!opt.weapon)) {
+    const times = backstabMultiplier(check.result);
+    const base = Math.max(0, roll(w.damage, g.rng) + weaponMagic(att, w.slot));
+    if (check.success) g.gainExperience(att, w.skill, check);
+    g.log(`${head}: ${check.result}! Anfall bakifrån: ${def.name} anar ingenting${times > 1 ? `, och skadan gångras med ${times}` : ''}.`);
+    hit(g, att, def, w, { perfect: check.result === 'perfekt', aim: loc, damage: base * times });
+    return 'träff';
   }
   if (check.result === 'perfekt') {
     att.effects = att.effects.filter((e) => !(e.untilPerfect && e.kind === 'cl'));
@@ -786,7 +829,7 @@ export function ambush(g: Game, att: Actor, def: Actor): boolean {
   }
   g.gainExperience(att, 'smyga', sneak);
   const fv = def.skills.upptacka_fara ?? Math.max(1, Math.floor(def.attrs.PSY / 2));
-  const spot = skillCheck(fv, g.rng, -Math.max(0, sneak.diff));
+  const spot = skillCheck(fv, g.rng, -Math.max(0, sneak.diff) + passiveCl(g.charOf(def), 'upptacka_fara'));
   const unaware = !spot.success;
   g.log(
     `${att.name} smyger fram mot ${def.name} (Smyga, ${short(sneak)}). ${def.name} slår Upptäcka fara (${short(spot)}): ${unaware ? 'märker ingenting' : 'upptäcker anfallaren'}.`,
@@ -860,7 +903,11 @@ interface Parry {
  * −10 och så vidare; skölden ger en extra parering utan avdrag. Det alternativ som ger högst CL
  * används.
  */
-function tryParry(g: Game, def: Actor, att: Actor, aw: WeaponInfo, onlyShield = false, feint?: string): Parry | null {
+/**
+ * Försvararens bästa parering. `ranged` är en parering mot ett skott eller kast, och `weaponOnly`
+ * att bara vapnen kan användas (Snabb uppfattning mot projektiler).
+ */
+function tryParry(g: Game, def: Actor, att: Actor, aw: WeaponInfo, onlyShield = false, feint?: string, how: { ranged?: boolean; weaponOnly?: boolean } = {}): Parry | null {
   const c = g.state.combat;
   if (!def.detailed || !canUseSkills(def) || hasEffect(def, 'ingenParering')) return null;
   const prone = hasEffect(def, 'liggande');
@@ -872,10 +919,13 @@ function tryParry(g: Game, def: Actor, att: Actor, aw: WeaponInfo, onlyShield = 
   type Option = { x: Cl; skill: string; slot: WeaponSlot | 'shield'; name: string; bvKey: string | null; table: FumbleTable; unarmed: boolean; free: boolean; disarm?: boolean };
   const options: Option[] = [];
   const penalty = PARRY_PENALTY * used.count;
+  // Snabb uppfattning: +5 vid parering i närstrid.
+  const quick = !how.ranged && actorHas(g, def, 'snabb_uppfattning') ? ABILITY_RULES.quickParry : 0;
   const sit = (p: number): [string, number][] => [
     ['mörker', light === -15 ? light : 0],
     ['fackelsken', light === -5 ? light : 0],
     ['fler pareringar', p],
+    ['snabb uppfattning', quick],
   ];
   for (const slot of ['weapon', 'offhand'] as const) {
     if (onlyShield) break;
@@ -896,7 +946,7 @@ function tryParry(g: Game, def: Actor, att: Actor, aw: WeaponInfo, onlyShield = 
   }
   const shield = def.shield ? SHIELDS[def.shield] : undefined;
   const main = weaponInfo(def, 'weapon');
-  if (shield && !prone && shield.styReq <= def.attrs.STY && !main.twoHanded) {
+  if (shield && !prone && !how.weaponOnly && shield.styReq <= strength(def) && !main.twoHanded) {
     const free = !used.shieldFree;
     const x = computeCl(g, def, 'parering', 'skoldar', armsFor(def, 'shield'), sit(free ? 0 : penalty), 'shield', halve);
     if (x) options.push({ x, skill: 'skoldar', slot: 'shield', name: shield.name.toLowerCase(), bvKey: 'shield', table: 'sköld', unarmed: false, free });
@@ -1077,6 +1127,8 @@ function checkLocation(g: Game, a: Actor, loc: HitLocation) {
 }
 
 function checkTotal(g: Game, a: Actor) {
+  // Gudarnas gunstling: när KP når 0 kan guden återställa dem.
+  if (a.kp <= 0 && a.alive && !a.dying && isPartyMember(g, a) && godsFavor(g, a)) return;
   if (a.kp <= -a.attrs.FYS) {
     kill(g, a);
     return;
@@ -1262,7 +1314,7 @@ function applyOutcome(g: Game, a: Actor, o: Outcome, label: string, ctx: Outcome
         g.log(`${f.name} knuffas omkull.`);
         return;
       }
-      const w = ctx.table === 'avstånd' ? rangedWeapon(a, rangedInfo(a)!) : weaponInfo(a, weaponSlot ?? 'weapon');
+      const w = ctx.table === 'avstånd' ? rangedWeapon(a, rangedInfo(a, g)!) : weaponInfo(a, weaponSlot ?? 'weapon');
       g.log(`${a.name} träffar ${f.name}!`);
       hit(g, a, f, w, { perfect: !!o.perfect, table: ctx.table === 'avstånd' ? 'avstånd' : 'närstrid' });
       return;
@@ -1399,8 +1451,12 @@ export function scare(g: Game, victim: Actor, source: Actor, value: number) {
   if (g.state.fearMet.includes(source.defId)) mods.push(-2);
   for (const e of victim.effects) if (e.kind === 'skräckMod') mods.push(e.mod ?? 0);
   const r = fearRoll(victim.attrs.PSY, value, mods, g.rng);
+  // Extremt orädd och lärd mans Snusförnuft hör till personen och räknas utöver den högsta
+  // modifikationen (tolkning).
+  const calm = passive(g.charOf(victim), 'fear');
+  r.result += calm;
   const row = fearRow(r.result);
-  g.log(`${source.name} injagar skräck! Skräcktabellen: T20 ${r.die} − PSY ${victim.attrs.PSY} + ${value} = ${r.result}. ${row.text}`);
+  g.log(`${source.name} injagar skräck! Skräcktabellen: T20 ${r.die} − PSY ${victim.attrs.PSY} + ${value}${calm ? ` ${calm < 0 ? '−' : '+'} ${Math.abs(calm)} orädd` : ''} = ${r.result}. ${row.text}`);
   // Oberörd eller helt oberörd: en vunnen kamp PSY mot PSY (Vidar, steg 8).
   if (FEAR_TABLE.indexOf(row) <= 1) markPsyWin(g, victim, 'motstånd');
   if (!g.state.fearMet.includes(source.defId)) g.state.fearMet.push(source.defId);
@@ -1907,8 +1963,9 @@ export function autoTurn(g: Game) {
   const c = g.state.combat!;
   const a = g.actor(c.order[c.turn])!;
   const isPlayer = isParty(a);
-  // Fienderna går på den närmaste i gruppen som de ser (inte den som smyger oupptäckt).
-  const targets = g.state.actors.filter((x) => x.alive && isParty(x) && !x.hidden && !x.fled);
+  // Fienderna går på den närmaste i gruppen som de ser (inte den som smyger oupptäckt). Djur går
+  // inte på den som har Djurvän och inte har anfallit dem.
+  const targets = g.state.actors.filter((x) => x.alive && isParty(x) && !x.hidden && !x.fled && !spares(g, a, x));
   const nearest = (list: Actor[]) => [...list].sort((l, r) => distance(a.x, a.y, l.x, l.y) - distance(a.x, a.y, r.x, r.y))[0];
   const p = nearest(targets.filter((x) => !isOut(x))) ?? nearest(targets) ?? g.leader;
 
@@ -2058,13 +2115,15 @@ export interface RangedInfo {
 }
 
 /** Avståndsvapnet som aktören använder: rollpersonens vapen i handen, eller varelsens avståndsvapen. */
-export function rangedInfo(a: Actor): RangedInfo | null {
+export function rangedInfo(a: Actor, g?: Game): RangedInfo | null {
   if (a.elemental) return null;
   const id = isParty(a) ? a.weapon : a.ranged;
   const w = id ? WEAPONS[id] : undefined;
   if (!w || w.kind === 'närstrid') return null;
   const r = w as RangedWeaponDef;
-  const range = r.range === 'STY' ? a.attrs.STY : Math.floor(r.range / RANGED.metersPerSquare);
+  // God bågskytt: alla räckvidder för projektilvapen ökar med 25 % (avrundas nedåt).
+  const archer = g && r.kind === 'projektil' && actorHas(g, a, 'god_bagskytt') ? ABILITY_RULES.archerRange : 1;
+  const range = r.range === 'STY' ? a.attrs.STY : Math.floor((r.range * archer) / RANGED.metersPerSquare);
   return { id: r.id, name: r.name, kind: r.kind, damage: r.damage, skill: r.group, range, reload: r.reload, ammo: AMMUNITION[r.id] };
 }
 
@@ -2079,7 +2138,7 @@ export function ammoLeft(g: Game, a: Actor, r: RangedInfo): number {
 
 /** Varför aktören inte kan skjuta eller kasta på målet just nu, eller null om det går. */
 export function shootProblem(g: Game, a: Actor, t: Actor): string | null {
-  const r = rangedInfo(a);
+  const r = rangedInfo(a, g);
   if (!r) return 'Du har inget avståndsvapen i handen.';
   if (!canUseSkills(a) || hasEffect(a, 'endastParera')) return 'Du kan inte anfalla nu.';
   const arms = r.kind === 'projektil' ? [a.swordArm, shieldArm(a)] : [a.swordArm];
@@ -2109,11 +2168,12 @@ function isRunning(t: Actor): boolean {
 
 /** Avfyrar ett projektilvapen eller kastar ett kastvapen. Står still och gör inget annat i rundan. */
 export function shoot(g: Game, a: Actor, target: Actor) {
-  const r = rangedInfo(a)!;
+  const r = rangedInfo(a, g)!;
   const c = g.state.combat;
   const ch = g.charOf(a)!;
   const isPlayer = !!g.charOf(a);
   face(a, target.x, target.y);
+  provokeAnimal(g, a, target);
 
   // Ammunition: pilar och lod förbrukas; slungan tar slungkulor (+2) om det finns, annars stenar.
   let ammoBonus = 0;
@@ -2143,6 +2203,7 @@ export function shoot(g: Game, a: Actor, target: Actor) {
   if (ammoBonus) situational.push(['slungkulor', ammoBonus]);
   const cover = target.effects.find((e) => e.kind === 'täckning');
   if (cover) situational.push(['skydd', cover.half ? RANGED.dropPerSquare * (d - 1) : (cover.mod ?? 0)]);
+  situational.push(...abilityMods(g, a, target, false));
   const running = isRunning(target) && !target.unconscious ? 'halverad mot rörligt mål' : undefined;
 
   const arms = r.kind === 'projektil' ? [a.swordArm, shieldArm(a)] : [a.swordArm];
@@ -2185,9 +2246,12 @@ export function shoot(g: Game, a: Actor, target: Actor) {
     landing = { x: victim.x, y: victim.y };
     if (victim === target) g.log(`${head}: träff!`);
     if (airShield(g, victim, head)) return finishThrow(g, a, r, landing);
-    // Kastvapen kan pareras med sköld av den som ser kastet. Projektiler kan inte pareras.
-    if (r.kind === 'kast' && victim.shield && flankMod(a, victim) < MELEE_MODS['Anfall bakifrån'] && check.result !== 'perfekt') {
-      const parry = tryParry(g, victim, a, w, true);
+    // Kastvapen kan pareras med sköld av den som ser kastet. Projektiler kan inte pareras, utom med
+    // ett närstridsvapen av den som har Snabb uppfattning (som också kan parera kast med vapnet).
+    const quick = actorHas(g, victim, 'snabb_uppfattning');
+    const sees = flankMod(a, victim) < MELEE_MODS['Anfall bakifrån'];
+    if (sees && check.result !== 'perfekt' && ((r.kind === 'kast' && (victim.shield || quick)) || (r.kind === 'projektil' && quick))) {
+      const parry = tryParry(g, victim, a, w, r.kind === 'kast' && !quick, undefined, { ranged: true, weaponOnly: r.kind === 'projektil' });
       if (parry?.check.success) {
         g.log(`${victim.name} parerar med ${parry.name} (${parry.text}).`);
         g.emit(victim.id, 'Parerat', 'miss');

@@ -372,9 +372,8 @@ export const PSY_RECOVERY = {
 
 // ------------------------------------------------------------------ detaljerad strid (Bok II s. 15–22)
 
-/** Turordning: krigarens Stridsvana, Blixtrande reflexer och tekniken Initiativbonus. */
+/** Turordning: tekniken Initiativbonus. Stridsvana och Blixtrande reflexer står i regeldatan. */
 export const INITIATIVE_MODS = {
-  stridsvana: 5,
   initiativbonus: 5,
   /** Hoppspark och rundspark. */
   spark: -2,
@@ -589,3 +588,33 @@ export const PSY_RAISE = {
   /** God PSY-potential: −5 på slaget. */
   potential: -5,
 };
+
+// ------------------------------------------------------------------ förmågor (Bok I s. 25–27 och yrkena)
+
+/** Regelvärden för särskilda förmågor och yrkesförmågor som används på turen. Tolkningarna står i docs/regelbeslut.md. */
+export const ABILITY_RULES = {
+  /** God bågskytt: räckvidden för projektilvapen gångras med det här. */
+  archerRange: 1.25,
+  /** Snabb uppfattning: tillägg på CL vid parering i närstrid. */
+  quickParry: 5,
+  /** Gudarnas gunstling: chans på 1T100 att guden återställer KP. */
+  favorChance: 25,
+  /** Turgubbe: högst så här mycket på ett och samma slag (Vidar). */
+  luckMax: 3,
+  /** Tjuvtur: 1–3 PSY, två gånger mellan varje sömn (fyra för alver). */
+  thiefLuckMax: 3,
+  thiefLuckPerSleep: 2,
+  thiefLuckPerSleepAlv: 4,
+  /** Riddarslag kostar 5 PSY. */
+  knightPsy: 5,
+  /** Lönnmördarens Anfall bakifrån: gånger skadan utan SB för misslyckat, lyckat och perfekt anfall. */
+  backstab: { misslyckat: 1, lyckat: 2, perfekt: 4 },
+  /** Anfall bakifrån: offret får ha högst så här mycket mer STO än lönnmördaren (tolkning av "2 m längre"). */
+  backstabMaxSto: 10,
+  /** Meditation: gäller ett slag inom en minut. */
+  meditationRounds: 12,
+  /** God kroppskontroll: +5 STY i tre rundor, två gånger om dagen. */
+  bodyControl: { sty: 5, rounds: 3, perDay: 2 },
+  /** Handpåläggning: svårighetsgraden för infektioner och feber (tolkning). */
+  diseaseSg: 10,
+} as const;

@@ -26,7 +26,7 @@ import {
   type HitLocation,
 } from './rules';
 import type { Actor } from './types';
-import { abilitiesOf, setFv } from './hero';
+import { abilitiesOf, actorHas, setFv } from './hero';
 
 /**
  * Tid, läkning, infektioner och erfarenhet (steg 5). Husreglerna står i docs/regelbeslut.md.
@@ -90,7 +90,9 @@ function passTime(g: Game, a: Actor, seconds: number, activity: Activity, before
 
   a.restSeconds = resting ? a.restSeconds + seconds : 0;
   if (a.alive) {
-    a.psyHours += resting ? hours / PSY_RECOVERY.restHours : hours / PSY_RECOVERY.activeHours;
+    // God mental kontroll: PSY-poängen kommer tillbaka dubbelt så fort.
+    const mind = actorHas(g, a, 'god_mental_kontroll') ? 2 : 1;
+    a.psyHours += mind * (resting ? hours / PSY_RECOVERY.restHours : hours / PSY_RECOVERY.activeHours);
     const psy = Math.floor(a.psyHours);
     if (psy > 0) {
       a.psy = Math.min(a.attrs.PSY, a.psy + psy);
@@ -98,7 +100,9 @@ function passTime(g: Game, a: Actor, seconds: number, activity: Activity, before
     }
     if (a.psy >= a.attrs.PSY) a.psyHours = 0;
 
-    a.healHours += hours * (resting ? 1 : HEALING.withoutRestFactor);
+    // Gott läkekött: skadorna läker dubbelt så fort (tolkning: all naturlig läkning).
+    const flesh = actorHas(g, a, 'gott_lakekott') ? 2 : 1;
+    a.healHours += flesh * hours * (resting ? 1 : HEALING.withoutRestFactor);
     while (a.healHours >= 24) {
       a.healHours -= 24;
       healDay(a);
@@ -126,6 +130,7 @@ function passTime(g: Game, a: Actor, seconds: number, activity: Activity, before
   const race = RACES[(g.charOf(a) ?? g.state.character).race];
   if (activity === 'sömn' && seconds >= race.sleepHours * HOUR) {
     a.epBlocked = [];
+    a.thiefLuck = 0;
     a.effects = a.effects.filter((e) => !e.untilRest);
   }
   checkInfections(g, a);

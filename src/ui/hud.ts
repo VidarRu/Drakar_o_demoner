@@ -1,11 +1,13 @@
 import { requestTurn, scriptedTurn, type DialogEntry } from '../ai/dialogClient';
-import { canArmHero, meet } from '../engine/hero';
+import { actorHas, actorProfession, canArmHero, meet } from '../engine/hero';
+import { skillName } from '../engine/creation';
+import { bodyControlProblem, luckProblem, luckSources, meditationProblem, meditationSkills, thiefLuckLeft } from '../engine/talents';
 import { NPCS } from '../content';
 import { ARMOR, SHIELDS } from '../data/armor';
 import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
 import { HERBS } from '../data/herbs';
-import { activeHostiles, ammoLeft, damageExpr, effectiveMove, hasEffect, isOut, martialOk, rangedInfo } from '../engine/combat';
+import { activeHostiles, ammoLeft, damageExpr, effectiveMove, hasEffect, isOut, martialOk, rangedInfo, weaponInfo } from '../engine/combat';
 import { elementalAttacks } from '../engine/elementals';
 import { attackModes, passiveTechniques } from '../engine/maneuvers';
 import { carriedWeight, loadMod } from '../engine/inventory';
@@ -46,7 +48,7 @@ const LOC_SHORT: Record<HitLocation, string> = {
 
 /** Raden för avståndsvapnet i statuspanelen: räckvidd, laddning och ammunition. */
 function ammoRow(g: Game, p: Actor, kv: (k: string, v: string) => HTMLElement): HTMLElement[] {
-  const r = rangedInfo(p);
+  const r = rangedInfo(p, g);
   if (!r) return [];
   const parts = [`${r.range} rutor`];
   if (r.ammo) parts.push(`${ammoLeft(g, p, r)} ${r.ammo.item}`);
@@ -57,6 +59,8 @@ function ammoRow(g: Game, p: Actor, kv: (k: string, v: string) => HTMLElement): 
 /** Statuspanel, rollformulär, logg och stridspanel. */
 export class Hud {
   private logCount = -1;
+  /** Färdigheten som munken senast valde att meditera inför. */
+  private meditationSkill?: string;
 
   constructor(
     private g: Game,
@@ -294,6 +298,7 @@ export class Hud {
       for (const h of g.helpOptions()) panel.append(button(h.label, () => g.help(h.kind, h.target)));
       panel.append(this.sneakButton(), this.torchButton());
       if (g.charOf(p)?.heroPoints || p.heroArmed) panel.append(this.heroButton());
+      panel.append(...this.talentControls());
       panel.append(button('Sov 8 timmar', () => g.sleep(8), '', !g.canRest()));
       panel.append(button('Packning (P)', () => this.open.pack()));
       panel.append(button('Uppdrag (U)', () => this.open.quests()));
@@ -367,6 +372,7 @@ export class Hud {
     for (const h of g.helpOptions()) controls.append(button(h.label, () => g.help(h.kind, h.target)));
     if (mine) controls.append(this.sneakButton(), this.torchButton());
     if (mine && (g.charOf(p)?.heroPoints || p.heroArmed)) controls.append(this.heroButton());
+    if (mine) controls.append(...this.talentControls());
     if (p.bleeding.length) controls.append(button('Lägg förband', () => g.bandage(), '', !g.canBandage()));
     if (g.canFix()) controls.append(button('Rätta till', () => g.fix()));
     if ((p.reload ?? 0) > 0) controls.append(button(`Ladda om (${p.reload} SR)`, () => g.reload(), '', !g.canReload()));
@@ -383,6 +389,38 @@ export class Hud {
     const b = button(p.sneaking ? 'Sluta smyga' : 'Smyg', () => this.g.toggleSneak(), p.sneaking ? 'primary' : '');
     b.title = 'Smyga: ett slag i Smyga varje runda som en fiende kan se dig. Tänd fackla i mörker −10, dagsljus nära fienden −5.';
     return b;
+  }
+
+  /** Förmågor som används på turen: Turgubbe, Tjuvtur, God kroppskontroll och Meditation. */
+  private talentControls(): HTMLElement[] {
+    const g = this.g;
+    const p = g.player;
+    const out: HTMLElement[] = [];
+    for (const source of luckSources(g, p)) {
+      const armed = p.luckArmed?.source === source ? p.luckArmed.n : 0;
+      const name = source === 'turgubbe' ? 'Turgubbe' : 'Tjuvtur';
+      const left = source === 'tjuvtur' ? ` · ${thiefLuckLeft(g, p)} kvar` : '';
+      const b = button(armed ? `${name} +${armed} (${armed} PSY)` : `${name}${left}`, () => g.cycleLuck(source), armed ? 'primary hero' : 'hero', !armed && !!luckProblem(g, p, source, 1));
+      b.title = `Köp +1 på CL för 1 PSY på nästa egna slag. Tryck igen för mer, högst +3. ${source === 'tjuvtur' ? 'Två gånger mellan varje sömn, fyra för alver.' : ''}`;
+      out.push(b);
+    }
+    if (actorHas(g, p, 'god_kroppskontroll')) {
+      const b = button('Kroppskontroll', () => g.bodyControl(), '', !!bodyControlProblem(g, p));
+      b.title = 'Normalt FYS-slag: +5 STY (och skadebonus) i tre rundor. Två gånger om dagen.';
+      out.push(b);
+    }
+    if (actorProfession(g, p, 'munk')) {
+      const skills = meditationSkills(p);
+      const pick = el('select');
+      pick.title = 'Färdigheten att meditera inför';
+      const weapon = weaponInfo(p).skill;
+      for (const k of skills) pick.append(new Option(skillName(k), k, false, k === (this.meditationSkill ?? weapon)));
+      pick.onchange = () => (this.meditationSkill = pick.value);
+      const b = button('Meditera', () => g.meditate(pick.value), '', !!meditationProblem(g, p, pick.value || weapon));
+      b.title = 'Varje hel runda ger +1 i färdigheten, högst dubbla FV. Gäller nästa slag inom en minut.';
+      out.push(pick, b);
+    }
+    return out;
   }
 
   /** Hjältepoäng före slaget (Bok I): nästa egna slag blir ett steg bättre. */
