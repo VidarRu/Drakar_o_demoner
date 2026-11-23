@@ -1,5 +1,6 @@
 import { NPCS } from '../content';
 import { flagNotes } from '../engine/modules';
+import { recognizes } from '../engine/hero';
 import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
 import type { Game } from '../engine/game';
@@ -40,6 +41,8 @@ export async function requestTurn(game: Game, npc: Actor, history: DialogEntry[]
   const def = NPCS[npc.npc!];
   const p = game.player;
   const notes = flagNotes(game);
+  // Igenkänd som hjälte (steg 8): personen vet vem rollpersonen är och har hört om hens dåd.
+  if (recognizes(game, npc)) notes.push(`${npc.name} känner igen ${game.leader.name} som en ryktbar hjälte och har hört talas om hens bragder.`);
   try {
     const res = await fetch('/api/dialog', {
       method: 'POST',

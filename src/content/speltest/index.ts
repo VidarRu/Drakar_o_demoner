@@ -9,9 +9,8 @@ import type { MapDef } from '../../engine/map';
 import type { Intent } from '../../engine/intents';
 import { finalize, newDraft, type Draft } from '../../engine/creation';
 import { ARMOR } from '../../data/armor';
-import { EXPERIENCE } from '../../engine/rules';
 import type { Character } from '../../engine/types';
-import type { ModuleDef, QuestDef, RecruitDef } from '../types';
+import type { BookDef, DeedDef, ModuleDef, QuestDef, RecruitDef } from '../types';
 
 const human = { STY: 11, STO: 13, FYS: 11, SMI: 11, INT: 11, PSY: 11, KAR: 11 };
 
@@ -78,6 +77,7 @@ const creatures: CreatureDef[] = [
     sight: 7,
     silver: '6T6+20',
     deathFlag: 'hovding_dod',
+    loot: ['kronika_gravad'],
   },
   {
     id: 'vardshusvard',
@@ -108,8 +108,9 @@ const creatures: CreatureDef[] = [
     id: 'gumma',
     name: 'Kloka gumman Asta',
     sprite: 'gumma',
-    attrs: { ...human, STY: 7, PSY: 16 },
-    skills: { dolkar: 6, lakekonst: 15, ortkunskap: 15, drogkunskap: 12, kopsla: 13 },
+    attrs: { ...human, STY: 7, INT: 13, PSY: 16 },
+    // Läkekonst 17 och INT 13: Asta kan undervisa i Läkekonst (Vidar, steg 8).
+    skills: { dolkar: 6, lakekonst: 17, ortkunskap: 15, drogkunskap: 12, kopsla: 13 },
     weapon: 'dolk',
     move: 9,
     hostile: false,
@@ -166,7 +167,7 @@ const npcs: NpcDef[] = [
     persona:
       'Asta är byns kloka gumma: gammal, skarpögd och lite kuslig. Hon talar i gåtor och ordspråk men menar väl.',
     knowledge:
-      'Hon kan förbinda sår för 5 silvermynt, och vårda sår och infektioner med Läkekonst en gång om dagen för samma pris. Hon säljer läkeörter och andra droger som hon har plockat i skogen; vilka hon har inne skiftar från dag till dag. Hon vet att vargarna i skogen flyr ogärna och att svartalferna fruktar eld och dagsljus.',
+      'Hon kan förbinda sår för 5 silvermynt, och vårda sår och infektioner med Läkekonst en gång om dagen för samma pris. Hon säljer läkeörter och andra droger som hon har plockat i skogen; vilka hon har inne skiftar från dag till dag. Hon vet att vargarna i skogen flyr ogärna och att svartalferna fruktar eld och dagsljus. Hon lär ut läkekonst till den som vilar en vecka på värdshuset och betalar för undervisningen.',
     greeting: 'Jaså, en vandrare. Jag såg dig i teet i morse. Du blöder snart, om du inte redan gör det.',
     topics: [
       {
@@ -176,6 +177,7 @@ const npcs: NpcDef[] = [
     ],
     shop: { goods: ['läkedroger', 'droger'] },
     intents: ['forbind', 'vard', 'handla', 'anfall'],
+    teaches: ['lakekonst'],
   },
   {
     id: 'hjalmar',
@@ -354,6 +356,8 @@ const MAIL_COST = 1500;
 const MAIL = 'ringbrynjeskjorta';
 const REWARD = 500;
 const HIGHER_REWARD = 750;
+/** Bonus-EP för uppdraget (Bok I: 1–4). */
+const QUEST_EP = 3;
 
 /** Samtalsval som hör till Gråvad. */
 const intents: Record<string, Intent> = {
@@ -385,11 +389,7 @@ const intents: Record<string, Intent> = {
       const reward = g.state.flags.hogre_beloning ? HIGHER_REWARD : REWARD;
       g.player.silver += reward;
       g.state.flags.uppdrag_klart = true;
-      for (const m of g.partyMembers()) {
-        const ch = g.charOf(m)!;
-        ch.bonusEp = (ch.bonusEp ?? 0) + EXPERIENCE.questBonus;
-      }
-      return `Spelaren berättar att hövdingen är död och får sin belöning på ${reward} silvermynt. (Uppdraget ger också ${EXPERIENCE.questBonus} bonus-EP att fördela vid träningen.)`;
+      return `Spelaren berättar att hövdingen är död och får sin belöning på ${reward} silvermynt. (Uppdraget ger också ${QUEST_EP} bonus-EP var att fördela vid träningen.)`;
     },
   },
   kop_ringbrynja: {
@@ -404,6 +404,22 @@ const intents: Record<string, Intent> = {
   },
 };
 
+/** Böcker i Gråvad (steg 8). Grukk har plundrat krönikan från en resande. */
+const books: BookDef[] = [
+  {
+    id: 'kronika_gravad',
+    name: 'Krönika över Gråvadsbygden',
+    description: 'En sliten handskrift om bygdens släkter, gamla fejder och hur byn grundades. Svartalferna har tagit den från en resande.',
+    weight: 1,
+    price: 100,
+    skill: 'historia',
+    maxEp: 5,
+  },
+];
+
+/** Dåd som ger hjältepoäng i Gråvad (exempel till speltestet; värdena bestäms per modul). */
+const deeds: DeedDef[] = [{ id: 'grukk_fallen', flag: 'hovding_dod', text: 'svartalfshövdingen Grukk är fälld', kind: 'dåd', heroPoints: 2 }];
+
 const quests: QuestDef[] = [
   {
     id: 'grukk',
@@ -412,6 +428,7 @@ const quests: QuestDef[] = [
     description: 'Värdshusvärden Bertil betalar den som gör slut på svartalfshövdingen Grukk i grottan öster om byn.',
     start: 'uppdrag_antaget',
     done: 'uppdrag_klart',
+    bonusEp: QUEST_EP,
     steps: [
       { flag: 'hogre_beloning', text: `Bertil har gått med på ${HIGHER_REWARD} silvermynt.` },
       { flag: 'hovding_dod', text: 'Grukk är död. Hämta belöningen hos Bertil.' },
@@ -432,6 +449,8 @@ export const SPELTEST: ModuleDef = {
   npcs,
   recruits,
   quests,
+  deeds,
+  books,
   intents,
   flagNotes,
   epilogue: [

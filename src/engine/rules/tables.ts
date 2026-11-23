@@ -486,8 +486,6 @@ export const EXPERIENCE = {
   perfect: '1T3+1',
   /** Sammanhängande vila som krävs för att växla in EP mot FV. */
   restDays: 7,
-  /** Bonus för ett lyckat uppdrag (Bok I tillåter 1–4). */
-  questBonus: 3,
 };
 
 // ------------------------------------------------------------------ steg 7: smyga, avväpna och följeslagare
@@ -506,3 +504,88 @@ export const DISARM = {
 
 /** Gruppen får vara högst sex: rollpersonen och fem följeslagare (husregel). */
 export const PARTY_MAX = 6;
+
+// ------------------------------------------------------------------ steg 8: utveckling mellan äventyren
+
+/** Träning och studier en vecka i taget (Bok I s. 62–63, Bok III s. 7, husregler i steg 8). */
+export const TRAINING = {
+  /** Kost och logi per person och vecka. */
+  weekCost: 70,
+  /** Läraren: lägsta FV och INT, och hur mycket högre FV än eleven hen måste ha. */
+  teacherFv: 17,
+  teacherInt: 13,
+  teacherMargin: 3,
+  /** +1 på slaget för varje FV över detta som läraren har. */
+  teacherBonusFrom: 18,
+  /** En ensam elev får +5 (Vidar: boken skriver −5). */
+  aloneBonus: 5,
+  /** Slag per vecka med lärare. */
+  teacherRolls: 2,
+  /** Kostnad per vecka: vanliga färdigheter och magi. */
+  teacherCost: 150,
+  magicTeacherCost: 300,
+  otherRaceFactor: 1.5,
+  aloneFactor: 3,
+  /** Medlemskap i en magiakademi (gratis bibliotek). */
+  academyFee: 1000,
+  /** Kodexen: −1 på INT-slaget för varje poäng INT under 19. */
+  codexInt: 19,
+  /** Deltidsträning vid arbete tar dubbelt så lång tid: ett slag varannan vecka. */
+  partTimeWeeks: 2,
+  workDays: 6,
+  /**
+   * Läsnivån en bok kräver efter hur många EP den kan ge (Vidar): högst 3 EP B1, högst 5 B2,
+   * högst 10 B3, högst 15 B4 och mer B5. Magiska skrifter (biblioteket och kodexar) kräver B4.
+   */
+  readingLevels: [
+    { maxEp: 3, level: 1 },
+    { maxEp: 5, level: 2 },
+    { maxEp: 10, level: 3 },
+    { maxEp: 15, level: 4 },
+  ],
+  readingTop: 5,
+  magicReading: 4,
+  /** Stadens lärare mellan äventyren (tolkning). */
+  cityTeacher: { fv: 18, int: 14 },
+};
+
+/**
+ * Dagslön för arbete i yrket (tolkning efter Bok III: arbetare 10 sm, skrivare 50 sm, lärare 150 sm).
+ */
+export const WORK_WAGES: Record<string, number> = {
+  bard: 15,
+  helare: 25,
+  krigare: 15,
+  lard_man: 50,
+  lonnmordare: 20,
+  magiker: 40,
+  munk: 10,
+  sjofarare: 12,
+  riddare: 30,
+  tjuv: 12,
+  utbygdsjagare: 12,
+};
+
+/** Hjältepoäng (Bok I s. 64–65 och husregler i steg 8). */
+export const HERO = {
+  /** FV 21, 41, 61 och så vidare ger 1T4 HP. */
+  fvMilestone: 20,
+  fvReward: '1T4',
+  /** 5 HP höjer en grundegenskap (inte STO). */
+  attrCost: 5,
+  /** Slag för särskild förmåga: HP och tillägg på 2T20 (husregel). */
+  abilityTiers: [
+    { hp: 3, bonus: 20 },
+    { hp: 6, bonus: 30 },
+    { hp: 10, bonus: 40 },
+  ],
+};
+
+/** PSY-höjning efter ett äventyr (Bok I s. 64): 1T20 mot 25 − PSY (magiker) eller 20 − PSY. */
+export const PSY_RAISE = {
+  magician: 25,
+  other: 20,
+  big: '1T3+1',
+  /** God PSY-potential: −5 på slaget. */
+  potential: -5,
+};

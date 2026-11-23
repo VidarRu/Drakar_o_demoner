@@ -527,6 +527,10 @@ button.danger {
 #dead {
   background: rgba(20, 4, 4, 0.82);
 }
+#training {
+  /* Träningsvyn öppnas också ovanpå skärmen Mellan äventyren. */
+  z-index: 11;
+}
 #modal {
   z-index: 12;
   background: rgba(8, 7, 10, 0.78);
@@ -1388,4 +1392,30 @@ button.danger {
   align-items: center;
   gap: 4px;
   font-size: 13px;
+}
+
+/* ---------- Veckoplanen och mellanspelet (steg 8) ---------- */
+
+.week-table select {
+  max-width: 100%;
+}
+.week-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 10px;
+}
+.note.warn {
+  color: #e0a070;
+}
+.hero-shop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+button.hero {
+  border-color: #c9a227;
 }

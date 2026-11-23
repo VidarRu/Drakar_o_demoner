@@ -1,4 +1,5 @@
 import { requestTurn, scriptedTurn, type DialogEntry } from '../ai/dialogClient';
+import { canArmHero, meet } from '../engine/hero';
 import { NPCS } from '../content';
 import { ARMOR, SHIELDS } from '../data/armor';
 import { PROFESSIONS } from '../data/professions';
@@ -223,6 +224,7 @@ export class Hud {
       kv('Förflyttning', `${effectiveMove(p, g)} rutor`),
       kv('Börda', `${carriedWeight(g)} / ${p.attrs.STY} kg${loadMod(g, p) ? ` (${loadMod(g, p) ?? 'för tungt'})` : ''}`),
       kv('PSY-poäng', `${p.psy} / ${p.attrs.PSY}`),
+      ...(ch.heroTotal ? [kv('Hjältepoäng', String(ch.heroPoints ?? 0))] : []),
       kv('Silvermynt', String(p.silver)),
       kv('Tid', clockText(g.state.time)),
       ...(states.length ? [el('h3', '', 'Tillstånd'), ...states.map((s) => el('p', 'state', s))] : []),
@@ -291,6 +293,7 @@ export class Hud {
       if (g.canSelfMedicine()) panel.append(button('Läkekonst', () => g.selfMedicine()));
       for (const h of g.helpOptions()) panel.append(button(h.label, () => g.help(h.kind, h.target)));
       panel.append(this.sneakButton(), this.torchButton());
+      if (g.charOf(p)?.heroPoints || p.heroArmed) panel.append(this.heroButton());
       panel.append(button('Sov 8 timmar', () => g.sleep(8), '', !g.canRest()));
       panel.append(button('Packning (P)', () => this.open.pack()));
       panel.append(button('Uppdrag (U)', () => this.open.quests()));
@@ -363,6 +366,7 @@ export class Hud {
     if (p.techniques?.includes('fallteknik') && martialOk(g, p)) controls.append(button('Rulla', () => g.rollAway(), '', !mine || acted || (p.movedLast ?? 0) > 0));
     for (const h of g.helpOptions()) controls.append(button(h.label, () => g.help(h.kind, h.target)));
     if (mine) controls.append(this.sneakButton(), this.torchButton());
+    if (mine && (g.charOf(p)?.heroPoints || p.heroArmed)) controls.append(this.heroButton());
     if (p.bleeding.length) controls.append(button('Lägg förband', () => g.bandage(), '', !g.canBandage()));
     if (g.canFix()) controls.append(button('Rätta till', () => g.fix()));
     if ((p.reload ?? 0) > 0) controls.append(button(`Ladda om (${p.reload} SR)`, () => g.reload(), '', !g.canReload()));
@@ -378,6 +382,16 @@ export class Hud {
     const p = this.g.player;
     const b = button(p.sneaking ? 'Sluta smyga' : 'Smyg', () => this.g.toggleSneak(), p.sneaking ? 'primary' : '');
     b.title = 'Smyga: ett slag i Smyga varje runda som en fiende kan se dig. Tänd fackla i mörker −10, dagsljus nära fienden −5.';
+    return b;
+  }
+
+  /** Hjältepoäng före slaget (Bok I): nästa egna slag blir ett steg bättre. */
+  private heroButton(): HTMLButtonElement {
+    const g = this.g;
+    const p = g.player;
+    const n = g.charOf(p)?.heroPoints ?? 0;
+    const b = button(p.heroArmed ? `Hjältepoäng laddad (${n})` : `Hjältepoäng (${n})`, () => g.toggleHero(), p.heroArmed ? 'primary hero' : 'hero', !p.heroArmed && !canArmHero(g, p));
+    b.title = 'Spendera en hjältepoäng på nästa egna slag: fummel blir misslyckat, misslyckat blir lyckat, lyckat blir perfekt. Ett perfekt slag ger tillbaka poängen.';
     return b;
   }
 
@@ -438,6 +452,8 @@ export class DialogUi {
     $('bottom').hidden = true;
     $('dialog-name').textContent = npc.name;
     $<HTMLImageElement>('dialog-portrait').src = portraitUrl(npc.sprite);
+    // Första mötet: känner personen igen hjälten? (steg 8)
+    if (meet(this.g, npc)) this.history.push({ role: 'event', text: `${npc.name} känner igen ${this.g.leader.name}: ryktet om hjälten har gått före.` });
     this.g.changed();
     await this.npcTurn();
   }

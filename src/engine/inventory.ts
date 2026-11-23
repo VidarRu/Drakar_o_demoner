@@ -1,3 +1,4 @@
+import { BOOKS } from '../content';
 import { ARMOR, SHIELDS } from '../data/armor';
 import { IRON_ITEMS, ITEMS, MONEY } from '../data/equipment';
 import { HERBS } from '../data/herbs';
@@ -35,6 +36,8 @@ export function itemInfo(id: string): ItemInfo | undefined {
   if (a) return { id, name: a.name, kind: 'rustning', weight: a.weight, price: a.price };
   const i = ITEMS[id];
   if (i) return { id, name: i.name, kind: 'föremål', weight: i.weight, price: i.price, category: i.category };
+  const b = BOOKS[id];
+  if (b) return { id, name: b.name, kind: 'föremål', weight: b.weight, price: b.price, category: 'bok' };
   return undefined;
 }
 

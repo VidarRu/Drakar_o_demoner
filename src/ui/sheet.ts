@@ -1,4 +1,4 @@
-import { ABILITY_BY_ID } from '../data/abilities';
+import { abilitiesOf } from '../engine/hero';
 import { ARMOR, SHIELDS } from '../data/armor';
 import { ITEMS } from '../data/equipment';
 import { PROFESSIONS } from '../data/professions';
@@ -153,10 +153,11 @@ function front(g: Game): HTMLElement {
     .sort((a, b) => skillName(a).localeCompare(skillName(b), 'sv'));
   const secRows = secondary.map((k) => [skillName(k), mark(k), fv(k)]);
 
-  const ability = ch.ability ? ABILITY_BY_ID[ch.ability.id] : null;
   const abilities = el('div', 'rf-text');
-  if (ability) abilities.append(el('p', 'hand', `${ability.name}: ${ability.desc}`));
+  for (const { def } of abilitiesOf(ch)) abilities.append(el('p', 'hand', `${def.name}: ${def.desc}`));
   abilities.append(el('p', 'hand', `${prof.ability.name}: ${prof.ability.desc}`));
+  if (ch.heroTotal) abilities.append(el('p', 'hand', `Hjältepoäng: ${ch.heroPoints ?? 0} (${ch.heroTotal} i livet)`));
+  if (ch.academy) abilities.append(el('p', 'hand', 'Medlem i magiakademin'));
   for (const ph of ch.phobias ?? []) abilities.append(el('p', 'hand', `Fobi (${ph.level}): ${ph.source}`));
   if (ch.techniques.length) abilities.append(el('p', 'hand', `Tekniker: ${ch.techniques.join(', ').replace(/_/g, ' ')}`));
 

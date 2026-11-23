@@ -3,6 +3,7 @@ import { SPELLS, spellRange } from '../data/spells';
 import type { SpellDef, SpellDuration } from '../data/types';
 import { die, roll } from './dice';
 import type { Game } from './game';
+import { heroic, markPsyWin } from './hero';
 import { ironProblem } from './inventory';
 import { distance, lineOfSight } from './map';
 import { neutralize } from './poison';
@@ -317,7 +318,7 @@ function resolve(g: Game, s: PendingSpell) {
   const total = totalGrade(s);
   const S = spellS(a, s.spell);
   const cl = s.suicide ? S : spellCl(S, total);
-  const check = skillCheck(S, g.rng, cl - S + skillMod(g, a, `spell:${s.spell}`));
+  const check = heroic(g, a, skillCheck(S, g.rng, cl - S + skillMod(g, a, `spell:${s.spell}`)));
   let cost = spellPsyCost(total, check.result);
   const half = a.effects.find((e) => e.kind === 'halvPsy');
   if (half && check.result !== 'misslyckat') {
@@ -364,7 +365,13 @@ function effectFor(a: Actor, spell: SpellDef, s: PendingSpell, grade: number, g:
 function resists(g: Game, caster: Actor, t: Actor, spell: SpellDef): boolean {
   if (!spell.resisted || t === caster || t.unconscious) return false;
   const check = resistance(Math.max(0, caster.psy), t.attrs.PSY, g.rng);
-  if (check.success) return false;
+  // En vunnen kamp PSY mot PSY mot en fiende kan höja PSY efter äventyret (Bok I).
+  const foes = caster.hostile !== t.hostile;
+  if (check.success) {
+    if (foes) markPsyWin(g, caster, 'magiker');
+    return false;
+  }
+  if (foes) markPsyWin(g, t, 'motstånd');
   g.log(`${t.name} gör motstånd (PSY ${caster.psy} mot ${t.attrs.PSY}, T20: ${check.roll} mot ${check.target}).`);
   return true;
 }
