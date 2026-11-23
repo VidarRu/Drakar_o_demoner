@@ -89,8 +89,13 @@ vädret står i `docs/regelbeslut.md` under Förmågor, besvärjelser och väder
 förslagets avsnitt 5.
 
 - **Klart (steg 1 i ordningen):** förmågorna som redan hade regelvärden används nu i spelet. `passivesOf`, `passive`, `passiveCl`, `weaponCl`, `professionsOf`, `folkOf` och `banemanCl` i `src/engine/hero.ts`. Yrkesförmågorna har `passive` i `src/data/professions.ts` (Stridsvana, Snusförnuft och Härdad av havet), och `INITIATIVE_MODS.stridsvana` är borttagen. Baneman väljs ur `FOLK_LIST` (`src/data/creatures.ts`), och varelserna anger `CreatureDef.folk`. Testerna står i `tests/abilities.test.ts`.
-- **Nästa (steg 2):** de enkla förmågorna i förslagets avsnitt 3 och 4, till exempel God bågskytt, Järnnäve, Turgubbe, Tjuvtur, Riddarslag och Anfall bakifrån.
-- Därefter magi för alla (`castSpell` och `resolve` tar magikern som argument), fiender som lägger besvärjelser med häxkonstnären i Gråvad, och besvärjelserna i strid.
+- **Klart (steg 2):** de enkla förmågorna. God bågskytt, Järnnäve, Snabb uppfattning, Djurvän, Gott läkekött, God mental kontroll, Turgubbe, Tjuvtur, Gudarnas gunstling, Riddarslag, Anfall bakifrån, Handpåläggning, Meditation och God kroppskontroll verkar i spelet (se `docs/regelbeslut.md`).
+  - `src/engine/talents.ts` har turen (`cycleLuck`, `applyLuck`), `godsFavor`, `backstabs`, `layOnHands`, `meditate` och `bodyControl`. Regelvärdena står i `ABILITY_RULES`.
+  - `heroic` lägger på turen före hjältepoängen, och `raiseTarget` (`rules/check.ts`) räknar om slaget. Riddarslaget är anfallssättet `riddarslag` i `maneuvers.ts`, och Handpåläggning finns bland hjälphandlingarna.
+  - STY räknas med `strength(a)` i striden, så att God kroppskontroll (effekten `styrka`) ger SB. Effekter kan gälla en enda färdighet (`scope: 'färdighet'` och `ActiveEffect.skill`), och `consumeSkillEffects` förbrukar dem efter `playerCheck`.
+  - Gränssnittet har knappar för Turgubbe, Tjuvtur, Kroppskontroll och Meditera (med val av färdighet) i båda panelerna. Testerna står i `tests/talents.test.ts`.
+- **Nästa (steg 3):** magi för alla (`castSpell` och `resolve` tar magikern som argument), sedan fiender som lägger besvärjelser med häxkonstnären i Gråvad, och besvärjelserna i strid.
+- **Kvar av förmågorna:** Gott balanssinne (när SPRÅNG byggs), Absolut ögonmått och God tidskänsla (gränssnittet), Mottagligt medium och Magisk empati (väntar på kanalisering och magiska föremål), avdraget för den andra handen, bardens Förtrollande framträdande och Hamnbytare.
 
 Vidar vill också göra en genomgång av hela regelsystemet när det är klart, för att se att det är konsekvent.
 
@@ -158,9 +163,9 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 188 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 202 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
-`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
+`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
 
 För att provköra gränssnittet: starta `npx vite` och styr sidan med Playwright. Ett snabbt sätt är
 att skapa ett spel med `Game.create(testCharacter())`, lägga `JSON.stringify(g.state)` i
@@ -170,4 +175,4 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 ## Öppna frågor till Vidar
 
 - Chanserna för vädret (tolkning i `docs/regelbeslut.md`) och vindens verkan på skott och båtar, när vädret byggs.
-- Tolkningarna för förmågorna med regelvärden: att Precisionssinne bara gäller anfall, och att Extremt orädd och Snusförnuft räknas utöver den högsta modifikationen på Skräcktabellen.
+- Tolkningarna för de enkla förmågorna i `docs/regelbeslut.md` under Förmågor som används i spel: Gott läkekött för all läkning, turen efter tärningen, storleksgränsen för Anfall bakifrån, svårighetsgraden 10 för infektioner, och att PSY och försök räknas även när det misslyckas.

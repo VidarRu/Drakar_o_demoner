@@ -73,7 +73,13 @@ export function leaveModule(g: Game) {
   g.log(done ? `Äventyret i ${mod.name} är slut.` : `${g.leader.name} lämnar ${mod.name} utan att ha fullbordat uppdraget.`);
   // Efter äventyret: den som har vunnit en kamp PSY mot PSY slår för att höja sin PSY.
   psyRaiseAfterAdventure(g);
-  for (const m of g.partyMembers()) m.heroArmed = false;
+  for (const m of g.partyMembers()) {
+    m.heroArmed = false;
+    m.luckArmed = undefined;
+    // Gudarnas gunstling gäller en gång per äventyr (Vidar).
+    const ch = g.charOf(m);
+    if (ch) ch.favorUsed = false;
+  }
   g.changed();
 }
 

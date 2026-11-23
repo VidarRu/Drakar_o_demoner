@@ -6,6 +6,7 @@ import { CREATURES, MODULES, NPCS } from '../content';
 import { CREATURES as CREATURE_STATS } from '../data/creatures';
 import type { AbilityPassive } from '../data/types';
 import { slug } from './creation';
+import { applyLuck } from './talents';
 import { ABILITIES, ABILITY_BY_ID, abilityFor, type AbilityDef } from '../data/abilities';
 import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
@@ -100,6 +101,36 @@ export function banemanCl(g: Game, att: Actor, def: Actor): number {
   if (!ch) return 0;
   const folk = folkOf(g, def);
   return abilitiesOf(ch).reduce((n, { def: d, choice }) => n + (d.passive?.foeCl && foeMatches(choice?.foe, folk) ? d.passive.foeCl : 0), 0);
+}
+
+/** Har figuren en särskild förmåga? Varelser utan rollformulär har inga. */
+export function actorHas(g: Game, a: Actor, id: string): boolean {
+  const ch = g.charOf(a);
+  return !!ch && hasAbility(ch, id);
+}
+
+/** Har figuren ett yrkes yrkesförmåga (sitt eget eller via Kluven personlighet)? */
+export function actorProfession(g: Game, a: Actor, id: string): boolean {
+  const ch = g.charOf(a);
+  return !!ch && professionsOf(ch).includes(id);
+}
+
+/** Ett vanligt djur ur regeldatan (inte en legendarisk varelse). */
+export function isCommonAnimal(g: Game, a: Actor): boolean {
+  if (g.charOf(a) || a.elemental) return false;
+  const folk = folkOf(g, a);
+  return !!folk && CREATURE_STATS[folk]?.group === 'djur';
+}
+
+/** Djurvän: djuret väljer inte personen som mål, om personen inte har anfallit det. */
+export function spares(g: Game, animal: Actor, target: Actor): boolean {
+  return isCommonAnimal(g, animal) && actorHas(g, target, 'djurvan') && !animal.provokedBy?.includes(target.id);
+}
+
+/** Den som anfaller ett djur är inte längre fredad av Djurvän mot det. */
+export function provokeAnimal(g: Game, att: Actor, animal: Actor) {
+  if (!isCommonAnimal(g, animal) || !actorHas(g, att, 'djurvan')) return;
+  if (!(animal.provokedBy ??= []).includes(att.id)) animal.provokedBy.push(att.id);
 }
 
 /** Tillägget på initiativet från yrket, förmågorna och stridskonsten. */
@@ -342,6 +373,8 @@ const UPGRADE: Record<CheckResult, CheckResult> = { fummel: 'misslyckat', missly
  * perfekt, och ett perfekt slag ger tillbaka poängen. Poängen dras när slaget slås.
  */
 export function heroic(g: Game, a: Actor | undefined, check: Check): Check {
+  // Turgubbe och Tjuvtur läggs på först: de ändrar CL, hjältepoängen ändrar utfallet.
+  check = applyLuck(g, a, check);
   if (!a?.heroArmed) return check;
   a.heroArmed = false;
   const ch = g.charOf(a);

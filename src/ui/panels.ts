@@ -140,7 +140,7 @@ export class PackUi {
     for (const id of p.armor) hands.push(['Rustning', ARMOR[id].name, button('Ta av', () => this.act(() => removeArmor(g, id)), '', g.state.mode !== 'explore')]);
     body.append(el('h3', '', 'Utrustning'), table(['', '', ''], hands));
 
-    const r = rangedInfo(p);
+    const r = rangedInfo(p, g);
     if (r) {
       const left = ammoLeft(g, p, r);
       body.append(el('p', 'note', `${r.name}: räckvidd ${r.range} rutor${r.reload ? `, laddning ${r.reload} SR` : ''}${r.ammo ? `, ${r.ammo.item} kvar: ${left}` : ''}.`));

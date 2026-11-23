@@ -162,7 +162,10 @@ export interface ActiveEffect {
     /** Står och flämtar i kylan eller hettan kring en elementar. */
     | 'flämtar'
     /** −2 på nästa initiativslag (hoppspark, rundspark). */
-    | 'initiativ';
+    | 'initiativ'
+    // ------------------------------------------------ förmågor
+    /** `mod` på STY (God kroppskontroll), även för skadebonusen. */
+    | 'styrka';
   /** Kort text till rollformuläret och loggen. */
   label: string;
   mod?: number;
@@ -193,6 +196,8 @@ export interface ActiveEffect {
   loc?: HitLocation;
   /** Tärningsuttryck för extra skada (elementarernas hetta och köld). */
   dice?: string;
+  /** Färdigheten som modifikationen gäller (scope 'färdighet', t.ex. munkens Meditation). */
+  skill?: string;
 }
 
 /** Ett gift som verkar i kroppen (Bok II s. 50–51). */
@@ -356,6 +361,15 @@ export interface Actor {
   refused?: boolean;
   /** Hjältepoäng är laddade för nästa egna slag (steg 8). */
   heroArmed?: boolean;
+  // ------------------------------------------------ förmågor som används på turen
+  /** Turgubbe eller Tjuvtur: `n` på CL för nästa egna slag, för lika många PSY. */
+  luckArmed?: { source: 'turgubbe' | 'tjuvtur'; n: number };
+  /** Gånger Tjuvtur har använts sedan senaste sömnen. */
+  thiefLuck?: number;
+  /** God kroppskontroll: dagen och hur många gånger den har använts den dagen. */
+  bodyControl?: { day: number; n: number };
+  /** Gruppmedlemmar som har anfallit djuret (Djurvän gäller inte längre dem). */
+  provokedBy?: string[];
   /** Föremål som varelsen bär och som blir kvar när den dör. */
   loot?: string[];
 }
@@ -550,6 +564,8 @@ export interface Character {
   partTime?: Record<string, number>;
   /** Vunnen PSY-kamp under äventyret: som magiker eller genom att stå emot. */
   psyWin?: 'magiker' | 'motstånd';
+  /** Gudarnas gunstling har räddat personen under det här äventyret. */
+  favorUsed?: boolean;
 }
 
 /** Valet till en särskild förmåga, som när rollpersonen skapas (engine/creation.ts). */

@@ -20,13 +20,16 @@ import {
   short,
   skillMod,
   stabilize,
+  strength,
   tick,
   weaponInfo,
   wound,
   type WeaponInfo,
 } from './combat';
+import { actorProfession } from './hero';
 import { useHerbOn } from './poison';
-import { attributeCheck, DISARM, resistance, skillCheck, type HitLocation } from './rules';
+import { healOptions, layOnHands, type HealKind } from './talents';
+import { ABILITY_RULES, attributeCheck, DISARM, resistance, skillCheck, type HitLocation } from './rules';
 import { canMedicine, medicine } from './time';
 import type { Actor } from './types';
 
@@ -40,7 +43,7 @@ const ARMS: HitLocation[] = ['vänster arm', 'höger arm'];
 
 // ------------------------------------------------------------------ hjälpa en kamrat
 
-export type HelpKind = 'förband' | 'kvävning' | 'resa' | 'ört' | 'läkekonst';
+export type HelpKind = 'förband' | 'kvävning' | 'resa' | 'ört' | 'läkekonst' | HealKind;
 
 export interface HelpOption {
   kind: HelpKind;
@@ -69,6 +72,8 @@ export function helpOptions(g: Game, a: Actor): HelpOption[] {
     if (g.charOf(a)?.herbs.some((d) => HERBS[d.id]?.kind === 'läkedrog')) out.push({ kind: 'ört', target: m.id, label: `Ge ${m.name} en ört` });
     if (g.state.mode === 'explore' && a.skills.lakekonst !== undefined && canMedicine(g, m)) out.push({ kind: 'läkekonst', target: m.id, label: `Läkekonst på ${m.name}` });
   }
+  // Helarens Handpåläggning, också på sig själv.
+  out.push(...healOptions(g, a));
   return out;
 }
 
@@ -100,6 +105,8 @@ export function help(g: Game, a: Actor, kind: HelpKind, targetId: string, arg?: 
   const opt = helpOptions(g, a).find((o) => o.kind === kind && o.target === targetId);
   if (!opt) return 'Det går inte just nu.';
   const t = g.actor(targetId)!;
+  // Handpåläggningen sköter själv tiden och turen.
+  if (kind === 'handpåläggning' || kind === 'giftbot' || kind === 'sjukbot') return layOnHands(g, a, t, kind);
   switch (kind) {
     case 'förband':
       bandageOnce(g, a, t);
@@ -160,6 +167,8 @@ export function attackModes(g: Game, a: Actor): ModeInfo[] {
   if (a.skills.avvapna !== undefined && WEAPONS[a.weapon]?.kind === 'närstrid')
     out.push({ id: 'avvapna', name: 'Avväpna', desc: 'Anfall utan skada som inte kan pareras; lyckas Avväpna och STY + FV mot målets STY flyger vapnet.' });
   out.push({ id: 'fasthallning', name: 'Fasthållning', desc: 'Grip tag: CL (STO+SMI+STY)/3, sedan STY mot STY varje runda.' });
+  if (actorProfession(g, a, 'riddare') && WEAPONS[a.weapon]?.kind === 'närstrid')
+    out.push({ id: 'riddarslag', name: `Riddarslag (${ABILITY_RULES.knightPsy} PSY)`, desc: 'Sikta på en kroppsdel utan avdrag, eller utan sikte högsta skada med högsta SB. Rustning och parering gäller som vanligt.' });
   if (martialOk(g, a)) {
     for (const id of ATTACK_TECHNIQUES) {
       if (!a.techniques!.includes(id)) continue;
@@ -183,6 +192,12 @@ export function maneuverProblem(g: Game, a: Actor, t: Actor, mode: string): stri
     if (a.skills.avvapna === undefined) return 'Du kan inte Avväpna.';
     if (WEAPONS[a.weapon]?.kind !== 'närstrid') return 'Det krävs ett vapen eller en käpp i handen.';
     if (!WEAPONS[t.weapon] || WEAPONS[t.weapon].kind !== 'närstrid') return `${t.name} har inget vapen att slå ur handen.`;
+    return inReach(g, a, t) ? null : 'Målet är utom räckhåll.';
+  }
+  if (mode === 'riddarslag') {
+    if (!actorProfession(g, a, 'riddare')) return 'Bara riddare kan göra riddarslag.';
+    if (WEAPONS[a.weapon]?.kind !== 'närstrid') return 'Det krävs ett närstridsvapen i handen.';
+    if (a.psy - ABILITY_RULES.knightPsy < 1) return 'För få PSY-poäng.';
     return inReach(g, a, t) ? null : 'Målet är utom räckhåll.';
   }
   if (mode === 'fasthallning') {
@@ -252,6 +267,11 @@ export function maneuver(g: Game, a: Actor, t: Actor, mode: string) {
       return disarm(g, a, t);
     case 'fasthallning':
       return grapple(g, a, t);
+    case 'riddarslag':
+      a.psy -= ABILITY_RULES.knightPsy;
+      g.log(`${a.name} lägger ${ABILITY_RULES.knightPsy} PSY på ett riddarslag.`);
+      attackOnce(g, a, t, 'weapon', { knight: true });
+      return;
   }
   const w = martialWeapon(g, a, mode);
   const slow = mode === 'hoppspark' || mode === 'dubbelspark' || mode === 'rundspark';
@@ -405,7 +425,7 @@ function disarm(g: Game, a: Actor, t: Actor) {
       }
       g.gainExperience(a, 'avvapna', check);
       const value = a.attrs.STY + g.skillFv(a, 'avvapna');
-      const r = resistance(value, t.attrs.STY, g.rng);
+      const r = resistance(value, strength(t), g.rng);
       if (r.success) {
         g.log(`${a.name} slår vapnet ur handen på ${t.name} (Avväpna ${short(check)}; STY + FV ${value} mot STY ${t.attrs.STY}, ${short(r)})!`);
         drop(g, t, 'weapon', DISARM.skill);
@@ -428,7 +448,7 @@ function grapple(g: Game, a: Actor, t: Actor) {
     weapon: GRIP,
     fv,
     onHit: () => {
-      const r = resistance(a.attrs.STY, t.attrs.STY, g.rng);
+      const r = resistance(strength(a), strength(t), g.rng);
       if (r.success) hold(g, a, t, 'Fasthållning', 0, r);
       else g.log(`${a.name} griper tag i ${t.name} men hen sliter sig loss (STY ${a.attrs.STY} mot ${t.attrs.STY}, ${short(r)}).`);
       return 'klart';
@@ -462,7 +482,7 @@ export function keepHold(g: Game, a: Actor) {
     g.log(`${a.name} håller ${t.name} låst.`);
     return;
   }
-  const r = resistance(a.attrs.STY, t.attrs.STY, g.rng);
+  const r = resistance(strength(a), strength(t), g.rng);
   if (r.success) g.log(`${a.name} håller kvar ${t.name} (STY ${a.attrs.STY} mot ${t.attrs.STY}, ${short(r)}).`);
   else {
     g.log(`${t.name} sliter sig loss från ${a.name} (STY ${a.attrs.STY} mot ${t.attrs.STY}, ${short(r)}).`);

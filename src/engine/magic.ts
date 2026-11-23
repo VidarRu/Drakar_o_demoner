@@ -3,7 +3,7 @@ import { SPELLS, spellRange } from '../data/spells';
 import type { SpellDef, SpellDuration } from '../data/types';
 import { die, roll } from './dice';
 import type { Game } from './game';
-import { heroic, markPsyWin, passive } from './hero';
+import { heroic, markPsyWin, passive, provokeAnimal } from './hero';
 import { ironProblem } from './inventory';
 import { distance, lineOfSight } from './map';
 import { neutralize } from './poison';
@@ -401,7 +401,7 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       const dealt = Math.max(0, dmg - abs) * factor;
       g.log(`${t.name} tar ${dealt} i skada${loc ? ` i ${loc}` : ''}${abs ? ` (${dmg} − ${abs} i skydd)` : ''}${factor === 2 ? ' – dubbel skada' : factor === 0 ? ' – elementaren är immun' : ''}.`);
       g.emit(t.id, dealt ? `-${dealt}` : '0', 'damage');
-      provoke(g, t);
+      provoke(g, t, caster);
       wound(g, t, dealt, loc);
       return;
     }
@@ -415,7 +415,7 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
         if (dmg > 0) {
           g.log(`Explosionen träffar ${x.name}: ${dmg} i skada.`);
           g.emit(x.id, `-${dmg}`, 'damage');
-          if (x !== caster) provoke(g, x);
+          if (x !== caster) provoke(g, x, caster);
           wound(g, x, dmg, null);
         }
         // Alla som ser explosionen bländas nästa runda.
@@ -435,7 +435,7 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
         t.effects.push({ kind: 'ingenHandling', label: 'Skakar av köld', rounds: 1 });
         g.log(`${t.name} skakar av kraftiga köldrysningar och kan inte göra något (Svårt FYS-slag, T20: ${fys.roll} mot ${fys.target}).`);
       }
-      provoke(g, t);
+      provoke(g, t, caster);
       return;
     }
     case 'knäcka': {
@@ -452,7 +452,7 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
         g.log(`${spell.name}: ${t.name}s ${name} går sönder!`);
         unequip(g, t, key);
       }
-      provoke(g, t);
+      provoke(g, t, caster);
       return;
     }
     case 'luftsköld':
@@ -463,7 +463,7 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       const mod = e.sign * grade;
       t.effects.push({ kind: 'vapenMagi', mod, slot: 'weapon', ...effectFor(caster, spell, s, grade, g) });
       g.log(`${t.name}s vapen ${e.sign > 0 ? 'förtrollas' : 'förbannas'}: ${mod > 0 ? '+' : ''}${mod} på CL och skada.`);
-      if (e.sign < 0) provoke(g, t);
+      if (e.sign < 0) provoke(g, t, caster);
       return;
     }
     case 'läka': {
@@ -529,7 +529,7 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       const value = grade * 10 - t.attrs.STO;
       t.effects.push({ kind: 'rankor', mod: value, ...effectFor(caster, spell, s, grade, g) });
       g.log(`Rankor växer ut och snärjer ${t.name} (motståndsvärde ${value}).`);
-      provoke(g, t);
+      provoke(g, t, caster);
       return;
     }
   }
@@ -548,7 +548,8 @@ function maxDice(dice: string, n: number): number {
 }
 
 /** En fredlig person som utsätts för skadlig magi blir fientlig och striden börjar. */
-function provoke(g: Game, t: Actor) {
+function provoke(g: Game, t: Actor, caster: Actor) {
+  provokeAnimal(g, caster, t);
   if (t.hostile || t.kind === 'player' || !t.alive) return;
   t.hostile = true;
   t.kind = 'monster';

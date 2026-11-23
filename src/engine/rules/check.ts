@@ -76,6 +76,19 @@ export function skillCheck(fv: number, rng: Rng, modifier = 0): Check {
   return done(rolls, cl, fv, first <= cl ? 'lyckat' : 'misslyckat');
 }
 
+/**
+ * Ett tillägg på CL efter att tärningen har slagits (Turgubbe och Tjuvtur köps före slaget men
+ * räknas in här). Bara slag 2–19 kan gå från misslyckat till lyckat; omslagen för perfekt och
+ * fummel räknas inte om.
+ */
+export function raiseTarget(c: Check, n: number): Check {
+  if (c.automatic || n === 0) return c;
+  const target = c.target + n;
+  let result = c.result;
+  if (c.roll >= 2 && c.roll <= 19 && (result === 'lyckat' || result === 'misslyckat')) result = c.roll <= target ? 'lyckat' : 'misslyckat';
+  return { ...c, target, result, success: result === 'perfekt' || result === 'lyckat', diff: target - c.roll };
+}
+
 /** Svårighetsgrader för grundegenskapsslag. */
 export const SG = {
   'Mycket lätt': 1,

@@ -26,7 +26,9 @@ export type Scope =
   | 'sty'
   /** Alla besvärjelser, eller allt utom besvärjelser. */
   | 'magi'
-  | 'ejMagi';
+  | 'ejMagi'
+  /** En enda färdighet, den i effektens `skill`. */
+  | 'färdighet';
 
 /** Hur länge en följd varar. Rundor räknas med den pågående rundan som den första. */
 export interface Duration {

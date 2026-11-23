@@ -1,7 +1,7 @@
 # Förslag: fiendernas magi, alla besvärjelser och förmågorna utan verkan
 
 **Vidar godkände förslagen den 23 november 2026.** Svaren på frågorna i avsnitt 6 och upplägget
-för vädret står i `docs/regelbeslut.md` under Förmågor, besvärjelser och väder. Avsnitt 0 är byggt.
+för vädret står i `docs/regelbeslut.md` under Förmågor, besvärjelser och väder. Avsnitt 0 och steg 2 i byggordningen (de enkla förmågorna) är byggda.
 Besluten för varje besvärjelse och förmåga flyttas till `docs/regelbeslut.md` när de byggs. Texten är egen och återger inte böckerna. Där boken anger ett värde som
 inte finns i `src/data/` står det **(Bok III)** eller **(Bok I)**, och då behövs avskriften när
 det byggs.

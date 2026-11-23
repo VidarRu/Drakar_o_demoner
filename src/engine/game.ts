@@ -9,6 +9,7 @@ import * as maneuvers from './maneuvers';
 import * as party from './party';
 import * as elementals from './elementals';
 import * as hero from './hero';
+import * as talents from './talents';
 import { roll, type Rng } from './dice';
 import {
   computeFov,
@@ -417,7 +418,7 @@ export class Game {
   /** Fiender som ser någon i gruppen som inte är dold. */
   private hostilesAware(): Actor[] {
     const seen = this.state.actors.filter((a) => a.alive && a.kind === 'player' && !a.hidden);
-    return this.state.actors.filter((a) => a.alive && a.hostile && !a.fled && seen.some((m) => this.canSee(a, m)));
+    return this.state.actors.filter((a) => a.alive && a.hostile && !a.fled && seen.some((m) => this.canSee(a, m) && !hero.spares(this, a, m)));
   }
 
   private checkAmbush() {
@@ -756,9 +757,32 @@ export class Game {
   playerCheck(skill: string, modifier = 0): Check {
     const p = this.player;
     const check = hero.heroic(this, p, skillCheck(this.skillFv(p, skill), this.rng, modifier + combat.skillMod(this, p, skill)));
+    combat.consumeSkillEffects(p, skill);
     this.gainExperience(p, skill, check);
     this.log(`${skill} (${describe(check)}): ${check.result}.`);
     return check;
+  }
+
+  /** Turgubbe eller Tjuvtur: ett tryck till köper +1 på nästa slag, och efter taket stängs den av. */
+  cycleLuck(source: talents.LuckSource) {
+    talents.cycleLuck(this, this.player, source);
+    this.changed();
+  }
+
+  /** God kroppskontroll: +5 STY i tre rundor efter ett Normalt FYS-slag. */
+  bodyControl(): string | null {
+    const r = talents.bodyControl(this, this.player);
+    if (r) this.log(r);
+    this.changed();
+    return r;
+  }
+
+  /** Munkens Meditation inför ett slag i färdigheten. */
+  meditate(skill: string): string | null {
+    const r = talents.meditate(this, this.player, skill);
+    if (r) this.log(r);
+    this.changed();
+    return r;
   }
 
   /** Laddar (eller avbryter) en hjältepoäng för nästa egna slag hos den som styrs. */
