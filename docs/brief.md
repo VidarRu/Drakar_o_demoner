@@ -170,6 +170,8 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 
 ## Öppna frågor till Vidar
 
+Förslaget till alla tre frågorna nedan står i `docs/forslag-magi-och-formagor.md`, med frågorna samlade sist.
+
 - Fiender som lägger besvärjelser, och verkan för alla besvärjelser i regelboken.
 - Vad de särskilda förmågorna, yrkesförmågorna och besvärjelserna utan verkan ska göra (se Senare ovan).
 - Alla tolkningar i steg 6, 7 och i utvecklingen mellan äventyren är nu avgjorda.
