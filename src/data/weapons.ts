@@ -68,7 +68,7 @@ export const RANGED_WEAPONS: RangedWeaponDef[] = [
 
 /**
  * Vapen utan järn som en magiker kan hålla och ändå lägga besvärjelser (Bok III s. 8).
- * Tolkning: trä, läder och rep; bågar räknas hit men pilarna ligger i kogret.
+ * Vidar har godkänt listan: trä, läder och rep; bågar räknas hit men pilarna ligger i kogret.
  */
 export const NON_IRON_WEAPONS = new Set([
   'trastav',

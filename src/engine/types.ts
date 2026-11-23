@@ -493,6 +493,8 @@ export interface GameState {
 export interface Character {
   name: string;
   gender: 'man' | 'kvinna';
+  /** Figuren som spelaren valde. Utan den används yrkets figur. */
+  sprite?: string;
   race: string;
   profession: string;
   age: { group: string; years: number };

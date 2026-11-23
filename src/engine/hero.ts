@@ -365,7 +365,8 @@ export function raiseAttribute(g: Game, a: Actor, attr: AttrKey): string | null 
 
 /**
  * En vunnen PSY-kamp: magikern övervann en fiendes motstånd, eller någon stod emot en fientlig
- * magikers besvärjelse eller blev oberörd på Skräcktabellen. Magikerns regel väger tyngst.
+ * magikers besvärjelse eller blev oberörd på Skräcktabellen. Hur kampen vanns avgör inte slaget
+ * efteråt (se `psyRaise`).
  */
 export function markPsyWin(g: Game, a: Actor, kind: 'magiker' | 'motstånd') {
   const ch = g.charOf(a);
@@ -373,11 +374,19 @@ export function markPsyWin(g: Game, a: Actor, kind: 'magiker' | 'motstånd') {
   if (ch.psyWin !== 'magiker') ch.psyWin = kind;
 }
 
-/** Slaget för att höja PSY efter ett äventyr (Bok I). Returnerar höjningen. */
+/** Vidar: den som kan magi (har FV i en magiskola) slår efter magikerns regel. */
+export function knowsMagic(a: Actor): boolean {
+  return Object.entries(a.skills).some(([k, fv]) => k.startsWith('magiskola:') && fv > 0);
+}
+
+/**
+ * Slaget för att höja PSY efter ett äventyr (Bok I). Den som kan magi slår mot 25 − PSY, andra mot
+ * 20 − PSY, hur kampen än vanns. Returnerar höjningen.
+ */
 export function psyRaise(g: Game, a: Actor): number {
   const ch = g.charOf(a);
   if (!ch?.psyWin) return 0;
-  const magician = ch.psyWin === 'magiker';
+  const magician = knowsMagic(a);
   delete ch.psyWin;
   const mod = hasAbility(ch, 'god_psy_potential') ? PSY_RAISE.potential : 0;
   const throwDie = () => {

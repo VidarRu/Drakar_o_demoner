@@ -162,11 +162,11 @@ Vidar svarade på frågorna om magin i steg 6. Husreglerna markeras som husregel
 - **Att lära sig besvärjelser (husregel):** det kostar inga EP. Man hittar en besvärjelse i spelet och skriver in den i formelsamlingen (`learnSpell`). Det kräver FV i skolan minst skolvärdet. S växer när FV i skolan stiger.
 - **Minnet och formelsamlingen:** som i boken. Man har högst (INT + PSY) / 4 besvärjelser i minnet, och högst FV i skolan från varje skola; en ritual tar tre platser. Att memorera tar 20 minuter per skolvärdespoäng (en timme för ritualer) och kräver lugn och ro. Startbesvärjelserna ligger i minnet. Besvärjelser som inte är i minnet läses ur formelsamlingen: en kvick tar 1T6 SR och en vanlig 1T6 minuter, så i strid går bara kvicka. Blir magikern medvetslös glömmer hen allt i minnet om ett Normalt PSY-slag misslyckas.
 - **Tid i strid:** att lägga en besvärjelse tar hela turen, och man får inte ha flyttat sig. Kvicka besvärjelser verkar direkt. Andra verkar i början av nästa runda (magi går före slagväxling). Blir magikern skadad innan dess bryts koncentrationen: 1 PSY går åt och inget händer.
-- **Järn:** som i boken. Metallrustning, ett vapen av järn i handen eller mer än 0,5 kg järn i packningen hindrar magin. Tolkning: trästav, klubbor, piska, slungor, blåsrör och bågar är inte av järn; sköldar räknas inte heller som järn. Järnföremålen i utrustningslistan står i `IRON_ITEMS`.
+- **Järn:** som i boken. Metallrustning, ett vapen av järn i handen eller mer än 0,5 kg järn i packningen hindrar magin. Vidar har godkänt att trästav, klubbor, piska, slungor, blåsrör och bågar inte är av järn. **Alla sköldar har metallbeslag och räknas som järn (Vidar):** en sköld i handen hindrar magin, och en sköld i packningen räknas in i järnets vikt. Järnföremålen i utrustningslistan står i `IRON_ITEMS`.
 - **Magiskt motstånd:** besvärjelser som påverkar psyket (KÄNNA FIENDSKAP, KÄNSLOLÄSNING) måste övervinna målets PSY med magikerns kvarvarande PSY på motståndstabellen. Fysiska besvärjelser (F) och besvärjelser på föremål gör inte det.
-- **Besvärjelser som verkar i spelet:** BLIXT, ELD, FROST, ENERGISTRÅLE, EXPLOSION, ELCHOCK, KALLA HANDEN, KNÄCKA, SKÖLD, FÖRTROLLA VAPEN, FÖRBANNA VAPEN, ÖRTRANKOR, HELA, NEUTRALISERA GIFT, SKYDD, LÄDERHUD, MÖRKERSYN, ORÄDD, SKINGRA, KÄNNA FIENDSKAP och KÄNSLOLÄSNING. De andra kan läras men inte läggas än. Tolkningar:
-  - BLIXT träffar den närmaste varelsen magikern ser.
-  - ELD och FROST drar skadan från totala KP, och rustningen på bröstkorgen tar emot den. Bara en sfär används.
+- **Besvärjelser som verkar i spelet:** BLIXT, ELD, FROST, ENERGISTRÅLE, EXPLOSION, ELCHOCK, KALLA HANDEN, KNÄCKA, SKÖLD, FÖRTROLLA VAPEN, FÖRBANNA VAPEN, ÖRTRANKOR, HELA, NEUTRALISERA GIFT, SKYDD, LÄDERHUD, MÖRKERSYN, ORÄDD, SKINGRA, KÄNNA FIENDSKAP och KÄNSLOLÄSNING. De andra kan läras men inte läggas än. Vidar har godkänt tolkningarna nedan:
+  - BLIXT träffar ett mål som magikern väljer (Vidar), som andra besvärjelser.
+  - ELD och FROST drar skadan från totala KP, och rustningen på bröstkorgen tar emot den som i boken. Bara en sfär används.
   - EXPLOSION gör full skada inom E meter (E / 1,5 rutor, avrundat nedåt; E1 träffar bara mittrutan) och 1 mindre per ruta längre bort, även på magikern. Alla som ser den bländas nästa runda (räknas som mörker).
   - SKÖLD parerar nästa fysiska anfall, även en pil, fram till slutet av nästa runda.
   - KNÄCKA tar skölden om målet har en, annars vapnet.
@@ -184,7 +184,7 @@ Reglerna följer Bok II s. 16–17 och Bok III s. 33 och 38.
 - **Sköldar och projektiler:** träffar projektilen en kroppsdel som skölden täcker, och skytten inte står bakom, tar skölden träffen. Skölden tappar BV om skadan är högre än dess BV.
 - **Skada:** kastvapen får skadebonus, projektilvapen inte.
 - **Laddning:** stavslungan, armborsten och arbalesten måste laddas om efter varje skott (1, 3, 6 och 12 SR). Att ladda tar hela turen. Efter striden är vapnet laddat.
-- **Ammunition:** pilar, armborstlod och arbalestlod förbrukas och köps tio i taget. Slungan klarar sig med stenar men får +2 med slungkulor. Tolkning: hälften av det som sköts hittas igen efter striden.
+- **Ammunition:** pilar, armborstlod och arbalestlod förbrukas och köps tio i taget. Slungan klarar sig med stenar men får +2 med slungkulor. Hälften av det som sköts hittas igen efter striden (Vidar har godkänt).
 - **Någon i vägen:** står någon i skottlinjen träffas hen i stället med 50 % chans (bokens riktvärde).
 - **Miss:** projektilen fortsätter 50 % längre än avståndet till målet (inom räckvidden) och kan träffa någon i banan, 1 % per STO-poäng. Kastvapen hamnar där de landar och plockas upp genom att gå dit.
 - **Söka skydd:** rollpersonen kan lägga sin tur på att söka skydd när en fiende med avståndsvapen deltar. Normalt SMI-slag. Med ett hinder intill dras differensvärdet från skyttarnas CL resten av rundan; annars kastar hen sig ned och får −1 per ruta till skytten. Varelserna söker inte skydd än.
@@ -197,8 +197,8 @@ Reglerna följer Bok II s. 16–17 och Bok III s. 33 och 38.
 - **Bördan** räknas som i Bok III: allt i packningen, halva vikten för rustning man bär, inga kläder, och 200 mynt per kg. Rustningsvikterna justeras efter kroppsbyggnaden. Avdraget gäller förflyttning, SMI (och därmed initiativet) och SMI-baserade färdigheter, men aldrig under 1. Över STY × 5 går inga SMI-färdigheter, och över STY × 6 kan man inte röra sig.
 - **Byta vapen** i strid tar handlingen men inte förflyttningen. Rustning byts bara utanför strid. Ett projektilvapen kräver båda händerna, så skölden läggs undan. Slitage (BV) följer med föremålet när det läggs i packningen.
 - **Handlare:** Bertil säljer mat, kläder och utrustning, Ylva vapen, ammunition, rustningar och sköldar, och Asta läkeörter och allmänna droger. Priserna följer Bok III.
-- **Köpslå** (Bok I): en gång per handlare och dag, FV mot handlarens FV på motståndstabellen. Vinner rollpersonen blir priserna differensvärdet × 5 % bättre den dagen. Tolkning: rabatten blir högst 50 %.
-- **Sälja (tolkning):** handlaren köper det hen själv säljer, för halva listpriset, och Köpslå höjer det med samma procent.
+- **Köpslå** (Bok I): en gång per handlare och dag, FV mot handlarens FV på motståndstabellen. Vinner rollpersonen blir priserna differensvärdet × 5 % bättre den dagen. Rabatten blir högst 50 % (Vidar har godkänt).
+- **Sälja (Vidar):** handlaren köper det hen själv säljer, för en fjärdedel av listpriset, och Köpslå höjer det med samma procent.
 
 ## Örter och gifter (byggt i steg 6)
 
@@ -306,8 +306,7 @@ Byggt: modulformatet, uppdragsloggen, epilogen, utgångarna och skärmen mellan 
 ## Utveckling mellan äventyren (beslutat i steg 8)
 
 Vidar bestämde upplägget i steg 8 efter Bok I s. 62–64 (Hur man blir bättre) och Bok III s. 7
-(Att bli bättre i magi). Det som står som tolkning har Vidar inte uttryckligen sagt; det står som
-öppen fråga i `docs/brief.md`.
+(Att bli bättre i magi). Det som står som tolkning har Vidar godkänt i efterhand.
 
 ### Erfarenhetspoäng
 
@@ -329,7 +328,7 @@ Vidar bestämde upplägget i steg 8 efter Bok I s. 62–64 (Hur man blir bättre
 - **Läraren** behöver FV 17 eller mer i färdigheten och INT 13 eller mer. FV måste vara mer än 3 högre än elevens (Bok I).
 - **Slagen:** eleven slår två Normala grundegenskapsslag i veckan för färdighetens grundegenskap, och varje lyckat slag ger 1 EP. Varje FV som läraren har över 18 ger +1. En ensam elev får +5 (Vidar: boken skriver CL −5, men ensamundervisningen kostar tre gånger så mycket).
 - **Kostnaden** är 150 sm i veckan. Undervisning i magi (magiskolor och besvärjelser) kostar 300 sm. Det blir 1,5 gånger så mycket om eleven är av en annan ras än läraren, och tre gånger så mycket för en ensam elev. Flera i gruppen som tränar samma färdighet för samma lärare samma vecka är inte ensamma elever, och var och en betalar sin del (tolkning).
-- **Följeslagare som lärare (Vidar):** den i gruppen som uppfyller lärarkraven kan lära de andra, utan kostnad. Tolkning: läraren lägger sin vecka på undervisningen.
+- **Följeslagare som lärare (Vidar):** den i gruppen som uppfyller lärarkraven kan lära de andra, utan kostnad. Läraren hinner också med en egen sysselsättning samma vecka (Vidar).
 - **Lärare i modulerna (Vidar):** personer i modulerna kan undervisa i det de kan (`NpcDef.teaches`). Deras FV och INT kommer från varelsedefinitionen, så kraven gäller också dem.
 - **Stadens lärare (Vidar):** mellan äventyren finns lärare med FV 18 och INT 14 i alla färdigheter, och en magiker med FV 18 i alla magiskolor. I kampanjen ska det gå att hitta unika, mycket skickliga lärare i modulerna och locka dem att flytta till staden; det byggs med kampanjspelet.
 
@@ -358,7 +357,7 @@ Vidar bestämde upplägget i steg 8 efter Bok I s. 62–64 (Hur man blir bättre
 
 - **Vunnen PSY-kamp (Vidar):** man har vunnit en PSY-kamp om man motstår en fientlig magikers besvärjelse, eller om man slår på Skräcktabellen och blir oberörd eller helt oberörd. En magiker vinner också när hen övervinner en fiendes motstånd mot en besvärjelse (Bok I).
 - **Slaget** slås när äventyret är slut (när modulen lämnas), ett slag per person och äventyr, för den som har vunnit en kamp:
-  - För en magiker som övervann ett motstånd lyckas 1T20 på 25 − PSY eller lägre och ger +1 PSY. En etta ger 1T3+1. Över PSY 24 krävs en etta för +1, och två ettor i rad ger 1T3+1.
+  - För en magiker lyckas 1T20 på 25 − PSY eller lägre och ger +1 PSY. En etta ger 1T3+1. Över PSY 24 krävs en etta för +1, och två ettor i rad ger 1T3+1.
   - För de andra lyckas 1T20 på 20 − PSY eller lägre och ger +1. En etta ger 1T3+1, och över PSY 19 ger bara en etta +1.
-  - Tolkning: har man vunnit på båda sätten gäller magikerns regel.
+  - **Vilken regel (Vidar):** den som kan magi (har FV i en magiskola) slår med 25 − PSY, och den som inte kan magi med 20 − PSY. Det spelar ingen roll hur kampen vanns.
 - God PSY-potential ger −5 på slaget, och ett resultat på 0 eller lägre räknas som 1.

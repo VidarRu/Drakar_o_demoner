@@ -97,10 +97,12 @@ export function ironProblem(g: Game, p: Actor = g.player): string | null {
     const id = slot === 'weapon' ? p.weapon : p.offhand;
     if (id && WEAPONS[id] && !NON_IRON_WEAPONS.has(id)) return `Du håller ${WEAPONS[id].name.toLowerCase()} av järn i handen.`;
   }
+  // Vidar: alla sköldar har metallbeslag och räknas som järn.
+  if (p.shield && SHIELDS[p.shield]) return `${SHIELDS[p.shield].name} har metallbeslag.`;
   let iron = 0;
   for (const id of (g.charOf(p) ?? g.char).inventory) {
-    if (id === p.weapon || id === p.offhand || p.armor.includes(id)) continue;
-    if ((WEAPONS[id] && !NON_IRON_WEAPONS.has(id)) || ARMOR[id]?.metal || IRON_ITEMS.has(id)) iron += weightOf(g, id, p);
+    if (id === p.weapon || id === p.offhand || id === p.shield || p.armor.includes(id)) continue;
+    if ((WEAPONS[id] && !NON_IRON_WEAPONS.has(id)) || ARMOR[id]?.metal || SHIELDS[id] || IRON_ITEMS.has(id)) iron += weightOf(g, id, p);
   }
   if (iron > IRON_LIMIT_KG) return `Du bär ${Math.round(iron * 10) / 10} kg järn i packningen (högst ${IRON_LIMIT_KG} kg).`;
   return null;

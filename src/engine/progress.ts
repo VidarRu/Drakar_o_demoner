@@ -236,7 +236,6 @@ export function joinAcademy(g: Game, a: Actor): string | null {
 export function activityProblem(g: Game, a: Actor, act: WeekActivity, plan: WeekPlan = {}): string | null {
   const ch = g.charOf(a);
   if (!ch) return 'Bara rollpersoner tränar.';
-  if (isTeaching(g, plan, a.id) && act.kind !== 'vila') return `${a.name} undervisar den här veckan.`;
   switch (act.kind) {
     case 'vila':
       return null;
@@ -248,7 +247,6 @@ export function activityProblem(g: Game, a: Actor, act: WeekActivity, plan: Week
     case 'lärare': {
       const t = teacherById(g, act.teacher);
       if (!t) return 'Läraren finns inte här.';
-      if (t.actorId && plan[t.actorId] && plan[t.actorId].kind !== 'vila') return `${t.name} har annat för sig.`;
       return teachProblem(g, a, t, act.skill);
     }
     case 'bibliotek':
@@ -346,8 +344,7 @@ export function runWeek(g: Game, plan: WeekPlan): { lines: string[] } | { proble
     const act = plan[a.id] ?? { kind: 'vila' };
     switch (act.kind) {
       case 'vila':
-        if (!isTeaching(g, plan, a.id)) lines.push(`${a.name} vilar.`);
-        else lines.push(`${a.name} undervisar.`);
+        lines.push(`${a.name} vilar.`);
         break;
       case 'ensam': {
         const c = trainingRoll(g, a, act.skill);
@@ -415,6 +412,8 @@ export function runWeek(g: Game, plan: WeekPlan): { lines: string[] } | { proble
         break;
       }
     }
+    // Vidar: en följeslagare som undervisar hinner också med sin egen sysselsättning.
+    if (isTeaching(g, plan, a.id)) lines.push(`${a.name} undervisar också andra i gruppen.`);
   }
   easePhobias(g);
   for (const l of lines) g.log(l);

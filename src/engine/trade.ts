@@ -101,7 +101,7 @@ export function buyPrice(g: Game, npc: Actor, price: number): number {
   return Math.max(1, Math.ceil((price * (100 - discount(g, npc))) / 100));
 }
 
-/** Tolkning: handlaren köper för halva listpriset, och Köpslå höjer det med samma procent. */
+/** Vidar: handlaren köper för en fjärdedel av listpriset, och Köpslå höjer det med samma procent. */
 export function sellPrice(g: Game, npc: Actor, price: number): number {
   return Math.floor((price * TRADE.sellShare * (100 + discount(g, npc))) / 100);
 }

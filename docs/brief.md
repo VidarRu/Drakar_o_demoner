@@ -63,6 +63,14 @@ Vidar har bestämt dödsregeln och hur modulerna byggs upp (avsnitten Strid och 
   - **Rättat på vägen:** taket för Historia, Alkemi och Kunskap om … räknades mot en Läsa/Skriva-nyckel som inte fanns (FV sparas per språk), så taket blev 0. `bestFv` i `time.ts` letar nu upp språket. Extremt smärttålig gav inte heller fler KP i spelet; `recompute` gör det nu.
   - **Läsnivå:** `readLevel` ger B1–B5 efter bokens tak i EP, och magiska skrifter kräver B4. En bok kan ha ett eget `readLevel` och ett `language`.
   - **Gråvads exempel (Vidar har godkänt):** Grukk ger 2 HP till var och en, uppdraget ger 3 bonus-EP som förut, och Grukk bär krönikan (B2). Asta har Läkekonst 17 och INT 13 och undervisar i Läkekonst (`NpcDef.teaches`).
+- **Besluten om de öppna frågorna** (Vidar gick igenom dem; se `docs/regelbeslut.md`):
+  - Handlare köper för en fjärdedel av listpriset (`TRADE.sellShare`).
+  - Alla sköldar räknas som järn för magin (`ironProblem`).
+  - Magikern väljer målet för BLIXT (`aim: 'fiende'`, och `aim: 'närmast'` är borttaget).
+  - En följeslagare som undervisar hinner också med en egen sysselsättning (`activityProblem` och `runWeek`).
+  - PSY-slaget efter äventyret följer magikerns regel för den som kan magi (`knowsMagic` i `hero.ts`), annars den vanliga.
+  - De andra tolkningarna i steg 6 och i utvecklingen mellan äventyren är godkända som de är.
+  - **Figurval:** spelaren väljer figur i första steget när rollpersonen skapas (`Draft.sprite` och `Character.sprite`, listan `PLAYER_SPRITES` i `src/content/index.ts`). Fyra nya figurer finns: magiker, krigarinna, alv och dvärg. Utan eget val används yrkets figur (`PROFESSION_SPRITES`, där magiker nu får magikerfiguren).
 
 ### Nästa i steg 8
 
@@ -91,7 +99,7 @@ Vid något tillfälle ska vi diskutera fiender som lägger besvärjelser, och va
 
 - Varelser som söker skydd, och fiender som frammanar elementarer.
 - Fler handlingar: använda magiska föremål, piskans avväpning, spjut mot anstormande varelser och strid från hästryggen.
-- Egna figurer för fler yrken och raser (bara krigare, jägare och tjuv finns för rollpersonen).
+- Fler figurer att välja bland, till exempel för halvlängdsman, anka och halvorch.
 
 ## Steg 7 i korthet
 
@@ -133,7 +141,7 @@ Vid något tillfälle ska vi diskutera fiender som lägger besvärjelser, och va
 - `GameState.dropped` är föremål som tappats på marken och `GameState.time` är speltiden i sekunder. Sparformatet är version 6; äldre sparningar läses inte.
 - **Rollformuläret** (`src/ui/sheet.ts`, öppnas med R) följer originalformulärets uppställning: framsida med grundegenskaper och färdigheter, baksida med kroppsfiguren och träffområdena, vapen, pengar och utrustning. Förlorade KP kryssas över. Kroppsfiguren (`src/ui/figure.ts`) används också i statuspanelen, färgad efter skadorna.
 - `src/content/` innehåller äventyret Gråvad. Varelserna har `humanoid`, `darkvision`, `leader`, `noMorale`, `fear` och `ranged`, personerna `shop`, och kartan `habitats` (växtplatser för örter).
-- **Spelarfigurer:** bara `krigare`, `jagare` och `tjuv` finns. `PROFESSION_SPRITES` ger alla elva yrken en av dem tills det finns egna.
+- **Spelarfigurer:** spelaren väljer bland `PLAYER_SPRITES` (krigare, krigarinna, jägare, tjuv, magiker, alv och dvärg). `PROFESSION_SPRITES` ger förvalet för varje yrke.
 
 ## Saknas i striden
 
@@ -151,7 +159,7 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 176 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 179 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
 `tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
 
@@ -162,14 +170,6 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 
 ## Öppna frågor till Vidar
 
-- Ska spelaren få fler figurer, en per yrke eller ras?
-- Tolkningarna i steg 6 som Vidar inte uttryckligen har godkänt: säljpriset (halva listpriset), högsta rabatt 50 %, att hälften av pilarna hittas igen, vilka vapen som inte är av järn, och hur ELD, BLIXT och EXPLOSION träffar (se `docs/regelbeslut.md`).
-- Övriga tolkningar i steg 7 har Vidar godkänt (se `docs/regelbeslut.md`).
-- **Tolkningar i utvecklingen mellan äventyren** som Vidar inte uttryckligen har godkänt (markerade som tolkning i `docs/regelbeslut.md`):
-  - att lönen går till rollpersonens kassa och att rollpersonen betalar gruppens veckor,
-  - att biblioteket har en kodex för varje besvärjelse och att gruppen delar på böckerna,
-  - att medlemskapet i akademin gäller en person,
-  - att en följeslagare som undervisar inte gör något annat den veckan,
-  - att baschansen följer med när en grundegenskap höjs,
-  - att magikerns regel gäller den som har vunnit PSY-kamper på båda sätten.
 - Fiender som lägger besvärjelser, och verkan för alla besvärjelser i regelboken.
+- Vad de särskilda förmågorna, yrkesförmågorna och besvärjelserna utan verkan ska göra (se Senare ovan).
+- Alla tolkningar i steg 6, 7 och i utvecklingen mellan äventyren är nu avgjorda.

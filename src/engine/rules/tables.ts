@@ -336,11 +336,11 @@ export const AMMUNITION: Record<string, { item: string; perPack: number; optiona
   stavslunga: { item: 'slungkulor', perPack: 10, optional: true, cl: 2 },
 };
 
-/** Handel (Bok I Köpslå). Säljpriset är en tolkning: halva listpriset. */
+/** Handel (Bok I Köpslå). Säljpriset (Vidar): en fjärdedel av listpriset. */
 export const TRADE = {
   /** Varje poäng i differensvärde på motståndsslaget ger 5 % rabatt. */
   haggleStep: 5,
-  sellShare: 0.5,
+  sellShare: 0.25,
 };
 
 /** −2 på CL per förlorad KP i en kroppsdel som färdigheten kräver. */

@@ -184,10 +184,6 @@ export function spellTargets(g: Game, id: string, extraRange = 0): Actor[] {
       return [p];
     case 'fiende':
       return near.filter((a) => a.hostile || a.kind === 'npc');
-    case 'närmast': {
-      const d = Math.min(...near.map((a) => distance(p.x, p.y, a.x, a.y)));
-      return near.filter((a) => distance(p.x, p.y, a.x, a.y) === d);
-    }
     default:
       return [p, ...near];
   }

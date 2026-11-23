@@ -54,6 +54,8 @@ export const RAISABLE: RaisableAttr[] = ['STY', 'FYS', 'SMI', 'INT', 'PSY', 'KAR
 export interface Draft {
   name: string;
   gender: 'man' | 'kvinna';
+  /** Vald figur på kartan; utan val används yrkets figur. */
+  sprite?: string;
   race: string;
   profession: string;
   /** Köpta grundegenskaper (3–18) före rasmodifikation. */
@@ -671,6 +673,7 @@ export function finalize(d: Draft): Character {
   return {
     name: d.name.trim(),
     gender: d.gender,
+    ...(d.sprite ? { sprite: d.sprite } : {}),
     race: d.race,
     profession: d.profession,
     age: { group: r.ageRules ? r.ageRules.attrsAndMaxFv : d.age, years },

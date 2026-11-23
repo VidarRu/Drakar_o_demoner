@@ -103,10 +103,6 @@ export class WeekPlanner {
     const ch = g.charOf(a)!;
     const tr = el('tr');
     const act = this.plan[a.id] ?? { kind: 'vila' };
-    if (isTeaching(g, this.plan, a.id)) {
-      tr.append(el('td', '', a.name), el('td', '', 'Undervisar'), el('td'), el('td', 'note', 'Gratis'));
-      return tr;
-    }
 
     const kind = el('select');
     kind.append(new Option('Vila', 'vila'), new Option('Träna själv', 'ensam'));
@@ -147,6 +143,7 @@ export class WeekPlanner {
       const alone = Object.values(this.plan).filter((x) => x.kind === 'lärare' && x.teacher === act.teacher && x.skill === act.skill).length === 1;
       note = `${teacherCost(t, ch, act.skill, alone)} sm${alone && !t.free ? ', ensam elev (+5)' : ''}`;
     }
+    if (!problem && isTeaching(g, this.plan, a.id)) note = note ? `${note}; undervisar också` : 'Undervisar också';
     const c1 = el('td');
     c1.append(kind);
     tr.append(el('td', '', a.name), c1, what, el('td', problem ? 'note warn' : 'note', note));
