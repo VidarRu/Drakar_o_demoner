@@ -275,7 +275,7 @@ export interface SpellDef {
   /** Vad besvärjelsen gör i spelet. Saknas den kan besvärjelsen läras men inte användas än. */
   effect?: SpellEffect;
   /** Vem besvärjelsen kan riktas mot: magikern själv, en fiende, valfri varelse eller närmaste varelse. */
-  aim?: 'själv' | 'fiende' | 'valfri' | 'närmast';
+  aim?: 'själv' | 'fiende' | 'valfri';
   /** Försöker påverka målets psyke: en ovillig varelse gör motstånd med PSY. */
   resisted?: boolean;
 }

@@ -42,7 +42,18 @@ export const NATURAL_WEAPONS = list<NaturalWeaponDef>(
   'Vapnet',
 );
 
-/** Figurer för rollpersonens yrke, tills det finns egna för alla elva yrken. */
+/** Figurer som spelaren kan välja åt rollpersonen (Vidar). */
+export const PLAYER_SPRITES: { id: string; name: string }[] = [
+  { id: 'krigare', name: 'Krigare' },
+  { id: 'krigarinna', name: 'Krigarinna' },
+  { id: 'jagare', name: 'Jägare' },
+  { id: 'tjuv', name: 'Tjuv' },
+  { id: 'magiker', name: 'Magiker' },
+  { id: 'alv', name: 'Alv' },
+  { id: 'dvarg', name: 'Dvärg' },
+];
+
+/** Förvald figur för rollpersonens yrke, när spelaren inte har valt någon. */
 export const PROFESSION_SPRITES: Record<string, string> = {
   krigare: 'krigare',
   riddare: 'krigare',
@@ -50,7 +61,7 @@ export const PROFESSION_SPRITES: Record<string, string> = {
   utbygdsjagare: 'jagare',
   sjofarare: 'jagare',
   helare: 'jagare',
-  magiker: 'jagare',
+  magiker: 'magiker',
   lard_man: 'jagare',
   tjuv: 'tjuv',
   lonnmordare: 'tjuv',

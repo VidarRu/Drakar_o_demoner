@@ -55,6 +55,8 @@ import {
 } from '../engine/creation';
 import { AGE, AGE_GROUPS, attrPrice, damageBonus, grip, maxKp, movement, stoPrice } from '../engine/rules';
 import type { Character } from '../engine/types';
+import { PLAYER_SPRITES, PROFESSION_SPRITES } from '../content';
+import { portraitUrl } from '../game/art';
 import { $, el } from './hud';
 
 const STEP_NAMES: Record<Step, string> = {
@@ -113,6 +115,9 @@ function textInput(value: string, onchange: (v: string) => void, placeholder = '
 }
 
 /** Guiden för att skapa en rollperson med bakgrundspoäng, steg för steg enligt Bok I. */
+const portraits: Record<string, string> = {};
+const portrait = (id: string) => (portraits[id] ??= portraitUrl(id));
+
 export class CreatorUi {
   private d: Draft = newDraft();
   private step = 0;
@@ -196,7 +201,23 @@ export class CreatorUi {
     const info = el('p', 'note', `${p.desc} Yrkesförmåga – ${p.ability.name}: ${p.ability.desc}`);
     const r = race(d);
     const raceInfo = el('p', 'note', r.traits.join(' ') || 'Människor passar till alla yrken.');
-    body.append(name, gender, el('h3', '', 'Ras'), races, raceInfo, el('h3', '', 'Yrke'), profs, info);
+    body.append(name, gender, el('h3', '', 'Ras'), races, raceInfo, el('h3', '', 'Yrke'), profs, info, el('h3', '', 'Figur'), this.figures());
+  }
+
+  /** Figuren på kartan. Utan eget val används den som hör till yrket. */
+  private figures(): HTMLElement {
+    const d = this.d;
+    const current = d.sprite ?? PROFESSION_SPRITES[d.profession] ?? 'krigare';
+    const box = el('div', 'choices figures');
+    for (const s of PLAYER_SPRITES) {
+      const b = button('', () => this.update(() => (d.sprite = s.id)), current === s.id ? 'sel' : '');
+      const img = el('img') as HTMLImageElement;
+      img.src = portrait(s.id);
+      img.alt = '';
+      b.append(img, el('b', '', s.name));
+      box.append(b);
+    }
+    return box;
   }
 
   private setRace(id: string) {

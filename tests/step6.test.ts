@@ -126,6 +126,15 @@ describe('magins regler', () => {
     expect(castProblem(g, 'skold', { grade: 1 })).toMatch(/Järnet stör magin/);
   });
 
+  it('alla sköldar räknas som järn (Vidar)', () => {
+    const c = testMage();
+    c.inventory.push('targ');
+    const g = Game.create(c, seededRng(1));
+    expect(ironProblem(g)).toMatch(/järn i packningen/);
+    g.player.shield = 'targ';
+    expect(ironProblem(g)).toMatch(/metallbeslag/);
+  });
+
   it('minnet rymmer (INT + PSY) / 4 besvärjelser och memorering tar tid', () => {
     const g = Game.create(testMage(), seededRng(1));
     const t = g.state.time;
@@ -256,16 +265,16 @@ describe('bärförmåga och handel', () => {
     expect(combat.effectiveMove(p, g)).toBe(0);
   });
 
-  it('köper till Bok III:s priser och säljer för halva priset', () => {
+  it('köper till Bok III:s priser och säljer för en fjärdedel av priset', () => {
     const g = Game.create(testCharacter(), seededRng(1));
     const smith = g.state.actors.find((a) => a.npc === 'smed')!;
     const silver = g.player.silver;
     expect(wares(g, smith).some((w) => w.id === 'langbage')).toBe(true);
     expect(buy(g, smith, 'dolk')).toBeNull();
     expect(g.player.silver).toBe(silver - 70);
-    expect(sellable(g, smith).find((w) => w.id === 'dolk')?.price).toBe(35);
+    expect(sellable(g, smith).find((w) => w.id === 'dolk')?.price).toBe(17);
     expect(sell(g, smith, 'dolk')).toBeNull();
-    expect(g.player.silver).toBe(silver - 35);
+    expect(g.player.silver).toBe(silver - 53);
   });
 
   it('Köpslå ger 5 % per poäng i differensvärde', () => {

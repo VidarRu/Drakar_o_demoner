@@ -122,7 +122,7 @@ export function actorFromCharacter(char: Character, id: string, x: number, y: nu
       defId: id === 'player' ? 'player' : `rp:${slugName(char.name)}`,
       name: char.name,
       kind: 'player',
-      sprite: sprite ?? PROFESSION_SPRITES[char.profession] ?? 'krigare',
+      sprite: sprite ?? char.sprite ?? PROFESSION_SPRITES[char.profession] ?? 'krigare',
       x,
       y,
       attrs: { ...char.attrs },

@@ -91,10 +91,12 @@ describe('träning med lärare (Bok I s. 62)', () => {
       [sigrid.id]: { kind: 'lärare' as const, teacher: linnea.id, skill: 'forsta_hjalpen' },
     };
     expect(weekCost(g, plan)).toBe(3 * TRAINING.weekCost);
-    // Linnea lägger veckan på att undervisa och kan inte göra något annat.
-    expect(activityProblem(g, linnea, { kind: 'ensam', skill: 'smyga' }, plan)).toMatch(/undervisar/);
-    const r = runWeek(g, plan);
-    expect('lines' in r && r.lines.join('\n')).toContain('Linnea undervisar');
+    // Vidar: Linnea undervisar och hinner ändå träna själv samma vecka.
+    expect(activityProblem(g, linnea, { kind: 'ensam', skill: 'smyga' }, plan)).toBeNull();
+    const r = runWeek(g, { ...plan, [linnea.id]: { kind: 'ensam', skill: 'smyga' } });
+    const text = 'lines' in r ? r.lines.join('\n') : '';
+    expect(text).toContain('Linnea tränar');
+    expect(text).toContain('Linnea undervisar också');
   });
 });
 
@@ -334,14 +336,24 @@ describe('PSY-höjning efter äventyret (Bok I s. 64)', () => {
     expect(psyRaise(g, p)).toBe(0);
   });
 
-  it('magiker: 25 − PSY, och över 24 krävs ettor', () => {
+  it('den som kan magi: 25 − PSY, och över 24 krävs ettor', () => {
     const g = game();
     const p = g.leader;
     g.state.character.attrs.PSY = 25;
     p.attrs.PSY = 25;
+    p.skills['magiskola:elementarmagi'] = 8;
     g.state.character.psyWin = 'magiker';
     g.rng = always(0); // två ettor i rad: 1T3+1
     expect(psyRaise(g, p)).toBe(2);
+  });
+
+  it('den som kan magi slår mot 25 − PSY även efter en kamp på Skräcktabellen (Vidar)', () => {
+    const g = game();
+    const p = g.leader; // PSY 10
+    p.skills['magiskola:elementarmagi'] = 8;
+    g.state.character.psyWin = 'motstånd';
+    g.rng = always(0.6); // 13: lyckas mot 15 men inte mot 10
+    expect(psyRaise(g, p)).toBe(1);
   });
 
   it('slaget slås när gruppen lämnar modulen', () => {

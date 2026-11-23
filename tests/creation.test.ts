@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { Game } from '../src/engine/game';
+import { testCharacter } from './helpers';
 import {
   ability,
   availableSpells,
@@ -190,5 +192,14 @@ describe('skapa rollperson med bakgrundspoäng', () => {
     expect(c.inventory).toContain('langbage');
     d.equipped.shield = 'targ';
     expect(stepErrors(d, 'utrustning').join()).toMatch(/måste köpas/);
+  });
+});
+
+describe('figuren (Vidar)', () => {
+  it('spelaren kan välja figur, annars används yrkets', () => {
+    const c = testCharacter();
+    expect(Game.create(c).leader.sprite).toBe('krigare');
+    c.sprite = 'dvarg';
+    expect(Game.create(c).leader.sprite).toBe('dvarg');
   });
 });
