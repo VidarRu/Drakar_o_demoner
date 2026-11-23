@@ -61,16 +61,27 @@ Vidar har bestämt dödsregeln och hur modulerna byggs upp (avsnitten Strid och 
     - Knappen "Hjältepoäng" finns i stridspanelen och i panelen när man utforskar.
     - Rollformuläret visar alla förmågor och hjältepoäng.
   - **Rättat på vägen:** taket för Historia, Alkemi och Kunskap om … räknades mot en Läsa/Skriva-nyckel som inte fanns (FV sparas per språk), så taket blev 0. `bestFv` i `time.ts` letar nu upp språket. Extremt smärttålig gav inte heller fler KP i spelet; `recompute` gör det nu.
-  - **Gråvads exempel:** Grukk ger 2 HP till var och en, uppdraget ger 3 bonus-EP som förut, och Grukk bär krönikan. Ingen i Gråvad har FV 17, så ingen där kan undervisa än.
+  - **Läsnivå:** `readLevel` ger B1–B5 efter bokens tak i EP, och magiska skrifter kräver B4. En bok kan ha ett eget `readLevel` och ett `language`.
+  - **Gråvads exempel (Vidar har godkänt):** Grukk ger 2 HP till var och en, uppdraget ger 3 bonus-EP som förut, och Grukk bär krönikan (B2). Asta har Läkekonst 17 och INT 13 och undervisar i Läkekonst (`NpcDef.teaches`).
 
 ### Nästa i steg 8
 
 1. **Vidars första äventyr:** han laddar upp ett äldre äventyr, och det byggs om till en modul med egna ord.
 2. **Världskartan** för modulen: rutnät ovanifrån, en ruta per timme, gruppen som en figur, fiender som ikoner som vandrar och jagar, smyga förbi, stridsmöten på färdiga stridskartor efter terrängen, och mötesplatser som man går in i och ut ur. `GameState.places` är redan byggt för att spara kartor man lämnar. `Game.map` är i dag `readonly` och byggs när spelet startar; att byta karta inom en modul kräver att kartvyn (`WorldScene`) byggs om.
 3. **Resekartan** för kampanjen, med modulerna som klickbara ikoner. Restid bestäms senare.
-4. **Utvecklingen mellan äventyren:** klar (se ovan). Kvar är stadskartan i stället för menyn, och att bestämma per modul vilka dåd som ger hjältepoäng och bonus-EP.
+4. **Utvecklingen mellan äventyren:** klar (se ovan). Kvar är stadskartan i stället för menyn, att bestämma per modul vilka dåd som ger hjältepoäng och bonus-EP, en lista över vilka språk böckerna är skrivna på, och unika lärare i modulerna som kan flytta till staden (med kampanjspelet).
 5. **Slumpmöten** i vildmarken: Vidar vill ha dem, men tabellerna saknas.
 6. **Sparning på server** (till exempel Supabase), senare.
+
+### Senare: förmågor och besvärjelser utan verkan
+
+Vidar vill gå igenom tre listor och bestämma vad var och en gör i spelet:
+
+1. **Särskilda förmågor** som inte gör något än, till exempel Gudarnas gunstling, Turgubbe, Djurvän, Hamnbytare, God tidskänsla och Absolut ögonmått. De kan köpas för hjältepoäng.
+2. **Yrkesförmågor** som inte gör något än.
+3. **Besvärjelser** som saknar `effect` i `src/data/spells.ts` (se nedan).
+
+Vidar vill också göra en genomgång av hela regelsystemet när det är klart, för att se att det är konsekvent.
 
 ### Senare: besvärjelser
 
@@ -140,7 +151,7 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 173 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 176 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
 `tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
 
@@ -155,14 +166,10 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 - Tolkningarna i steg 6 som Vidar inte uttryckligen har godkänt: säljpriset (halva listpriset), högsta rabatt 50 %, att hälften av pilarna hittas igen, vilka vapen som inte är av järn, och hur ELD, BLIXT och EXPLOSION träffar (se `docs/regelbeslut.md`).
 - Övriga tolkningar i steg 7 har Vidar godkänt (se `docs/regelbeslut.md`).
 - **Tolkningar i utvecklingen mellan äventyren** som Vidar inte uttryckligen har godkänt (markerade som tolkning i `docs/regelbeslut.md`):
-  - dagslönerna per yrke (`WORK_WAGES`), att lönen går till rollpersonens kassa och att rollpersonen betalar gruppens veckor,
-  - stadens lärare med FV 18 och INT 14 i allt,
-  - att biblioteket har en kodex för varje besvärjelse,
-  - att böckerna kräver B1 i Läsa/Skriva och att gruppen delar på dem,
+  - att lönen går till rollpersonens kassa och att rollpersonen betalar gruppens veckor,
+  - att biblioteket har en kodex för varje besvärjelse och att gruppen delar på böckerna,
   - att medlemskapet i akademin gäller en person,
   - att en följeslagare som undervisar inte gör något annat den veckan,
   - att baschansen följer med när en grundegenskap höjs,
   - att magikerns regel gäller den som har vunnit PSY-kamper på båda sätten.
-- **Gråvads värden:** Grukk ger 2 HP och krönikan 5 EP. Ska någon i Gråvad kunna undervisa (till exempel Asta i Läkekonst, som i dag har FV 15)?
-- **Särskilda förmågor utan verkan i spelet:** flera förmågor gör inget i spelet än, till exempel Gudarnas gunstling, Turgubbe, Djurvän och Hamnbytare. De kan nu köpas för hjältepoäng.
 - Fiender som lägger besvärjelser, och verkan för alla besvärjelser i regelboken.

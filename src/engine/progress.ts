@@ -158,12 +158,33 @@ export function groupBooks(g: Game): BookDef[] {
   return [...ids].filter((id) => BOOKS[id]).map((id) => BOOKS[id]);
 }
 
+/** Läsnivån som boken kräver (B1–B5): magiska skrifter B4, annars efter bokens tak i EP (Vidar). */
+export function readLevel(book: BookDef): number {
+  if (book.readLevel) return book.readLevel;
+  if (book.spell) return TRAINING.magicReading;
+  return TRAINING.readingLevels.find((r) => (book.maxEp ?? 0) <= r.maxEp)?.level ?? TRAINING.readingTop;
+}
+
+/** Läsnivån (B0–B5) i ett språk, eller i modersmålet om inget språk anges. */
+export function readingLevelOf(a: Actor, language?: string): number {
+  if (!language) return bLevel(bestFv(a, LS));
+  const keys = [`${LS}:${language}`, `las_skriv_frammande:${language}`];
+  return bLevel(Math.max(0, ...keys.map((k) => a.skills[k] ?? 0)));
+}
+
+/** Varför hen inte kan läsa skriften, eller null. */
+function readingProblem(a: Actor, level: number, language?: string): string | null {
+  if (readingLevelOf(a, language) >= level) return null;
+  return `Det krävs B${level} i Läsa/Skriva${language ? ` (${language})` : ''}, och ${a.name} har B${readingLevelOf(a, language)}.`;
+}
+
 /** Varför hen inte kan studera boken, eller null. */
 export function bookProblem(g: Game, a: Actor, book: BookDef): string | null {
   const ch = g.charOf(a)!;
   if (!groupBooks(g).includes(book)) return 'Boken finns inte i packningen.';
+  const reading = readingProblem(a, readLevel(book), book.language);
+  if (reading) return reading;
   if (book.spell) return codexProblem(g, a, book.spell);
-  if (bLevel(bestFv(a, LS)) < TRAINING.readingLevel) return `${a.name} kan inte läsa tillräckligt bra.`;
   if (!book.skill) return 'Boken lär inte ut något.';
   if ((ch.studied?.[book.id] ?? 0) >= (book.maxEp ?? 0)) return `${a.name} har lärt sig allt som står i boken.`;
   const fv = a.skills[book.skill] ?? 0;
@@ -186,6 +207,9 @@ export function libraryProblem(g: Game, a: Actor, skill: string): string | null 
   const ch = g.charOf(a)!;
   if (!inCity(g)) return 'Det finns inget magibibliotek här.';
   if (!ch.academy) return `${a.name} är inte medlem i ${CITY.academy}.`;
+  // Bibliotekets magiska skrifter kräver B4 i Läsa/Skriva (Vidar).
+  const reading = readingProblem(a, TRAINING.magicReading);
+  if (reading) return reading;
   if (isSpell(skill)) return codexProblem(g, a, skill.slice('spell:'.length));
   if (!skill.startsWith('magiskola:')) return 'Biblioteket har bara magiska skrifter.';
   if (a.skills[skill] === undefined) return `${a.name} kan inte den skolan.`;

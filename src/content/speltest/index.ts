@@ -108,8 +108,9 @@ const creatures: CreatureDef[] = [
     id: 'gumma',
     name: 'Kloka gumman Asta',
     sprite: 'gumma',
-    attrs: { ...human, STY: 7, PSY: 16 },
-    skills: { dolkar: 6, lakekonst: 15, ortkunskap: 15, drogkunskap: 12, kopsla: 13 },
+    attrs: { ...human, STY: 7, INT: 13, PSY: 16 },
+    // Läkekonst 17 och INT 13: Asta kan undervisa i Läkekonst (Vidar, steg 8).
+    skills: { dolkar: 6, lakekonst: 17, ortkunskap: 15, drogkunskap: 12, kopsla: 13 },
     weapon: 'dolk',
     move: 9,
     hostile: false,
@@ -166,7 +167,7 @@ const npcs: NpcDef[] = [
     persona:
       'Asta är byns kloka gumma: gammal, skarpögd och lite kuslig. Hon talar i gåtor och ordspråk men menar väl.',
     knowledge:
-      'Hon kan förbinda sår för 5 silvermynt, och vårda sår och infektioner med Läkekonst en gång om dagen för samma pris. Hon säljer läkeörter och andra droger som hon har plockat i skogen; vilka hon har inne skiftar från dag till dag. Hon vet att vargarna i skogen flyr ogärna och att svartalferna fruktar eld och dagsljus.',
+      'Hon kan förbinda sår för 5 silvermynt, och vårda sår och infektioner med Läkekonst en gång om dagen för samma pris. Hon säljer läkeörter och andra droger som hon har plockat i skogen; vilka hon har inne skiftar från dag till dag. Hon vet att vargarna i skogen flyr ogärna och att svartalferna fruktar eld och dagsljus. Hon lär ut läkekonst till den som vilar en vecka på värdshuset och betalar för undervisningen.',
     greeting: 'Jaså, en vandrare. Jag såg dig i teet i morse. Du blöder snart, om du inte redan gör det.',
     topics: [
       {
@@ -176,6 +177,7 @@ const npcs: NpcDef[] = [
     ],
     shop: { goods: ['läkedroger', 'droger'] },
     intents: ['forbind', 'vard', 'handla', 'anfall'],
+    teaches: ['lakekonst'],
   },
   {
     id: 'hjalmar',

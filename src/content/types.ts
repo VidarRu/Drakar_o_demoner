@@ -64,6 +64,13 @@ export interface BookDef {
   maxEp?: number;
   /** Magisk kodex: besvärjelsen som boken lär ut. */
   spell?: string;
+  /**
+   * Läsnivån i Läsa/Skriva som krävs (B1–B5). Saknas den räknas den fram ur bokens tak i EP,
+   * och magiska skrifter kräver alltid B4 (Vidar).
+   */
+  readLevel?: number;
+  /** Språket boken är skriven på. Saknas det räcker Läsa/Skriva modersmål. */
+  language?: string;
 }
 
 /**

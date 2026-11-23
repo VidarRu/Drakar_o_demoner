@@ -533,8 +533,18 @@ export const TRAINING = {
   /** Deltidsträning vid arbete tar dubbelt så lång tid: ett slag varannan vecka. */
   partTimeWeeks: 2,
   workDays: 6,
-  /** Böcker kräver minst B1 i Läsa/Skriva modersmål (tolkning). */
-  readingLevel: 1,
+  /**
+   * Läsnivån en bok kräver efter hur många EP den kan ge (Vidar): högst 3 EP B1, högst 5 B2,
+   * högst 10 B3, högst 15 B4 och mer B5. Magiska skrifter (biblioteket och kodexar) kräver B4.
+   */
+  readingLevels: [
+    { maxEp: 3, level: 1 },
+    { maxEp: 5, level: 2 },
+    { maxEp: 10, level: 3 },
+    { maxEp: 15, level: 4 },
+  ],
+  readingTop: 5,
+  magicReading: 4,
   /** Stadens lärare mellan äventyren (tolkning). */
   cityTeacher: { fv: 18, int: 14 },
 };

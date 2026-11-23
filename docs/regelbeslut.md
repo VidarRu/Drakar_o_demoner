@@ -135,7 +135,7 @@ Dessa val gjordes när striden byggdes. Vidar har godkänt dem eller ändrat dem
 
 - **Speltid:** klockan börjar dag 1 klockan 08:00. En stridsrunda är fem sekunder, och varje steg utanför strid räknas också som en runda (för blödning och effekter).
 - **Naturlig läkning:** 1 KP per dag i varje skadad kroppsdel och i totala KP, i halv takt om man inte vilar. När alla kroppsdelar har läkt återställs totala KP helt, som i Bok II.
-- **Läkekonst** kan slås en gång per dag och patient. Lyckas slaget läks 1 KP extra, och en infektion hävs. Gumman Asta har FV 15 i Läkekonst.
+- **Läkekonst** kan slås en gång per dag och patient. Lyckas slaget läks 1 KP extra, och en infektion hävs. Gumman Asta har FV 17 i Läkekonst och INT 13, så hon kan undervisa (Vidar, steg 8).
 - **Medvetslöshet:** den som faller på 0 KP är medvetslös i 1T4 timmar och kan sedan inte göra något förrän totala KP (och huvudets KP) är positiva igen. Det sker genom läkningen ovan.
 - **Infektioner** (Bok II): efter en strid slås för varje skadad kroppsdel, 1 % per skadepoäng från eggvapen och 3 % från smutsiga och naturliga vapen. Trubbiga vapen och nävar infekterar inte. Sår under ringbrynja infekteras inte, och alver är immuna. Infektionen varar 1T4 veckor, och kroppsdelen läker inte under tiden. Med 5 % chans blir den kallbrand: en arm eller ett ben amputeras, i huvud, bröstkorg eller mage dör man.
 - **Feber (husregel):** medan infektionen varar är man matt och febrig och får −5 på alla färdighetsslag. (Boken säger att man inte kan göra något aktivt.)
@@ -313,8 +313,10 @@ Vidar bestämde upplägget i steg 8 efter Bok I s. 62–64 (Hur man blir bättre
 
 - **Alla EP är lika värda (Vidar):** EP från träning och från erfarenhet blandas, och alla växlas in efter en sammanhängande vila på sju dagar. Bok I:s tak (träning når inte över grundegenskapen för primära färdigheter och yrkesfärdigheter) används inte.
 - **Bonus-EP sätts per modul (Vidar):** varje uppdrag ger 1–4 bonus-EP, varje ovanligt svår gärning 1–2, och modulen kan ge rollspelsbonus för val i spelet, till exempel en särskilt bra lösning på ett uppdrag. Bokens bonus för gott rollspel (1–4 som spelledaren bedömer) används inte, och det finns ingen övre gräns per äventyr. Alla i gruppen får hela summan när flaggan sätts. Gråvads uppdrag ger 3 bonus-EP som förut.
-- **Böcker (Vidar):** böcker hittas ganska ofta i modulerna. En bok har ett ämne (en färdighet) och ett tak, oftast 5 eller 10 EP per läsare. En veckas studier med boken är ensamträning i ämnet. Tolkning: läsaren måste ha minst B1 i Läsa/Skriva modersmål.
-- **Arbete (Vidar):** mellan äventyren kan man arbeta i sitt yrke en vecka i taget. Man får lön och deltidstränar fyra timmar om dagen i en av sina yrkesfärdigheter. Det ger ett träningsslag varannan vecka (Bok I: halva tiden tar dubbelt så lång tid). Tolkning: dagslönerna utgår från Bok III (arbetare 10 sm, skrivare 50 sm, lärare 150 sm) och står i `WORK_WAGES` i `src/engine/rules/tables.ts`. Man arbetar sex dagar i veckan.
+- **Böcker (Vidar):** böcker hittas ganska ofta i modulerna. En bok har ett ämne (en färdighet) och ett tak, oftast 5 eller 10 EP per läsare. En veckas studier med boken är ensamträning i ämnet.
+  - **Läsnivå (Vidar):** en bok kräver B1–B5 i Läsa/Skriva efter hur mycket den kan ge: högst 3 EP B1, högst 5 EP B2, högst 10 EP B3, högst 15 EP B4 och mer B5. En modul kan ange en annan nivå för en bok. Magiska skrifter (bibliotekets skrifter och alla kodexar) kräver B4, som magiska pergament i Bok III.
+  - **Språk:** en bok kan vara skriven på ett visst språk, och då krävs läsnivån i det språket. Utan angivet språk räcker modersmålet. Vilka språk böckerna har bestäms senare.
+- **Arbete (Vidar):** mellan äventyren kan man arbeta i sitt yrke en vecka i taget. Man får lön och deltidstränar fyra timmar om dagen i en av sina yrkesfärdigheter. Det ger ett träningsslag varannan vecka (Bok I: halva tiden tar dubbelt så lång tid). Dagslönerna utgår från Bok III (arbetare 10 sm, skrivare 50 sm, lärare 150 sm) och står i `WORK_WAGES` i `src/engine/rules/tables.ts` (Vidar har godkänt dem). Man arbetar sex dagar i veckan.
 
 ### Veckorna
 
@@ -329,12 +331,13 @@ Vidar bestämde upplägget i steg 8 efter Bok I s. 62–64 (Hur man blir bättre
 - **Kostnaden** är 150 sm i veckan. Undervisning i magi (magiskolor och besvärjelser) kostar 300 sm. Det blir 1,5 gånger så mycket om eleven är av en annan ras än läraren, och tre gånger så mycket för en ensam elev. Flera i gruppen som tränar samma färdighet för samma lärare samma vecka är inte ensamma elever, och var och en betalar sin del (tolkning).
 - **Följeslagare som lärare (Vidar):** den i gruppen som uppfyller lärarkraven kan lära de andra, utan kostnad. Tolkning: läraren lägger sin vecka på undervisningen.
 - **Lärare i modulerna (Vidar):** personer i modulerna kan undervisa i det de kan (`NpcDef.teaches`). Deras FV och INT kommer från varelsedefinitionen, så kraven gäller också dem.
-- **Stadens lärare (tolkning):** mellan äventyren finns lärare med FV 18 och INT 14 i alla färdigheter, och en magiker med FV 18 i alla magiskolor.
+- **Stadens lärare (Vidar):** mellan äventyren finns lärare med FV 18 och INT 14 i alla färdigheter, och en magiker med FV 18 i alla magiskolor. I kampanjen ska det gå att hitta unika, mycket skickliga lärare i modulerna och locka dem att flytta till staden; det byggs med kampanjspelet.
 
 ### Magi
 
 - **Magiskolor (Vidar, Bok III):** de höjs bara genom träning med lärare eller genom ensamstudier i en magiakademis bibliotek, aldrig genom erfarenhet eller vanlig ensamträning. I biblioteket ger ett Normalt INT-slag i veckan 1 EP i skolan.
 - **Medlemskap i akademin (Vidar):** biblioteket är gratis för medlemmar. Man blir medlem genom ett uppdrag i en modul eller för 1 000 sm. Tolkning: medlemskapet gäller en person.
+- **Läsa i biblioteket (Vidar):** bibliotekets skrifter kräver B4 i Läsa/Skriva, både för studier i magiskolan och för kodexarna.
 - **Nya besvärjelser (Vidar):** husregeln från steg 6 står kvar, så besvärjelser kostar inga EP och S följer FV i skolan. Man lär sig en besvärjelse på tre sätt:
   - Man hittar den i spelet och skriver in den som förut.
   - Man studerar den ur en magisk kodex. Ett Normalt INT-slag i veckan med −1 för varje poäng INT under 19 (Bok III); lyckas det skrivs besvärjelsen in. Tolkning: biblioteket har en kodex för varje besvärjelse, och en kodex som man hittar kan studeras var som helst.

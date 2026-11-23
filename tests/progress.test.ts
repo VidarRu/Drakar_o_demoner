@@ -4,7 +4,8 @@ import { seededRng, type Rng } from '../src/engine/dice';
 import { Game } from '../src/engine/game';
 import { abilitiesOf, chooseHeroAbility, meet, psyRaise, raiseAttribute, rollHeroAbility, setFv } from '../src/engine/hero';
 import { leaveModule } from '../src/engine/modules';
-import { activityProblem, joinAcademy, runWeek, teacherBonus, teacherCost, teachProblem, weekCost, type Teacher } from '../src/engine/progress';
+import { BOOKS } from '../src/content';
+import { activityProblem, joinAcademy, readLevel, runWeek, teacherBonus, teacherCost, teachers, teachProblem, weekCost, type Teacher } from '../src/engine/progress';
 import { baseChance, TRAINING } from '../src/engine/rules';
 import type { Actor } from '../src/engine/types';
 import { testCharacter } from './helpers';
@@ -70,6 +71,14 @@ describe('träning med lärare (Bok I s. 62)', () => {
     expect(g.state.time - before.time).toBe(7 * DAY);
   });
 
+  it('i Gråvad undervisar Asta i Läkekonst (FV 17, INT 13)', () => {
+    const g = game();
+    const asta = teachers(g).find((t) => t.name === 'Kloka gumman Asta')!;
+    expect(asta).toBeDefined();
+    expect(teachProblem(g, g.leader, asta, 'lakekonst')).toBeNull();
+    expect(teacherCost(asta, g.state.character, 'lakekonst', true)).toBe(450);
+  });
+
   it('flera elever hos samma lärare är inte ensamma, och en följeslagare undervisar gratis', () => {
     const g = game('linnea', 'sigrid');
     const linnea = recruitOf(g, 'linnea');
@@ -123,8 +132,17 @@ describe('magi (Bok III s. 7)', () => {
     p.skills['magiskola:elementarmagi'] = 8;
     g.state.character.skills['magiskola:elementarmagi'] = 8;
     p.attrs.INT = 15;
+    p.skills['las_skriv_modersmal:människospråket'] = 16; // B4
     return g;
   }
+
+  it('bibliotekets magiska skrifter kräver B4 i Läsa/Skriva (Vidar)', () => {
+    const g = mage();
+    const p = g.leader;
+    g.state.character.academy = true;
+    p.skills['las_skriv_modersmal:människospråket'] = 15; // B3
+    expect(activityProblem(g, p, { kind: 'bibliotek', skill: 'magiskola:elementarmagi' })).toMatch(/B4/);
+  });
 
   it('biblioteket kräver medlemskap i akademin (1 000 sm) och ger EP i skolan', () => {
     const g = mage();
@@ -184,12 +202,19 @@ describe('böcker (Vidar)', () => {
     expect(activityProblem(g, p, act)).toMatch(/allt som står/);
   });
 
+  it('läsnivån följer bokens tak i EP, och magiska skrifter kräver B4', () => {
+    const book = (maxEp: number, spell?: string) => ({ id: 'x', name: 'X', description: '', weight: 1, price: 1, maxEp, spell });
+    expect([3, 5, 10, 15, 20].map((n) => readLevel(book(n)))).toEqual([1, 2, 3, 4, 5]);
+    expect(readLevel(book(0, 'eld'))).toBe(4);
+    expect(readLevel(BOOKS.kronika_gravad)).toBe(2);
+  });
+
   it('den som inte kan läsa kan inte studera boken', () => {
     const g = between();
     const p = g.leader;
     g.state.character.inventory.push('kronika_gravad');
     p.skills['las_skriv_modersmal:människospråket'] = 0;
-    expect(activityProblem(g, p, { kind: 'bok', book: 'kronika_gravad' })).toMatch(/läsa/);
+    expect(activityProblem(g, p, { kind: 'bok', book: 'kronika_gravad' })).toMatch(/B2/);
   });
 });
 
