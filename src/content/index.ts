@@ -9,10 +9,12 @@
 import type { Intent } from '../engine/intents';
 import type { MapDef } from '../engine/map';
 import type { CreatureDef, NaturalWeaponDef, NpcDef } from '../engine/types';
+import { COMMON_BOOKS } from './mellanspel';
 import { SPELTEST } from './speltest';
-import type { ModuleDef, RecruitDef } from './types';
+import type { BookDef, ModuleDef, RecruitDef } from './types';
 
-export type { Difficulty, ModuleDef, QuestDef, RecruitDef } from './types';
+export type { BookDef, DeedDef, Difficulty, ModuleDef, QuestDef, RecruitDef } from './types';
+export { CITY, type CityTeacher } from './mellanspel';
 
 /** Alla äventyrsmoduler. */
 export const MODULE_LIST: ModuleDef[] = [SPELTEST];
@@ -59,6 +61,8 @@ export const CREATURES = list<CreatureDef>(MODULE_LIST.flatMap((m) => m.creature
 export const NPCS = list<NpcDef>(MODULE_LIST.flatMap((m) => m.npcs), 'Personen');
 export const RECRUITS = list<RecruitDef>(MODULE_LIST.flatMap((m) => m.recruits), 'Följeslagaren');
 export const MAPS = list<MapDef>(MODULE_LIST.flatMap((m) => m.maps), 'Kartan');
+/** Böcker och magiska kodexar som går att studera (steg 8). De ligger i packningen med sitt id. */
+export const BOOKS = list<BookDef>([...COMMON_BOOKS, ...MODULE_LIST.flatMap((m) => m.books ?? [])], 'Boken');
 
 /** Modulernas egna samtalsval. */
 export const MODULE_INTENTS: Record<string, Intent> = {};

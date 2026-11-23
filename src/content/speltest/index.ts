@@ -9,9 +9,8 @@ import type { MapDef } from '../../engine/map';
 import type { Intent } from '../../engine/intents';
 import { finalize, newDraft, type Draft } from '../../engine/creation';
 import { ARMOR } from '../../data/armor';
-import { EXPERIENCE } from '../../engine/rules';
 import type { Character } from '../../engine/types';
-import type { ModuleDef, QuestDef, RecruitDef } from '../types';
+import type { BookDef, DeedDef, ModuleDef, QuestDef, RecruitDef } from '../types';
 
 const human = { STY: 11, STO: 13, FYS: 11, SMI: 11, INT: 11, PSY: 11, KAR: 11 };
 
@@ -78,6 +77,7 @@ const creatures: CreatureDef[] = [
     sight: 7,
     silver: '6T6+20',
     deathFlag: 'hovding_dod',
+    loot: ['kronika_gravad'],
   },
   {
     id: 'vardshusvard',
@@ -354,6 +354,8 @@ const MAIL_COST = 1500;
 const MAIL = 'ringbrynjeskjorta';
 const REWARD = 500;
 const HIGHER_REWARD = 750;
+/** Bonus-EP för uppdraget (Bok I: 1–4). */
+const QUEST_EP = 3;
 
 /** Samtalsval som hör till Gråvad. */
 const intents: Record<string, Intent> = {
@@ -385,11 +387,7 @@ const intents: Record<string, Intent> = {
       const reward = g.state.flags.hogre_beloning ? HIGHER_REWARD : REWARD;
       g.player.silver += reward;
       g.state.flags.uppdrag_klart = true;
-      for (const m of g.partyMembers()) {
-        const ch = g.charOf(m)!;
-        ch.bonusEp = (ch.bonusEp ?? 0) + EXPERIENCE.questBonus;
-      }
-      return `Spelaren berättar att hövdingen är död och får sin belöning på ${reward} silvermynt. (Uppdraget ger också ${EXPERIENCE.questBonus} bonus-EP att fördela vid träningen.)`;
+      return `Spelaren berättar att hövdingen är död och får sin belöning på ${reward} silvermynt. (Uppdraget ger också ${QUEST_EP} bonus-EP var att fördela vid träningen.)`;
     },
   },
   kop_ringbrynja: {
@@ -404,6 +402,22 @@ const intents: Record<string, Intent> = {
   },
 };
 
+/** Böcker i Gråvad (steg 8). Grukk har plundrat krönikan från en resande. */
+const books: BookDef[] = [
+  {
+    id: 'kronika_gravad',
+    name: 'Krönika över Gråvadsbygden',
+    description: 'En sliten handskrift om bygdens släkter, gamla fejder och hur byn grundades. Svartalferna har tagit den från en resande.',
+    weight: 1,
+    price: 100,
+    skill: 'historia',
+    maxEp: 5,
+  },
+];
+
+/** Dåd som ger hjältepoäng i Gråvad (exempel till speltestet; värdena bestäms per modul). */
+const deeds: DeedDef[] = [{ id: 'grukk_fallen', flag: 'hovding_dod', text: 'svartalfshövdingen Grukk är fälld', kind: 'dåd', heroPoints: 2 }];
+
 const quests: QuestDef[] = [
   {
     id: 'grukk',
@@ -412,6 +426,7 @@ const quests: QuestDef[] = [
     description: 'Värdshusvärden Bertil betalar den som gör slut på svartalfshövdingen Grukk i grottan öster om byn.',
     start: 'uppdrag_antaget',
     done: 'uppdrag_klart',
+    bonusEp: QUEST_EP,
     steps: [
       { flag: 'hogre_beloning', text: `Bertil har gått med på ${HIGHER_REWARD} silvermynt.` },
       { flag: 'hovding_dod', text: 'Grukk är död. Hämta belöningen hos Bertil.' },
@@ -432,6 +447,8 @@ export const SPELTEST: ModuleDef = {
   npcs,
   recruits,
   quests,
+  deeds,
+  books,
   intents,
   flagNotes,
   epilogue: [

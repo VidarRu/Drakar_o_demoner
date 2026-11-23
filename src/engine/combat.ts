@@ -3,11 +3,12 @@ import { ARMOR, SHIELDS } from '../data/armor';
 import { SKILLS } from '../data/skills';
 import type { ArmorDef, MeleeWeaponDef, RangedWeaponDef } from '../data/types';
 import { WEAPONS, weaponSkill } from '../data/weapons';
-import { loadMod, loadPenalty, smiBlocked } from './inventory';
+import { itemInfo, loadMod, loadPenalty, smiBlocked } from './inventory';
 import { breakConcentration, forgetOnKnockout, resolvePending } from './magic';
 import { poisonOnHit, updatePoisons } from './poison';
 import { die, maxRoll, roll } from './dice';
 import type { Game } from './game';
+import { heroic, markPsyWin } from './hero';
 import { advanceTime, amputate, rollInfections, woundKind } from './time';
 import { dissolve, elementalAttacks, elementalRound, elementalTakes, elementalWeapon } from './elementals';
 import { aidAfterCombat, fallenCompanion, leaveParty, shareLoot } from './party';
@@ -31,6 +32,7 @@ import {
   FUMBLE_TABLES,
   fearRoll,
   fearRow,
+  FEAR_TABLE,
   grip,
   HIT_TABLE,
   INITIATIVE_DIE,
@@ -700,6 +702,7 @@ export function attackOnce(g: Game, att: Actor, def: Actor, slot: WeaponSlot, op
       const again = die(20, g.rng);
       check = { ...check, rolls: [...check.rolls, again], result: again > x.fv || again === 20 ? 'fummel' : 'misslyckat', success: false };
     }
+    check = heroic(g, att, check);
   }
   wear(g, att, w.bvKey);
 
@@ -904,7 +907,7 @@ function tryParry(g: Game, def: Actor, att: Actor, aw: WeaponInfo, onlyShield = 
   if (best.free) used.shieldFree = true;
   else used.count++;
 
-  let check = rollCl(g, best.x);
+  let check = heroic(g, def, rollCl(g, best.x));
   if (autoFail(def, 'parering')) check = forceFail(check);
   g.gainExperience(def, best.skill, check);
   if (best.slot !== 'shield') wear(g, def, best.bvKey);
@@ -1169,6 +1172,8 @@ export function kill(g: Game, a: Actor) {
     }
   }
   if (a.shield) g.state.dropped.push({ item: a.shield, slot: 'shield', owner: a.id, x: a.x, y: a.y, bv: a.bv.shield });
+  for (const item of a.loot ?? []) g.state.dropped.push({ item, slot: 'item', owner: a.id, x: a.x, y: a.y });
+  a.loot = [];
 }
 
 // ------------------------------------------------------------------ tabeller och följder
@@ -1396,6 +1401,8 @@ export function scare(g: Game, victim: Actor, source: Actor, value: number) {
   const r = fearRoll(victim.attrs.PSY, value, mods, g.rng);
   const row = fearRow(r.result);
   g.log(`${source.name} injagar skräck! Skräcktabellen: T20 ${r.die} − PSY ${victim.attrs.PSY} + ${value} = ${r.result}. ${row.text}`);
+  // Oberörd eller helt oberörd: en vunnen kamp PSY mot PSY (Vidar, steg 8).
+  if (FEAR_TABLE.indexOf(row) <= 1) markPsyWin(g, victim, 'motstånd');
   if (!g.state.fearMet.includes(source.defId)) g.state.fearMet.push(source.defId);
   applyRow(g, victim, row, { source });
 }
@@ -2004,7 +2011,7 @@ export function pickUp(g: Game, p: Actor = g.player): boolean {
       ch.equipped.armor = [...p.armor];
       p.bv[d.item] = d.bv ?? armorBv(d.item);
     }
-    const name = WEAPONS[d.item]?.name ?? SHIELDS[d.item]?.name ?? ARMOR[d.item]?.name ?? d.item;
+    const name = itemInfo(d.item)?.name ?? d.item;
     g.log(`${p.name} plockar upp ${name.toLowerCase()}.`);
   }
   g.state.dropped = g.state.dropped.filter((d) => !here.includes(d));
@@ -2146,7 +2153,7 @@ export function shoot(g: Game, a: Actor, target: Actor) {
     return;
   }
   for (const e of x.used) consume(a, e);
-  let check = rollCl(g, x);
+  let check = heroic(g, a, rollCl(g, x));
   if (autoFail(a, 'anfall')) check = forceFail(check);
   const verb = r.kind === 'kast' ? 'kastar' : 'skjuter';
   const head = `${a.name} ${verb} mot ${target.name} med ${r.name.toLowerCase()} (T20: ${check.roll} mot ${x.cl}${x.notes.length ? `, ${x.notes.join(', ')}` : ''})`;

@@ -53,6 +53,8 @@ export interface CreatureDef {
   deathFlag?: string;
   /** Koppling till en spelledarperson med dialog. */
   npc?: string;
+  /** Föremål som varelsen bär och som blir kvar på marken när den dör (t.ex. en bok). */
+  loot?: string[];
 }
 
 /** Varor som en handlare säljer: vapen, rustningar, sköldar, droger eller en kategori ur utrustningslistan. */
@@ -86,6 +88,13 @@ export interface NpcDef {
   topics: { text: string; reply: string }[];
   /** Spelmekaniska handlingar som kan utföras i samtal med personen. */
   intents: string[];
+  /**
+   * Färdigheter som personen kan undervisa i (steg 8). FV och INT tas från varelsen, så
+   * lärarkraven (FV 17, INT 13) gäller. Magiskolor ger också undervisning i besvärjelser.
+   */
+  teaches?: string[];
+  /** Personens ras, för lärarens pris (annars människa). */
+  race?: string;
 }
 
 /** En pågående följd av en fummel, skräck eller skada, med hur länge den varar. */
@@ -343,6 +352,10 @@ export interface Actor {
   techniques?: string[];
   /** Skräck och moral: följeslagare som flytt och vägrar fortsätta. */
   refused?: boolean;
+  /** Hjältepoäng är laddade för nästa egna slag (steg 8). */
+  heroArmed?: boolean;
+  /** Föremål som varelsen bär och som blir kvar när den dör. */
+  loot?: string[];
 }
 
 /** Hur en följeslagare följer med: dagslön, en del av bytet eller gratis (husregel). */
@@ -468,6 +481,10 @@ export interface GameState {
   fearMet: string[];
   /** Handeln per handlare (spelledarpersonens npc-id). */
   trade: Record<string, TradeState>;
+  /** Personer som rollpersonen har talat med, och om de kände igen hjälten (npc-id). */
+  met?: Record<string, boolean>;
+  /** Belöningar (bonus-EP och HP) som redan har delats ut, som "modul:id". */
+  rewarded?: string[];
   log: string[];
   nextId: number;
 }
@@ -513,4 +530,36 @@ export interface Character {
   bonusEp?: number;
   /** Fobier från Skräcktabellen. */
   phobias?: { source: string; level: 'mild' | 'normal' | 'svår' }[];
+  // ------------------------------------------------ utveckling mellan äventyren (steg 8)
+  /** Hjältepoäng att spendera, och alla HP som rollpersonen har fått i livet (för att bli igenkänd). */
+  heroPoints?: number;
+  heroTotal?: number;
+  /** Särskilda förmågor som köpts för hjältepoäng. */
+  heroAbilities?: { id: string; total: number; choice?: AbilityChoice }[];
+  /** En förmåga som har slagits fram men väntar på ett val. */
+  heroPending?: { id: string; total: number };
+  /** Medlem i en magiakademi: biblioteket är gratis. */
+  academy?: boolean;
+  /** EP som rollpersonen har fått ur varje bok (bokens id). */
+  studied?: Record<string, number>;
+  /** Veckor av deltidsträning per färdighet som ännu inte gett ett slag. */
+  partTime?: Record<string, number>;
+  /** Vunnen PSY-kamp under äventyret: som magiker eller genom att stå emot. */
+  psyWin?: 'magiker' | 'motstånd';
+}
+
+/** Valet till en särskild förmåga, som när rollpersonen skapas (engine/creation.ts). */
+export interface AbilityChoice {
+  /** Färdigheten (fvChoice, fixedChoice, halfCost). */
+  skill?: string;
+  /** Två sekundära färdigheter som blir yrkesfärdigheter (extraPicks). */
+  skills?: string[];
+  /** Språket (language). */
+  language?: string;
+  /** Yrket vars yrkesförmåga man får (extraProfessionAbility). */
+  profession?: string;
+  /** Folkslaget eller rasen (Baneman). */
+  foe?: string;
+  /** Höjd grundegenskap: +2 på en eller +1 på tre (inte STO). */
+  attrs?: Partial<Record<AttrKey, number>>;
 }

@@ -1,5 +1,4 @@
 import { CREATURES, MAPS, MODULES, PROFESSION_SPRITES, RECRUITS } from '../content';
-import { ABILITY_BY_ID } from '../data/abilities';
 import { ARMOR } from '../data/armor';
 import { RACES } from '../data/races';
 import { SKILLS } from '../data/skills';
@@ -9,6 +8,7 @@ import * as stealth from './stealth';
 import * as maneuvers from './maneuvers';
 import * as party from './party';
 import * as elementals from './elementals';
+import * as hero from './hero';
 import { roll, type Rng } from './dice';
 import {
   computeFov,
@@ -25,7 +25,6 @@ import {
   DAY,
   HIT_LOCATIONS,
   HOUR,
-  INITIATIVE_MODS,
   locationKp,
   maxKp,
   movement,
@@ -117,8 +116,7 @@ export function makeActor(init: ActorInit, extra: Partial<Actor> = {}): Actor {
 /** En figur för en rollperson eller följeslagare, byggd ur rollformuläret. */
 export function actorFromCharacter(char: Character, id: string, x: number, y: number, sprite?: string): Actor {
   const race = RACES[char.race];
-  const ability = char.ability ? ABILITY_BY_ID[char.ability.id] : undefined;
-  return makeActor(
+  const a = makeActor(
     {
       id,
       defId: id === 'player' ? 'player' : `rp:${slugName(char.name)}`,
@@ -144,14 +142,12 @@ export function actorFromCharacter(char: Character, id: string, x: number, y: nu
     },
     {
       profession: char.profession,
-      initiative:
-        (char.profession === 'krigare' ? INITIATIVE_MODS.stridsvana : 0) +
-        (ability?.passive?.initiative ?? 0) +
-        (char.techniques.includes('initiativbonus') ? INITIATIVE_MODS.initiativbonus : 0),
-      firstAlways: ability?.id === 'snabbslaende',
       techniques: [...char.techniques],
     },
   );
+  // KP med Extremt smärttålig, initiativ och Snabbslående, även för förmågor köpta för hjältepoäng.
+  hero.recompute(a, char);
+  return a;
 }
 
 
@@ -206,6 +202,7 @@ export function spawnActors(state: GameState, map: GameMap, rng: Rng) {
           noMorale: def.noMorale,
           fear: def.fear,
           ...(def.ranged ? { ranged: def.ranged.weapon, rangedAmmo: def.ranged.ammo } : {}),
+          ...(def.loot ? { loot: [...def.loot] } : {}),
         },
       ),
     );
@@ -276,6 +273,8 @@ export class Game {
     this.fxListeners.push(fn);
   }
   changed() {
+    // Uppdrag och dåd som just blev klara ger bonus-EP och hjältepoäng (steg 8).
+    hero.grantRewards(this);
     for (const fn of this.listeners) fn();
   }
   emit(actorId: string, text: string, kind: Fx['kind']) {
@@ -756,10 +755,16 @@ export class Game {
   /** Färdighetsslag för rollpersonen, med logg och erfarenhetskryss. */
   playerCheck(skill: string, modifier = 0): Check {
     const p = this.player;
-    const check = skillCheck(this.skillFv(p, skill), this.rng, modifier + combat.skillMod(this, p, skill));
+    const check = hero.heroic(this, p, skillCheck(this.skillFv(p, skill), this.rng, modifier + combat.skillMod(this, p, skill)));
     this.gainExperience(p, skill, check);
     this.log(`${skill} (${describe(check)}): ${check.result}.`);
     return check;
+  }
+
+  /** Laddar (eller avbryter) en hjältepoäng för nästa egna slag hos den som styrs. */
+  toggleHero() {
+    hero.toggleHero(this, this.player);
+    this.changed();
   }
 
   /** Sover ett antal timmar (som standard en natt). */

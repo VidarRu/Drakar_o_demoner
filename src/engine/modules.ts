@@ -6,6 +6,7 @@
 import { MAPS, MODULES, MODULE_LIST, type ModuleDef, type QuestDef } from '../content';
 import type { Rng } from './dice';
 import { spawnActors, type Game } from './game';
+import { psyRaiseAfterAdventure } from './hero';
 import { parseMap, walkable, type GameMap } from './map';
 import type { Actor, GameState } from './types';
 
@@ -70,6 +71,9 @@ export function leaveModule(g: Game) {
   if (done && !g.state.completed.includes(mod.id)) g.state.completed.push(mod.id);
   g.state.mode = 'ended';
   g.log(done ? `Äventyret i ${mod.name} är slut.` : `${g.leader.name} lämnar ${mod.name} utan att ha fullbordat uppdraget.`);
+  // Efter äventyret: den som har vunnit en kamp PSY mot PSY slår för att höja sin PSY.
+  psyRaiseAfterAdventure(g);
+  for (const m of g.partyMembers()) m.heroArmed = false;
   g.changed();
 }
 

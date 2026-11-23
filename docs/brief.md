@@ -28,7 +28,7 @@ stridskonsterna eller varelsernas detaljer.
 | 5 | Tid och utveckling: spelklocka, läkning, Läkekonst, infektioner, amputation, PSY-poäng, EP och träning | Klart (`src/engine/time.ts`, `src/ui/training.ts`) |
 | 6 | Magi, avståndsstrid, örter och gifter, bärförmåga och handel | Klart (`src/engine/magic.ts`, `combat.ts`, `poison.ts`, `inventory.ts`, `trade.ts`, `src/ui/panels.ts`) |
 | 7 | Följeslagare, elementarer, smygarläge, Avväpna, Fasthållning och stridskonster | Klart (`src/engine/party.ts`, `elementals.ts`, `maneuvers.ts`, `stealth.ts`) |
-| 8 | Äventyrsmoduler och utveckling mellan äventyren, plus beslutade ändringar | **Pågår**: dödsregeln, elementarerna och modulformatet är klara; se nedan |
+| 8 | Äventyrsmoduler och utveckling mellan äventyren, plus beslutade ändringar | **Pågår**: dödsregeln, elementarerna, modulformatet och utvecklingen mellan äventyren är klara; se nedan |
 
 ## Steg 8: äventyrsmoduler och utveckling mellan äventyren
 
@@ -43,14 +43,32 @@ Vidar har bestämt dödsregeln och hur modulerna byggs upp (avsnitten Strid och 
 - **Uppdrag, epilog och utgångar** (`src/engine/modules.ts`): `questLog` räknar fram uppdragsloggen ur modulens flaggor (`QuestDef.start`, `done`, `failed`, `steps`). `pendingEpilogue`, `stayAfterEpilogue` och `leaveModule` sköter slutet. Kartor kan ha utgångar (`MapDef.exits`); `Game.stepPlayer` öppnar frågan (`openUi('exit')`). Gråvads utgång är vägen vid västra kanten.
 - **Mellan modulerna:** `startModule` tar gruppen (med skador, packning, pengar och tid) till nästa moduls startkarta. Kartan som lämnas sparas i `GameState.places` och modulens flaggor i `GameState.moduleFlags`; `GameState.flags` är alltid den nuvarande modulens. `spawnActors` placerar inte ut personer som redan följer med eller varelser vars dödsflagga är satt. En följeslagare som lämnar gruppen på en annan karta går hem till sin (`CompanionInfo.homeMap`).
 - **Gränssnittet** (`src/ui/module.ts`): uppdragsloggen (knappen Uppdrag, tangenten U), epilogen med "Avsluta äventyret" och "Stanna kvar", frågan vid utgången och skärmen "Mellan äventyren" där nästa modul väljs. När rollpersonen dör finns den senaste sparningen kvar ("Ladda senaste sparningen").
-- Sparformatet är version 7 (`dod-save-v7`); äldre sparningar läses inte.
+- Sparformatet är version 7 (`dod-save-v7`); äldre sparningar läses inte. De nya fälten från utvecklingen är valfria, så sparningar från tidigare i steg 8 går att läsa.
+- **Utvecklingen mellan äventyren** (Bok I s. 62–65 och Bok III s. 7; alla beslut i `docs/regelbeslut.md` under Utveckling mellan äventyren):
+  - **Veckoplanen** (`src/engine/progress.ts`): `runWeek` låter en vecka gå för hela gruppen med en `WeekActivity` per person: vila, ensamträning, lärare, bibliotek, bok eller arbete. `teachers`, `teachProblem`, `teacherCost`, `teacherBonus`, `activityProblem`, `planProblem` och `weekCost` står för reglerna. `joinAcademy` gör någon till medlem i magiakademin.
+  - **Lärare:** stadens lärare och akademins magister finns i `src/content/mellanspel.ts` (`CITY`). Personer i modulerna undervisar med `NpcDef.teaches`, och följeslagare som uppfyller kraven undervisar gratis.
+  - **Böcker:** `BookDef` och `ModuleDef.books` och registret `BOOKS`. Böckerna ligger i packningen under sitt id. En bok med `spell` är en magisk kodex. Varelser kan bära föremål med `CreatureDef.loot`, och Grukk bär *Krönika över Gråvadsbygden* (Historia, högst 5 EP).
+  - **Belöningar och hjältepoäng** (`src/engine/hero.ts`):
+    - `grantRewards` körs i `Game.changed()` och ger var och en i gruppen `QuestDef.bonusEp`, `QuestDef.heroPoints` och `ModuleDef.deeds` (`DeedDef`) en gång, när flaggan sätts. Det som redan har delats ut står i `GameState.rewarded`.
+    - `heroic` uppgraderar nästa slag när `Actor.heroArmed` är satt, vid anfall, parering, skott, besvärjelser och `playerCheck`.
+    - `setFv` ger 1T4 HP vid FV 21, 41 och 61.
+    - `rollHeroAbility` och `chooseHeroAbility` köper särskilda förmågor (`Character.heroAbilities`), och `raiseAttribute` höjer grundegenskaper. `abilitiesOf` ger alla förmågor, och `recompute` räknar om KP, förflyttning och initiativ.
+  - **PSY-kamp:** `markPsyWin` sätts vid skräckslag (oberörd) och magiskt motstånd. `psyRaiseAfterAdventure` körs i `leaveModule`.
+  - **Igenkänd:** `meet` slår när samtalet öppnas (`GameState.met`, flaggan `igenkand_<npc>`), och `dialogClient` berättar det för AI-spelledaren.
+  - **Gränssnittet:**
+    - Träningsvyn har veckoplanen (`src/ui/week.ts`) ovanför inväxlingen av EP.
+    - Skärmen "Mellan äventyren" har knappen "Vila, träning och EP", magiakademin och hjältepoängen.
+    - Knappen "Hjältepoäng" finns i stridspanelen och i panelen när man utforskar.
+    - Rollformuläret visar alla förmågor och hjältepoäng.
+  - **Rättat på vägen:** taket för Historia, Alkemi och Kunskap om … räknades mot en Läsa/Skriva-nyckel som inte fanns (FV sparas per språk), så taket blev 0. `bestFv` i `time.ts` letar nu upp språket. Extremt smärttålig gav inte heller fler KP i spelet; `recompute` gör det nu.
+  - **Gråvads exempel:** Grukk ger 2 HP till var och en, uppdraget ger 3 bonus-EP som förut, och Grukk bär krönikan. Ingen i Gråvad har FV 17, så ingen där kan undervisa än.
 
 ### Nästa i steg 8
 
 1. **Vidars första äventyr:** han laddar upp ett äldre äventyr, och det byggs om till en modul med egna ord.
 2. **Världskartan** för modulen: rutnät ovanifrån, en ruta per timme, gruppen som en figur, fiender som ikoner som vandrar och jagar, smyga förbi, stridsmöten på färdiga stridskartor efter terrängen, och mötesplatser som man går in i och ut ur. `GameState.places` är redan byggt för att spara kartor man lämnar. `Game.map` är i dag `readonly` och byggs när spelet startar; att byta karta inom en modul kräver att kartvyn (`WorldScene`) byggs om.
 3. **Resekartan** för kampanjen, med modulerna som klickbara ikoner. Restid bestäms senare.
-4. **Utvecklingen mellan äventyren** (lärare, bibliotek, fler sätt att få EP, mellanspelet): inte diskuterat än. Bok I:s avsnitt om träning behövs.
+4. **Utvecklingen mellan äventyren:** klar (se ovan). Kvar är stadskartan i stället för menyn, och att bestämma per modul vilka dåd som ger hjältepoäng och bonus-EP.
 5. **Slumpmöten** i vildmarken: Vidar vill ha dem, men tabellerna saknas.
 6. **Sparning på server** (till exempel Supabase), senare.
 
@@ -88,7 +106,7 @@ Vid något tillfälle ska vi diskutera fiender som lägger besvärjelser, och va
 - `src/engine/time.ts`: `advanceTime` driver klockan, läkning (1 KP per dag, halvt utan vila), PSY-poäng, effekter i dagar och att sömn låser upp EP. `rollInfections` körs efter striden, `amputate` vid kallbrand och krossade ben, `medicine` är Läkekonst en gång per dag.
 - EP samlas per färdighet i `Actor.ep` (`gainExperience` vid lyckade slag, även anfall, parering, Två vapen och Dra vapen). De växlas in i träningsvyn efter en veckas vila (`vila_vecka` på värdshuset). Bonus-EP från uppdraget ligger i `Character.bonusEp`.
 - I gränssnittet finns klockan och PSY i statuspanelen, knapparna "Sov 8 timmar" och "Läkekonst", och gumman Asta vårdar med Läkekonst.
-- Saknas: träning med lärare, PSY-höjning efter kamper PSY mot PSY (hör till magin), hjältepoäng, och fler sätt att få erfarenhet (Vidar vill gå igenom det senare). Feber ger −5 på allt (godkänd husregel).
+- Träning med lärare, PSY-höjning, hjältepoäng och fler sätt att få erfarenhet byggdes i steg 8. Feber ger −5 på allt (godkänd husregel).
 
 ## Hur koden hänger ihop
 
@@ -122,9 +140,9 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 146 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 173 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
-`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna.
+`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
 
 För att provköra gränssnittet: starta `npx vite` och styr sidan med Playwright. Ett snabbt sätt är
 att skapa ett spel med `Game.create(testCharacter())`, lägga `JSON.stringify(g.state)` i
@@ -133,9 +151,18 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 
 ## Öppna frågor till Vidar
 
-- Fler sätt att få erfarenhet: Vidar vill gå igenom det i ett senare steg.
 - Ska spelaren få fler figurer, en per yrke eller ras?
 - Tolkningarna i steg 6 som Vidar inte uttryckligen har godkänt: säljpriset (halva listpriset), högsta rabatt 50 %, att hälften av pilarna hittas igen, vilka vapen som inte är av järn, och hur ELD, BLIXT och EXPLOSION träffar (se `docs/regelbeslut.md`).
 - Övriga tolkningar i steg 7 har Vidar godkänt (se `docs/regelbeslut.md`).
-- Hur rollpersonen utvecklas mellan äventyren (steg 8).
+- **Tolkningar i utvecklingen mellan äventyren** som Vidar inte uttryckligen har godkänt (markerade som tolkning i `docs/regelbeslut.md`):
+  - dagslönerna per yrke (`WORK_WAGES`), att lönen går till rollpersonens kassa och att rollpersonen betalar gruppens veckor,
+  - stadens lärare med FV 18 och INT 14 i allt,
+  - att biblioteket har en kodex för varje besvärjelse,
+  - att böckerna kräver B1 i Läsa/Skriva och att gruppen delar på dem,
+  - att medlemskapet i akademin gäller en person,
+  - att en följeslagare som undervisar inte gör något annat den veckan,
+  - att baschansen följer med när en grundegenskap höjs,
+  - att magikerns regel gäller den som har vunnit PSY-kamper på båda sätten.
+- **Gråvads värden:** Grukk ger 2 HP och krönikan 5 EP. Ska någon i Gråvad kunna undervisa (till exempel Asta i Läkekonst, som i dag har FV 15)?
+- **Särskilda förmågor utan verkan i spelet:** flera förmågor gör inget i spelet än, till exempel Gudarnas gunstling, Turgubbe, Djurvän och Hamnbytare. De kan nu köpas för hjältepoäng.
 - Fiender som lägger besvärjelser, och verkan för alla besvärjelser i regelboken.

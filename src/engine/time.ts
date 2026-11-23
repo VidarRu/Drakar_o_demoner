@@ -26,6 +26,7 @@ import {
   type HitLocation,
 } from './rules';
 import type { Actor } from './types';
+import { abilitiesOf, setFv } from './hero';
 
 /**
  * Tid, läkning, infektioner och erfarenhet (steg 5). Husreglerna står i docs/regelbeslut.md.
@@ -237,16 +238,34 @@ export function medicine(g: Game, healer: Actor, patient: Actor, fv = g.skillFv(
 export function gainExperience(g: Game, a: Actor, skill: string, check: Check) {
   if (!g.charOf(a) || !check.success) return;
   const def = SKILLS[skill.split(':')[0]];
-  if (!def || def.category === 'B' || a.epBlocked.includes(skill)) return;
+  if (!def || def.category === 'B' || def.trainingOnly || a.epBlocked.includes(skill)) return;
   const n = check.result === 'perfekt' ? roll(EXPERIENCE.perfect, g.rng) : EXPERIENCE.success;
   a.ep[skill] = (a.ep[skill] ?? 0) + n;
   a.epBlocked.push(skill);
 }
 
-/** Grundkostnaden i EP för att höja en färdighet: primär 2, yrkesfärdighet 3, sekundär 5. */
+/**
+ * Grundkostnaden i EP för att höja en färdighet: primär 2, yrkesfärdighet 3, sekundär 5.
+ * Särskilda förmågor kan sänka den (Absolut gehör, Lättlärd).
+ */
 export function baseCost(g: Game, skill: string, a: Actor = g.player): number {
-  if ((g.charOf(a) ?? g.char).profSkills.includes(skill)) return SKILL_BASE_COST.yrke;
-  return SKILLS[skill.split(':')[0]]?.type === 'primär' ? SKILL_BASE_COST.primär : SKILL_BASE_COST.sekundär;
+  const ch = g.charOf(a) ?? g.char;
+  const id = skill.split(':')[0];
+  const prof = ch.profSkills.includes(skill);
+  let cost: number = prof ? SKILL_BASE_COST.yrke : SKILLS[id]?.type === 'primär' ? SKILL_BASE_COST.primär : SKILL_BASE_COST.sekundär;
+  for (const { def } of abilitiesOf(ch)) {
+    const e = def.effect;
+    if (e.kind !== 'baseCost') continue;
+    if (Array.isArray(e.skills) ? e.skills.includes(id) : !prof && SKILLS[id]?.type === 'sekundär') cost = Math.min(cost, e.cost);
+  }
+  return cost;
+}
+
+/** Bästa FV i en färdighet, även när den är specialiserad (t.ex. Läsa/Skriva per språk). */
+export function bestFv(a: Actor, skill: string): number {
+  let best = a.skills[skill] ?? 0;
+  for (const [k, fv] of Object.entries(a.skills)) if (k.startsWith(`${skill}:`)) best = Math.max(best, fv);
+  return best;
 }
 
 /** Högsta FV färdigheten får nå: sekundära och B-färdigheter högst grundegenskapen. */
@@ -254,8 +273,11 @@ export function skillCap(g: Game, a: Actor, skill: string): number {
   const def = SKILLS[skill.split(':')[0]];
   if (!def) return 0;
   const attr = def.cappedByAttr ?? (def.attr !== 'spec' ? def.attr : undefined);
-  if (def.cappedBy) return Math.min(a.skills[def.cappedBy] ?? 0, attr ? a.attrs[attr] : 99);
-  if (attr && (def.type === 'sekundär' || def.category === 'B') && !(g.charOf(a) ?? g.char).profSkills.includes(skill)) return a.attrs[attr];
+  // Hängiven student höjer taket för den valda färdigheten med 2.
+  const ch = g.charOf(a) ?? g.char;
+  const raised = abilitiesOf(ch).filter(({ def: d, choice }) => d.effect.kind === 'fvChoice' && d.effect.raiseCap && choice?.skill === skill).length * 2;
+  if (def.cappedBy) return Math.min(bestFv(a, def.cappedBy), attr ? a.attrs[attr] : 99) + raised;
+  if (attr && (def.type === 'sekundär' || def.category === 'B') && !ch.profSkills.includes(skill)) return a.attrs[attr] + raised;
   return 99;
 }
 
@@ -266,7 +288,10 @@ export function canConvert(a: Actor): boolean {
 
 export function raiseCost(g: Game, a: Actor, skill: string): number {
   const fv = a.skills[skill] ?? 0;
-  return fvCost(baseCost(g, skill, a), fv, fv + 1);
+  const cost = fvCost(baseCost(g, skill, a), fv, fv + 1);
+  // God känsla för yrket: halverad kostnad för den valda färdigheten.
+  const half = abilitiesOf(g.charOf(a) ?? g.char).some(({ def, choice }) => def.effect.kind === 'halfCost' && choice?.skill === skill);
+  return half ? Math.ceil(cost / 2) : cost;
 }
 
 /** Höjer en färdighet ett steg med dess egna EP, och bonus-EP om de inte räcker. */
@@ -277,20 +302,19 @@ export function raiseSkill(g: Game, skill: string): boolean {
   const cost = raiseCost(g, a, skill);
   const own = a.ep[skill] ?? 0;
   const bonus = ch.bonusEp ?? 0;
-  if (!canConvert(a) || fv + 1 > skillCap(g, a, skill) || own + bonus < cost || needsTeacher(skill)) return false;
+  if (!canConvert(a) || fv + 1 > skillCap(g, a, skill) || own + bonus < cost) return false;
   const fromOwn = Math.min(own, cost);
   a.ep[skill] = own - fromOwn;
   if (!a.ep[skill]) delete a.ep[skill];
   ch.bonusEp = bonus - (cost - fromOwn);
-  a.skills[skill] = fv + 1;
-  ch.skills[skill] = fv + 1;
   g.log(`${a.name} höjer ${SKILLS[skill.split(':')[0]]?.name ?? skill} till FV ${fv + 1}.`);
+  setFv(g, a, skill, fv + 1);
   return true;
 }
 
 /**
- * Magiskolor höjs bara med lärare eller genom studier i ett magibibliotek (Bok III och husregel).
- * Inget av det finns i Gråvad.
+ * Magiskolor tränas bara med lärare eller genom studier i ett magibibliotek (Bok III), inte på
+ * egen hand. EP som de har fått växlas in som vanligt.
  */
 export function needsTeacher(skill: string): boolean {
   return skill.startsWith('magiskola:');

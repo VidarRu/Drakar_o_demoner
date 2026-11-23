@@ -128,6 +128,9 @@ describe('erfarenhet', () => {
     INTENTS.uppdrag_anta.apply(g, host);
     g.state.flags.hovding_dod = true;
     INTENTS.uppdrag_beloning.apply(g, host);
+    // Belöningen delas ut när spelet uppdateras (samtalet anropar changed()), och bara en gång.
+    g.changed();
+    g.changed();
     expect(g.state.character.bonusEp).toBe(3);
   });
 

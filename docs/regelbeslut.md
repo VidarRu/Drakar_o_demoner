@@ -143,9 +143,9 @@ Dessa val gjordes när striden byggdes. Vidar har godkänt dem eller ändrat dem
 - **PSY-poäng** återfås med 1 per timmes vila, eller 1 per tre timmar under aktivitet.
 - **Erfarenhetspoäng** (Bok I): den första lyckade användningen av en färdighet efter en sömn på minst sex timmar (två för alver) ger 1 EP, ett perfekt slag 1T3+1. Färdigheter i kategori B ger inga EP genom erfarenhet. EP samlas per färdighet.
 - **Inväxling:** EP kan bara växlas in efter en sammanhängande vila på minst sju dagar (en veckas vila på värdshuset). Kostnaden följer kostnadstabellen med grundkostnad 2 för primära färdigheter, 3 för yrkesfärdigheter och 5 för sekundära. Sekundära färdigheter och B-färdigheter kan inte bli högre än sin grundegenskap.
-- **Bonus-EP:** ett lyckat uppdrag ger 3 bonus-EP som fördelas fritt vid träningen.
-- **Fler sätt att få erfarenhet:** Vidar vill att man ska kunna få EP på fler sätt än ovan. Det gås igenom i ett senare steg.
-- **Ensamträning:** en vecka i taget; ett Normalt grundegenskapsslag ger 1 EP. Kost och logi kostar 70 sm i veckan. Träning med lärare finns inte än.
+- **Bonus-EP:** ett lyckat uppdrag ger bonus-EP som fördelas fritt vid träningen. Modulen bestämmer hur många; Gråvads uppdrag ger 3 (steg 8).
+- **Fler sätt att få erfarenhet:** böcker, arbete, lärare och modulernas belöningar (beslutat i steg 8, se Utveckling mellan äventyren).
+- **Ensamträning:** en vecka i taget; ett Normalt grundegenskapsslag ger 1 EP. Kost och logi kostar 70 sm i veckan. Träning med lärare byggdes i steg 8.
 - **Fobier:** efter en veckas vila slås ett Normalt PSY-slag för varje fobi. Lyckas det blir den ett steg lindrigare.
 
 ## Magi (byggt i steg 6)
@@ -171,7 +171,7 @@ Vidar svarade på frågorna om magin i steg 6. Husreglerna markeras som husregel
   - SKÖLD parerar nästa fysiska anfall, även en pil, fram till slutet av nästa runda.
   - KNÄCKA tar skölden om målet har en, annars vapnet.
   - LÄDERHUD ger +2 i absorbering; KAR −2 räknas inte än.
-- **Magiskolans FV** höjs bara genom träning med lärare eller egna studier i ett magibibliotek. Inget av det finns i Gråvad, så träningsvyn höjer inte magiskolor.
+- **Magiskolans FV** höjs bara genom träning med lärare eller egna studier i ett magibibliotek (se Utveckling mellan äventyren). EP i skolan växlas in som andra EP.
 
 ## Avståndsstrid (byggt i steg 6)
 
@@ -302,3 +302,60 @@ Byggt: modulformatet, uppdragsloggen, epilogen, utgångarna och skärmen mellan 
 - **Sparning:** i dag finns en sparplats i webbläsaren. Senare kan kampanjen sparas på en server (till exempel Supabase).
 - **Innehållet:** Vidar laddar upp äldre äventyr som skrevs till rollspelet, och modulerna byggs utifrån dem (med egna ord, som allt annat).
 - **Slumpmöten i vildmarken** ska finnas. Tabellerna saknas och tas fram senare.
+
+## Utveckling mellan äventyren (beslutat i steg 8)
+
+Vidar bestämde upplägget i steg 8 efter Bok I s. 62–64 (Hur man blir bättre) och Bok III s. 7
+(Att bli bättre i magi). Det som står som tolkning har Vidar inte uttryckligen sagt; det står som
+öppen fråga i `docs/brief.md`.
+
+### Erfarenhetspoäng
+
+- **Alla EP är lika värda (Vidar):** EP från träning och från erfarenhet blandas, och alla växlas in efter en sammanhängande vila på sju dagar. Bok I:s tak (träning når inte över grundegenskapen för primära färdigheter och yrkesfärdigheter) används inte.
+- **Bonus-EP sätts per modul (Vidar):** varje uppdrag ger 1–4 bonus-EP, varje ovanligt svår gärning 1–2, och modulen kan ge rollspelsbonus för val i spelet, till exempel en särskilt bra lösning på ett uppdrag. Bokens bonus för gott rollspel (1–4 som spelledaren bedömer) används inte, och det finns ingen övre gräns per äventyr. Alla i gruppen får hela summan när flaggan sätts. Gråvads uppdrag ger 3 bonus-EP som förut.
+- **Böcker (Vidar):** böcker hittas ganska ofta i modulerna. En bok har ett ämne (en färdighet) och ett tak, oftast 5 eller 10 EP per läsare. En veckas studier med boken är ensamträning i ämnet. Tolkning: läsaren måste ha minst B1 i Läsa/Skriva modersmål.
+- **Arbete (Vidar):** mellan äventyren kan man arbeta i sitt yrke en vecka i taget. Man får lön och deltidstränar fyra timmar om dagen i en av sina yrkesfärdigheter. Det ger ett träningsslag varannan vecka (Bok I: halva tiden tar dubbelt så lång tid). Tolkning: dagslönerna utgår från Bok III (arbetare 10 sm, skrivare 50 sm, lärare 150 sm) och står i `WORK_WAGES` i `src/engine/rules/tables.ts`. Man arbetar sex dagar i veckan.
+
+### Veckorna
+
+- **Veckoplanen (Vidar):** mellan äventyren, och i en modul efter en veckas vila på värdshuset, planeras en vecka i taget. Var och en i gruppen väljer en sysselsättning: vila, ensamträning, träning med lärare, studier i biblioteket, läsa en bok eller arbeta. Stadens lärare och biblioteket finns i en meny tills det blir en stadskarta.
+- **Kostnaderna (tolkning):** kost och logi kostar 70 sm i veckan per person, som tidigare. Rollpersonen betalar för hela gruppen och får lönen från arbetet, som en gemensam kassa, på samma sätt som rollpersonen betalar i samtal.
+- **Veckan räknas som vila:** den läker och fyller på PSY som vila, och den räknas in i de sju dagarna som krävs för att växla in EP (tolkning).
+
+### Träning med lärare
+
+- **Läraren** behöver FV 17 eller mer i färdigheten och INT 13 eller mer. FV måste vara mer än 3 högre än elevens (Bok I).
+- **Slagen:** eleven slår två Normala grundegenskapsslag i veckan för färdighetens grundegenskap, och varje lyckat slag ger 1 EP. Varje FV som läraren har över 18 ger +1. En ensam elev får +5 (Vidar: boken skriver CL −5, men ensamundervisningen kostar tre gånger så mycket).
+- **Kostnaden** är 150 sm i veckan. Undervisning i magi (magiskolor och besvärjelser) kostar 300 sm. Det blir 1,5 gånger så mycket om eleven är av en annan ras än läraren, och tre gånger så mycket för en ensam elev. Flera i gruppen som tränar samma färdighet för samma lärare samma vecka är inte ensamma elever, och var och en betalar sin del (tolkning).
+- **Följeslagare som lärare (Vidar):** den i gruppen som uppfyller lärarkraven kan lära de andra, utan kostnad. Tolkning: läraren lägger sin vecka på undervisningen.
+- **Lärare i modulerna (Vidar):** personer i modulerna kan undervisa i det de kan (`NpcDef.teaches`). Deras FV och INT kommer från varelsedefinitionen, så kraven gäller också dem.
+- **Stadens lärare (tolkning):** mellan äventyren finns lärare med FV 18 och INT 14 i alla färdigheter, och en magiker med FV 18 i alla magiskolor.
+
+### Magi
+
+- **Magiskolor (Vidar, Bok III):** de höjs bara genom träning med lärare eller genom ensamstudier i en magiakademis bibliotek, aldrig genom erfarenhet eller vanlig ensamträning. I biblioteket ger ett Normalt INT-slag i veckan 1 EP i skolan.
+- **Medlemskap i akademin (Vidar):** biblioteket är gratis för medlemmar. Man blir medlem genom ett uppdrag i en modul eller för 1 000 sm. Tolkning: medlemskapet gäller en person.
+- **Nya besvärjelser (Vidar):** husregeln från steg 6 står kvar, så besvärjelser kostar inga EP och S följer FV i skolan. Man lär sig en besvärjelse på tre sätt:
+  - Man hittar den i spelet och skriver in den som förut.
+  - Man studerar den ur en magisk kodex. Ett Normalt INT-slag i veckan med −1 för varje poäng INT under 19 (Bok III); lyckas det skrivs besvärjelsen in. Tolkning: biblioteket har en kodex för varje besvärjelse, och en kodex som man hittar kan studeras var som helst.
+  - En lärare lär ut den på en vecka. Läraren måste ha FV i skolan minst lika med besvärjelsens skolvärde.
+  - I alla tre fallen måste eleven ha FV i skolan minst lika med skolvärdet.
+
+### Hjältepoäng
+
+- **Dåd (Vidar):** modulerna bestämmer vilka dåd som ger hjältepoäng. Vidar vill hellre ge små belöningar ofta än stora sällan. Dåliga handlingar kan ge minuspoäng (Bok I). Bokens tabell är en riktlinje.
+- **FV 21, 41, 61 (Bok I):** att nå ett sådant värde i en färdighet ger 1T4 HP.
+- **Gruppen (Vidar):** alla i gruppen som är med får hela summan var.
+- **Höja CL (Bok I):** knappen "Hjältepoäng" laddar nästa egna slag (färdighetsslag, anfall, parering, skott eller besvärjelse). Ett fummel blir misslyckat, ett misslyckat slag lyckat, ett lyckat perfekt, och ett perfekt slag ger tillbaka hjältepoängen. Poängen dras när slaget slås.
+- **Särskild förmåga (husregel):** mellan äventyren köper man ett slag på tabellen över särskilda förmågor: 3 HP för 2T20 + 20, 6 HP för 2T20 + 30 och 10 HP för 2T20 + 40. Får man en förmåga man redan har, tar man närmaste rad uppåt som man inte har. Höjd grundegenskap (81+) kan tas flera gånger. Förmågor som bara passar magiker byts som när rollpersonen skapas.
+- **Grundegenskaper (Bok I):** mellan äventyren höjer 5 HP en grundegenskap med 1, men inte STO. Tolkning: om baschansen ändras läggs ändringen på primära färdigheter och yrkesfärdigheter som bygger på grundegenskapen. KP, förflyttning och skadebonus räknas om.
+- **Igenkänd (Vidar):** första gången rollpersonen talar med en person slås 1T100 mot summan av alla HP hen har fått. Är slaget lika med eller under summan känner personen igen hjälten. Då sätts modulens flagga `igenkand_<person>`, och AI-spelledaren får veta det. Modulerna kan använda flaggan till särskilda möten.
+
+### PSY-höjning (Bok I)
+
+- **Vunnen PSY-kamp (Vidar):** man har vunnit en PSY-kamp om man motstår en fientlig magikers besvärjelse, eller om man slår på Skräcktabellen och blir oberörd eller helt oberörd. En magiker vinner också när hen övervinner en fiendes motstånd mot en besvärjelse (Bok I).
+- **Slaget** slås när äventyret är slut (när modulen lämnas), ett slag per person och äventyr, för den som har vunnit en kamp:
+  - För en magiker som övervann ett motstånd lyckas 1T20 på 25 − PSY eller lägre och ger +1 PSY. En etta ger 1T3+1. Över PSY 24 krävs en etta för +1, och två ettor i rad ger 1T3+1.
+  - För de andra lyckas 1T20 på 20 − PSY eller lägre och ger +1. En etta ger 1T3+1, och över PSY 19 ger bara en etta +1.
+  - Tolkning: har man vunnit på båda sätten gäller magikerns regel.
+- God PSY-potential ger −5 på slaget, och ett resultat på 0 eller lägre räknas som 1.

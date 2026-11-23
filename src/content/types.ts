@@ -26,6 +26,44 @@ export interface QuestDef {
   failed?: string;
   /** Delmål som visas i loggen när deras flagga är satt, i tur och ordning. */
   steps?: { flag: string; text: string }[];
+  /** Bonus-EP till var och en i gruppen när uppdraget är klart (Bok I: 1–4). */
+  bonusEp?: number;
+  /** Hjältepoäng till var och en i gruppen när uppdraget är klart. */
+  heroPoints?: number;
+}
+
+/**
+ * Något gruppen kan göra i modulen som ger bonus-EP eller hjältepoäng (steg 8): en ovanligt svår
+ * gärning (1–2 EP), ett bra val i rollspelet (rollspelsbonus) eller ett dåd. Belöningen delas ut
+ * en gång, till var och en i gruppen, när flaggan sätts. Minuspoäng går för ohjältemodiga dåd.
+ */
+export interface DeedDef {
+  id: string;
+  flag: string;
+  /** Kort text till loggen, t.ex. "Ni dödade Grukk i envig". */
+  text: string;
+  kind: 'gärning' | 'rollspel' | 'dåd';
+  ep?: number;
+  heroPoints?: number;
+}
+
+/**
+ * En bok som går att studera (steg 8). En veckas studier är ensamträning i ämnet, tills läsaren
+ * har fått bokens tak i EP. En magisk kodex lär i stället ut en besvärjelse.
+ */
+export interface BookDef {
+  id: string;
+  name: string;
+  /** Kort egen beskrivning. */
+  description: string;
+  weight: number;
+  price: number;
+  /** Ämnet: färdigheten som studierna ger EP i. */
+  skill?: string;
+  /** Högsta antal EP en läsare kan få ur boken (oftast 5 eller 10). */
+  maxEp?: number;
+  /** Magisk kodex: besvärjelsen som boken lär ut. */
+  spell?: string;
 }
 
 /**
@@ -66,4 +104,8 @@ export interface ModuleDef {
   flagNotes: Record<string, string>;
   /** Epilogen när huvuduppdraget är klart, ett stycke per rad. */
   epilogue?: string[];
+  /** Gärningar, rollspelsval och dåd som ger bonus-EP och hjältepoäng. */
+  deeds?: DeedDef[];
+  /** Böcker som går att hitta i modulen. */
+  books?: BookDef[];
 }
