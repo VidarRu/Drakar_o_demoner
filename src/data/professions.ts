@@ -55,7 +55,7 @@ export const PROFESSION_LIST: ProfessionDef[] = [
     requirements: { STY: 14, FYS: 12 },
     picks: 12,
     spellsAtStart: false,
-    ability: { name: 'Stridsvana', desc: '+5 på alla initiativslag.' },
+    ability: { name: 'Stridsvana', desc: '+5 på alla initiativslag.', passive: { initiative: 5 } },
     desc: 'Legosoldat, livvakt, stadsvakt eller rövare. Lever av att slåss.',
     options: [
       v(ALL), tala(1), 'avvapna', 'barsarkagang', 'dra_vapen', 'dolkar', 'geografi', hantverk, 'hasardspel', 'kulturkannedom',
@@ -68,7 +68,7 @@ export const PROFESSION_LIST: ProfessionDef[] = [
     requirements: { INT: 16 },
     picks: 12,
     spellsAtStart: false,
-    ability: { name: 'Snusförnuft', desc: '−5 på alla slag på Skräcktabellen.' },
+    ability: { name: 'Snusförnuft', desc: '−5 på alla slag på Skräcktabellen.', passive: { fear: -5 } },
     desc: 'Forskare och boklärd, ofta i staden men ibland på upptäcktsfärd.',
     options: [
       tala(4), lasa(4), 'administration', 'alkemi', 'astrologi', 'dolkar', 'drogkunskap', 'forfalskning', 'geografi', 'geologi',
@@ -135,6 +135,7 @@ export const PROFESSION_LIST: ProfessionDef[] = [
     ability: {
       name: 'Härdad av havet',
       desc: '+5 på FYS, STO eller STY vid motståndsslag mot elementens besvärjelser och mot eld, köld och liknande.',
+      passive: { elementResist: 5 },
     },
     desc: 'Matros, kapten, pirat eller handelsresande.',
     options: [

@@ -372,9 +372,8 @@ export const PSY_RECOVERY = {
 
 // ------------------------------------------------------------------ detaljerad strid (Bok II s. 15–22)
 
-/** Turordning: krigarens Stridsvana, Blixtrande reflexer och tekniken Initiativbonus. */
+/** Turordning: tekniken Initiativbonus. Stridsvana och Blixtrande reflexer står i regeldatan. */
 export const INITIATIVE_MODS = {
-  stridsvana: 5,
   initiativbonus: 5,
   /** Hoppspark och rundspark. */
   spark: -2,

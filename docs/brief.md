@@ -81,19 +81,18 @@ Vidar har bestämt dödsregeln och hur modulerna byggs upp (avsnitten Strid och 
 5. **Slumpmöten** i vildmarken: Vidar vill ha dem, men tabellerna saknas.
 6. **Sparning på server** (till exempel Supabase), senare.
 
-### Senare: förmågor och besvärjelser utan verkan
+### Förmågor, besvärjelser och väder (pågår)
 
-Vidar vill gå igenom tre listor och bestämma vad var och en gör i spelet:
+Vidar har godkänt förslaget i `docs/forslag-magi-och-formagor.md`: fiender som lägger besvärjelser,
+en verkan för alla besvärjelser, alla förmågor och ett väder med två mätare. Svaren på frågorna och
+vädret står i `docs/regelbeslut.md` under Förmågor, besvärjelser och väder. Byggordningen står i
+förslagets avsnitt 5.
 
-1. **Särskilda förmågor** som inte gör något än, till exempel Gudarnas gunstling, Turgubbe, Djurvän, Hamnbytare, God tidskänsla och Absolut ögonmått. De kan köpas för hjältepoäng.
-2. **Yrkesförmågor** som inte gör något än.
-3. **Besvärjelser** som saknar `effect` i `src/data/spells.ts` (se nedan).
+- **Klart (steg 1 i ordningen):** förmågorna som redan hade regelvärden används nu i spelet. `passivesOf`, `passive`, `passiveCl`, `weaponCl`, `professionsOf`, `folkOf` och `banemanCl` i `src/engine/hero.ts`. Yrkesförmågorna har `passive` i `src/data/professions.ts` (Stridsvana, Snusförnuft och Härdad av havet), och `INITIATIVE_MODS.stridsvana` är borttagen. Baneman väljs ur `FOLK_LIST` (`src/data/creatures.ts`), och varelserna anger `CreatureDef.folk`. Testerna står i `tests/abilities.test.ts`.
+- **Nästa (steg 2):** de enkla förmågorna i förslagets avsnitt 3 och 4, till exempel God bågskytt, Järnnäve, Turgubbe, Tjuvtur, Riddarslag och Anfall bakifrån.
+- Därefter magi för alla (`castSpell` och `resolve` tar magikern som argument), fiender som lägger besvärjelser med häxkonstnären i Gråvad, och besvärjelserna i strid.
 
 Vidar vill också göra en genomgång av hela regelsystemet när det är klart, för att se att det är konsekvent.
-
-### Senare: besvärjelser
-
-Vid något tillfälle ska vi diskutera fiender som lägger besvärjelser, och vad alla besvärjelser gör. Vidar vill att **alla besvärjelser i regelboken ska ha en verkan** i spelet. I dag verkar 21 plus de åtta elementarerna.
 
 ### Andra kandidater
 
@@ -159,9 +158,9 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 179 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 188 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
-`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
+`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
 
 För att provköra gränssnittet: starta `npx vite` och styr sidan med Playwright. Ett snabbt sätt är
 att skapa ett spel med `Game.create(testCharacter())`, lägga `JSON.stringify(g.state)` i
@@ -170,8 +169,5 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 
 ## Öppna frågor till Vidar
 
-Förslaget till alla tre frågorna nedan står i `docs/forslag-magi-och-formagor.md`, med frågorna samlade sist.
-
-- Fiender som lägger besvärjelser, och verkan för alla besvärjelser i regelboken.
-- Vad de särskilda förmågorna, yrkesförmågorna och besvärjelserna utan verkan ska göra (se Senare ovan).
-- Alla tolkningar i steg 6, 7 och i utvecklingen mellan äventyren är nu avgjorda.
+- Chanserna för vädret (tolkning i `docs/regelbeslut.md`) och vindens verkan på skott och båtar, när vädret byggs.
+- Tolkningarna för förmågorna med regelvärden: att Precisionssinne bara gäller anfall, och att Extremt orädd och Snusförnuft räknas utöver den högsta modifikationen på Skräcktabellen.

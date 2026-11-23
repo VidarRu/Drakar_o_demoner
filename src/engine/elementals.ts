@@ -2,6 +2,7 @@ import { NON_IRON_WEAPONS, WEAPONS } from '../data/weapons';
 import { roll } from './dice';
 import type { Game } from './game';
 import { makeActor } from './game';
+import { passive } from './hero';
 import { distance, lineOfSight, tileAt, walkable } from './map';
 import {
   addEffect,
@@ -252,7 +253,8 @@ function aura(g: Game, e: Actor) {
   if (!def.aura) return;
   for (const x of g.state.actors) {
     if (!x.alive || x.elemental || x.fled || x.unconscious || distance(x.x, x.y, e.x, e.y) > 2) continue;
-    const fys = attributeCheck(x.attrs.FYS, g.rng, 'Svårt');
+    // Härdig mot element och Härdad av havet: +5 på FYS mot hettan och kölden.
+    const fys = attributeCheck(x.attrs.FYS + passive(g.charOf(x), 'elementResist'), g.rng, 'Svårt');
     if (fys.success) continue;
     addEffect(x, { kind: 'flämtar', label: `Flämtar i ${def.aura}`, rounds: 1 });
     g.log(`${x.name} står och flämtar i ${def.aura} (Svårt FYS-slag, ${short(fys)}).`);
@@ -413,10 +415,11 @@ export function act(g: Game, e: Actor, id: string, targetId?: string): string | 
       break;
     }
     case 'skräck': {
-      const r = resistance(e.attrs.PSY, t!.attrs.PSY, g.rng);
-      if (!r.success) g.log(`${t!.name} står emot mörkret (PSY ${e.attrs.PSY} mot ${t!.attrs.PSY}, ${short(r)}).`);
+      const psy = t!.attrs.PSY + passive(g.charOf(t!), 'psyResist');
+      const r = resistance(e.attrs.PSY, psy, g.rng);
+      if (!r.success) g.log(`${t!.name} står emot mörkret (PSY ${e.attrs.PSY} mot ${psy}, ${short(r)}).`);
       else {
-        g.log(`${e.name} sveper sig om ${t!.name} (PSY ${e.attrs.PSY} mot ${t!.attrs.PSY}, ${short(r)}).`);
+        g.log(`${e.name} sveper sig om ${t!.name} (PSY ${e.attrs.PSY} mot ${psy}, ${short(r)}).`);
         // Fiender slår inte på Skräcktabellen (husregel); de slår moral i stället.
         if (g.charOf(t)) scare(g, t!, e, umbraFear(e));
         else if (!t!.noMorale) moraleCheck(g, t!, 'skräck från umbran');

@@ -1,4 +1,5 @@
 import { ABILITY_BY_ID, type RaisableAttr } from '../data/abilities';
+import { FOLK_LIST } from '../data/creatures';
 import { ARMOR_LIST, SHIELD_LIST } from '../data/armor';
 import { ITEM_LIST } from '../data/equipment';
 import { PROFESSION_LIST } from '../data/professions';
@@ -414,7 +415,7 @@ export class CreatorUi {
         box.append(select(PROFESSION_LIST.filter((p) => p.id !== d.profession).map((p) => [p.id, `${p.name}: ${p.ability.name}`]), c.profession ?? '', (v) => this.update(() => (c.profession = v)), 'Välj yrkesförmåga…'));
         break;
       case 'foe':
-        box.append(textInput(c.foe ?? '', (v) => this.update(() => (c.foe = v)), 'Folkslag eller ras, t.ex. orcher'));
+        box.append(select(FOLK_LIST, c.foe ?? '', (v) => this.update(() => (c.foe = v)), 'Välj folkslag eller ras…'));
         break;
       case 'attrs': {
         const row = el('div', 'kv');

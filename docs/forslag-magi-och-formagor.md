@@ -1,8 +1,8 @@
 # Förslag: fiendernas magi, alla besvärjelser och förmågorna utan verkan
 
-Det här är ett underlag för Vidar. Inget här är beslutat än. Varje punkt har ett förslag på vad
-den ska göra i spelet. Vidar godkänner eller ändrar, och då flyttas besluten till
-`docs/regelbeslut.md`. Texten är egen och återger inte böckerna. Där boken anger ett värde som
+**Vidar godkände förslagen den 23 november 2026.** Svaren på frågorna i avsnitt 6 och upplägget
+för vädret står i `docs/regelbeslut.md` under Förmågor, besvärjelser och väder. Avsnitt 0 är byggt.
+Besluten för varje besvärjelse och förmåga flyttas till `docs/regelbeslut.md` när de byggs. Texten är egen och återger inte böckerna. Där boken anger ett värde som
 inte finns i `src/data/` står det **(Bok III)** eller **(Bok I)**, och då behövs avskriften när
 det byggs.
 
@@ -111,8 +111,8 @@ Grupperade efter vad som behövs för att bygga dem. Varje rad är ett förslag.
 ### 2c. Vädret
 
 VINDKONTROLL, REGNKONTROLL, NEDKALLA ÅSKVIGG och VIGGFÅNGARE kräver väder, och det finns inte i
-spelet. **Förslag:** ett enkelt väder i `GameState` (klart, mulet, regn, åska) som slumpas en gång om
-dagen och som modulerna kan låsa. Regn släcker facklor, ger −2 på avståndsstrid och gör att FINNA
+spelet. **Beslutat:** ett väder i `GameState` med två mätare, himlen och vinden, som ändras ett steg
+i taget varje halvdygn (se `docs/regelbeslut.md`). Modulerna kan låsa det. Regn släcker facklor, ger −2 på avståndsstrid och gör att FINNA
 VATTEN inte fungerar. Vind påverkar skott och båtar.
 
 ### 2d. Ritualer

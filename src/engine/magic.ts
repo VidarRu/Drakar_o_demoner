@@ -3,7 +3,7 @@ import { SPELLS, spellRange } from '../data/spells';
 import type { SpellDef, SpellDuration } from '../data/types';
 import { die, roll } from './dice';
 import type { Game } from './game';
-import { heroic, markPsyWin } from './hero';
+import { heroic, markPsyWin, passive } from './hero';
 import { ironProblem } from './inventory';
 import { distance, lineOfSight } from './map';
 import { neutralize } from './poison';
@@ -360,7 +360,9 @@ function effectFor(a: Actor, spell: SpellDef, s: PendingSpell, grade: number, g:
 /** Ovilliga mål gör motstånd: magikerns kvarvarande PSY mot målets PSY på motståndstabellen. */
 function resists(g: Game, caster: Actor, t: Actor, spell: SpellDef): boolean {
   if (!spell.resisted || t === caster || t.unconscious) return false;
-  const check = resistance(Math.max(0, caster.psy), t.attrs.PSY, g.rng);
+  // Orubblig vilja: +5 på PSY i kampen.
+  const psy = t.attrs.PSY + passive(g.charOf(t), 'psyResist');
+  const check = resistance(Math.max(0, caster.psy), psy, g.rng);
   // En vunnen kamp PSY mot PSY mot en fiende kan höja PSY efter äventyret (Bok I).
   const foes = caster.hostile !== t.hostile;
   if (check.success) {
@@ -368,7 +370,7 @@ function resists(g: Game, caster: Actor, t: Actor, spell: SpellDef): boolean {
     return false;
   }
   if (foes) markPsyWin(g, t, 'motstånd');
-  g.log(`${t.name} gör motstånd (PSY ${caster.psy} mot ${t.attrs.PSY}, T20: ${check.roll} mot ${check.target}).`);
+  g.log(`${t.name} gör motstånd (PSY ${caster.psy} mot ${psy}, T20: ${check.roll} mot ${check.target}).`);
   return true;
 }
 
@@ -424,7 +426,8 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       return;
     }
     case 'köld': {
-      const fys = attributeCheck(t.attrs.FYS + t.naturalArmor, g.rng, 'Svårt');
+      // Härdig mot element och Härdad av havet: +5 på FYS.
+      const fys = attributeCheck(t.attrs.FYS + t.naturalArmor + passive(g.charOf(t), 'elementResist'), g.rng, 'Svårt');
       if (fys.success) {
         t.effects.push({ kind: 'cl', label: 'Köldrysningar', mod: -4, scope: 'alla', rounds: 1 });
         g.log(`${t.name} skakar av köld men står emot (Svårt FYS-slag, T20: ${fys.roll} mot ${fys.target}): −4 på CL rundan ut.`);

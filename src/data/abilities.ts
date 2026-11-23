@@ -1,4 +1,5 @@
 import type { AttrKey } from '../engine/types';
+import type { AbilityPassive } from './types';
 
 /**
  * Tabellen över särskilda förmågor (Bok I s. 25–27): 2T20 + spenderade BP.
@@ -39,16 +40,7 @@ export interface AbilityDef {
   name: string;
   desc: string;
   effect: AbilityEffect;
-  passive?: {
-    /** Permanenta modifikationer på CL. */
-    cl?: Record<string, number>;
-    initiative?: number;
-    fear?: number;
-    /** Tillägg på PSY i kamp PSY mot PSY. */
-    psyResist?: number;
-    /** Tillägg på FYS i motståndsslag mot elementen. */
-    elementResist?: number;
-  };
+  passive?: AbilityPassive;
   /** Bara meningsfull för magiker (annars räknas den som en annan rad). */
   magicianOnly?: { otherwise: string };
 }
@@ -101,7 +93,7 @@ export const ABILITIES: AbilityDef[] = [
   ab(64, 64, 'lattlard', 'Lättlärd', 'Grundkostnaden för sekundära färdigheter är 4.', { kind: 'baseCost', skills: 'sekundär', cost: 4 }),
   ab(65, 65, 'extremt_smarttalig', 'Extremt smärttålig', 'Totala KP gångras med 1,5, och träffområdena räknas om efter det.', { kind: 'kpFactor', factor: 1.5 }),
   ab(66, 66, 'snabbslaende', 'Snabbslående', 'Slår alltid först i varje runda.'),
-  ab(67, 67, 'baneman', 'Baneman', '+5 på CL vid alla anfall mot ett valt folkslag eller en vald ras.', { kind: 'foe' }),
+  ab(67, 67, 'baneman', 'Baneman', '+5 på CL vid alla anfall mot ett valt folkslag eller en vald ras.', { kind: 'foe' }, { passive: { foeCl: 5 } }),
   ab(68, 68, 'god_kroppskontroll', 'God kroppskontroll', 'Ett Normalt FYS-slag ger +5 på STY i 3 rundor, två gånger per dag.'),
   ab(69, 69, 'jarnnave', 'Järnnäve', 'Gör alltid maximal skada obeväpnad.'),
   ab(70, 70, 'extremt_orädd', 'Extremt orädd', '−5 på alla slag på Skräcktabellen.', { kind: 'none' }, { passive: { fear: -5 } }),

@@ -39,6 +39,7 @@ const creatures: CreatureDef[] = [
     move: 10,
     hostile: true,
     humanoid: true,
+    folk: 'svartalf',
     darkvision: true,
     sight: 6,
     silver: '2T6',
@@ -54,6 +55,7 @@ const creatures: CreatureDef[] = [
     move: 10,
     hostile: true,
     humanoid: true,
+    folk: 'svartalf',
     darkvision: true,
     sight: 8,
     silver: '2T6',
@@ -70,6 +72,7 @@ const creatures: CreatureDef[] = [
     move: 10,
     hostile: true,
     humanoid: true,
+    folk: 'svartalf',
     darkvision: true,
     leader: true,
     // En hövding som slåss till slutet: boken undantar hjältar och ledare av det slaget från moralen.

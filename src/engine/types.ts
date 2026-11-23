@@ -35,6 +35,8 @@ export interface CreatureDef {
   hostile: boolean;
   /** Humanoid: strider detaljerat med träffområden och parering. Djur och monster strider vanligt. */
   humanoid: boolean;
+  /** Folkslaget eller rasen i regeldatan (id i src/data/creatures.ts eller races.ts), för Baneman. Utan det används id:t om det finns i regeldatan. */
+  folk?: string;
   /** Synhåll i rutor för att upptäcka rollpersonen. */
   sight?: number;
   /** Ser i mörker (inga avdrag för mörker i strid). */

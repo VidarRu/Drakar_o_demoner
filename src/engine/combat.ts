@@ -8,7 +8,7 @@ import { breakConcentration, forgetOnKnockout, resolvePending } from './magic';
 import { poisonOnHit, updatePoisons } from './poison';
 import { die, maxRoll, roll } from './dice';
 import type { Game } from './game';
-import { heroic, markPsyWin } from './hero';
+import { banemanCl, heroic, markPsyWin, passive, passiveCl, weaponCl } from './hero';
 import { advanceTime, amputate, rollInfections, woundKind } from './time';
 import { dissolve, elementalAttacks, elementalRound, elementalTakes, elementalWeapon } from './elementals';
 import { aidAfterCombat, fallenCompanion, leaveParty, shareLoot } from './party';
@@ -150,7 +150,7 @@ function clEffects(a: Actor): ActiveEffect[] {
  * gifter och andra effekter. Används för Första hjälpen, Dra vapen, Köpslå och liknande.
  */
 export function skillMod(g: Game, a: Actor, skill: string): number {
-  let mod = woundPenalty(a) + loadPenalty(g, a, skill);
+  let mod = woundPenalty(a) + loadPenalty(g, a, skill) + passiveCl(g.charOf(a), skill);
   for (const e of clEffects(a)) if (!e.half && scopeMatches(e.scope, 'annan', skill)) mod += e.mod ?? 0;
   if (hasEffect(a, 'blind')) mod += BLIND_CL;
   return mod;
@@ -591,6 +591,17 @@ export function computeCl(
   return { fv, cl, notes, used };
 }
 
+/** Förmågornas tillägg på ett anfall: Precisionssinne med vapen och Baneman mot det valda folkslaget. */
+function abilityMods(g: Game, att: Actor, def: Actor, natural?: boolean): [string, number][] {
+  const out: [string, number][] = [];
+  const ch = g.charOf(att);
+  const precision = natural ? 0 : weaponCl(ch);
+  if (precision) out.push(['precisionssinne', precision]);
+  const bane = banemanCl(g, att, def);
+  if (bane) out.push(['baneman', bane]);
+  return out;
+}
+
 export function rollCl(g: Game, x: Cl): Check {
   return skillCheck(x.fv, g.rng, x.cl - x.fv);
 }
@@ -680,6 +691,7 @@ export function attackOnce(g: Game, att: Actor, def: Actor, slot: WeaponSlot, op
   if (light) situational.push([light === -15 ? 'mörker' : 'fackelsken', light]);
   const bonuses = def.effects.filter((e) => e.kind === 'motståndarBonus');
   for (const b of bonuses) situational.push(['motståndarens miss', b.mod ?? 0]);
+  situational.push(...abilityMods(g, att, def, w.natural));
 
   const x = computeCl(g, att, 'anfall', w.skill, w.natural && opt.weapon ? [] : armsFor(att, slot, w), situational, slot, undefined, undefined, opt.fv);
   if (!x) {
@@ -786,7 +798,7 @@ export function ambush(g: Game, att: Actor, def: Actor): boolean {
   }
   g.gainExperience(att, 'smyga', sneak);
   const fv = def.skills.upptacka_fara ?? Math.max(1, Math.floor(def.attrs.PSY / 2));
-  const spot = skillCheck(fv, g.rng, -Math.max(0, sneak.diff));
+  const spot = skillCheck(fv, g.rng, -Math.max(0, sneak.diff) + passiveCl(g.charOf(def), 'upptacka_fara'));
   const unaware = !spot.success;
   g.log(
     `${att.name} smyger fram mot ${def.name} (Smyga, ${short(sneak)}). ${def.name} slår Upptäcka fara (${short(spot)}): ${unaware ? 'märker ingenting' : 'upptäcker anfallaren'}.`,
@@ -1399,8 +1411,12 @@ export function scare(g: Game, victim: Actor, source: Actor, value: number) {
   if (g.state.fearMet.includes(source.defId)) mods.push(-2);
   for (const e of victim.effects) if (e.kind === 'skräckMod') mods.push(e.mod ?? 0);
   const r = fearRoll(victim.attrs.PSY, value, mods, g.rng);
+  // Extremt orädd och lärd mans Snusförnuft hör till personen och räknas utöver den högsta
+  // modifikationen (tolkning).
+  const calm = passive(g.charOf(victim), 'fear');
+  r.result += calm;
   const row = fearRow(r.result);
-  g.log(`${source.name} injagar skräck! Skräcktabellen: T20 ${r.die} − PSY ${victim.attrs.PSY} + ${value} = ${r.result}. ${row.text}`);
+  g.log(`${source.name} injagar skräck! Skräcktabellen: T20 ${r.die} − PSY ${victim.attrs.PSY} + ${value}${calm ? ` ${calm < 0 ? '−' : '+'} ${Math.abs(calm)} orädd` : ''} = ${r.result}. ${row.text}`);
   // Oberörd eller helt oberörd: en vunnen kamp PSY mot PSY (Vidar, steg 8).
   if (FEAR_TABLE.indexOf(row) <= 1) markPsyWin(g, victim, 'motstånd');
   if (!g.state.fearMet.includes(source.defId)) g.state.fearMet.push(source.defId);
@@ -2143,6 +2159,7 @@ export function shoot(g: Game, a: Actor, target: Actor) {
   if (ammoBonus) situational.push(['slungkulor', ammoBonus]);
   const cover = target.effects.find((e) => e.kind === 'täckning');
   if (cover) situational.push(['skydd', cover.half ? RANGED.dropPerSquare * (d - 1) : (cover.mod ?? 0)]);
+  situational.push(...abilityMods(g, a, target, false));
   const running = isRunning(target) && !target.unconscious ? 'halverad mot rörligt mål' : undefined;
 
   const arms = r.kind === 'projektil' ? [a.swordArm, shieldArm(a)] : [a.swordArm];

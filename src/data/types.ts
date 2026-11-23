@@ -6,6 +6,23 @@ import type { AttrKey, Attrs, ElementKind } from '../engine/types';
  * egna korta beskrivningar – ingen text ur böckerna.
  */
 
+// ------------------------------------------------------------------ förmågor
+
+/** Passiva regelvärden som motorn använder i spel, för särskilda förmågor och yrkesförmågor. */
+export interface AbilityPassive {
+  /** Permanenta tillägg på CL per färdighet. `vapen` gäller alla anfall med vapen. */
+  cl?: Record<string, number>;
+  initiative?: number;
+  /** Modifikation på slag på Skräcktabellen. */
+  fear?: number;
+  /** Tillägg på PSY i kamp PSY mot PSY. */
+  psyResist?: number;
+  /** Tillägg på FYS i motståndsslag mot elementen. */
+  elementResist?: number;
+  /** Tillägg på CL vid anfall mot det valda folkslaget (Baneman). */
+  foeCl?: number;
+}
+
 // ------------------------------------------------------------------ färdigheter
 
 export type SkillType = 'primär' | 'sekundär';
@@ -94,7 +111,8 @@ export interface ProfessionDef {
   spellsAtStart: boolean;
   /** Sekundära färdigheter som räknas som primära för yrket (magiker: Känna magi). */
   primarySkills?: string[];
-  ability: { name: string; desc: string };
+  /** Yrkesförmågan. `passive` är regelvärden som motorn använder i spel, som för särskilda förmågor. */
+  ability: { name: string; desc: string; passive?: AbilityPassive };
   desc: string;
 }
 
