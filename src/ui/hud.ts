@@ -1,13 +1,18 @@
-import { requestTurn, scriptedTurn, type DialogEntry } from '../ai/dialogClient';
-import { actorHas, actorProfession, canArmHero, meet } from '../engine/hero';
+import { underSky, weatherOf, weatherText } from '../engine/weather';
+import { lightText } from '../engine/light';
+import { shapeOf, shapeProblem } from '../engine/shapeshift';
+import { channel, channelProblem, mediumChoices } from '../engine/channel';
+import { HAMN } from '../engine/rules';
+import { forceLock, forceProblem, isLocked, locksNear, lootChest, lootProblem, pickLock, pickProblem, sealedAt } from '../engine/locks';
+import { dialogDef, requestTurn, scriptedTurn, type DialogEntry } from '../ai/dialogClient';
+import { actorHas, canArmHero, meet } from '../engine/hero';
 import { skillName } from '../engine/creation';
-import { bodyControlProblem, luckProblem, luckSources, meditationProblem, meditationSkills, thiefLuckLeft } from '../engine/talents';
-import { NPCS } from '../content';
+import { bodyControlProblem, luckProblem, luckSources, performanceKind, performanceProblem, performanceSkills, thiefLuckLeft } from '../engine/talents';
 import { ARMOR, SHIELDS } from '../data/armor';
 import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
 import { HERBS } from '../data/herbs';
-import { activeHostiles, ammoLeft, damageExpr, effectiveMove, hasEffect, isOut, martialOk, rangedInfo, weaponInfo } from '../engine/combat';
+import { activeHostiles, ammoLeft, damageExpr, effectiveMove, hasEffect, isOut, martialOk, rangedInfo } from '../engine/combat';
 import { elementalAttacks } from '../engine/elementals';
 import { attackModes, passiveTechniques } from '../engine/maneuvers';
 import { carriedWeight, loadMod } from '../engine/inventory';
@@ -60,7 +65,7 @@ function ammoRow(g: Game, p: Actor, kv: (k: string, v: string) => HTMLElement): 
 export class Hud {
   private logCount = -1;
   /** Färdigheten som munken senast valde att meditera inför. */
-  private meditationSkill?: string;
+  private performanceSkill?: string;
 
   constructor(
     private g: Game,
@@ -231,6 +236,8 @@ export class Hud {
       ...(ch.heroTotal ? [kv('Hjältepoäng', String(ch.heroPoints ?? 0))] : []),
       kv('Silvermynt', String(p.silver)),
       kv('Tid', clockText(g.state.time)),
+      kv('Väder', underSky(g, p) ? weatherText(weatherOf(g)) : 'inomhus'),
+      kv('Ljus', lightText(g, p)),
       ...(states.length ? [el('h3', '', 'Tillstånd'), ...states.map((s) => el('p', 'state', s))] : []),
       button('Rollformulär (R)', () => this.toggleSheet(true), 'primary sheet-btn'),
     );
@@ -299,6 +306,7 @@ export class Hud {
       panel.append(this.sneakButton(), this.torchButton());
       if (g.charOf(p)?.heroPoints || p.heroArmed) panel.append(this.heroButton());
       panel.append(...this.talentControls());
+      panel.append(...this.lockControls());
       panel.append(button('Sov 8 timmar', () => g.sleep(8), '', !g.canRest()));
       panel.append(button('Packning (P)', () => this.open.pack()));
       panel.append(button('Uppdrag (U)', () => this.open.quests()));
@@ -391,7 +399,7 @@ export class Hud {
     return b;
   }
 
-  /** Förmågor som används på turen: Turgubbe, Tjuvtur, God kroppskontroll och Meditation. */
+  /** Förmågor som används på turen: Turgubbe, Tjuvtur, God kroppskontroll, framträdandet och Meditation. */
   private talentControls(): HTMLElement[] {
     const g = this.g;
     const p = g.player;
@@ -404,21 +412,76 @@ export class Hud {
       b.title = `Köp +1 på CL för 1 PSY på nästa egna slag. Tryck igen för mer, högst +3. ${source === 'tjuvtur' ? 'Två gånger mellan varje sömn, fyra för alver.' : ''}`;
       out.push(b);
     }
+    const hamn = p.shape ? p.shape.animal : shapeOf(g, p);
+    if (hamn !== null) {
+      const b = button(p.shape ? 'Bli människa igen' : `Byt hamn: ${HAMN[hamn].name}`, () => g.shapeshift(), 'hero', !!shapeProblem(g, p));
+      b.title = 'Hamnbytare: förvandlingen tar en stridsrunda. För varje timme över ditt PSY-värde i djurhamn slår du ett Normalt PSY-slag; misslyckas det fastnar du för alltid.';
+      out.push(b);
+    }
+    // Magisk kanalisering: koppla ihop sig med en villig person i gruppen.
+    if ((p.skills.magisk_kanalisering ?? 0) > 0 && !p.shape) {
+      const media = mediumChoices(g, p);
+      if (media.length) {
+        const pick = el('select');
+        pick.title = 'Mediet';
+        for (const m of media) pick.append(new Option(m.name, m.id));
+        const b = button('Kanalisera', () => {
+          const r = channel(g, p, g.actor(pick.value)!);
+          if (r) g.log(r);
+          g.changed();
+        }, '', !!channelProblem(g, p, g.actor(pick.value)));
+        b.title = 'Magisk kanalisering: ett lyckat slag kopplar ihop dig med en villig person intill, och sedan kan du använda personens PSY till dina besvärjelser (till nästa sömn).';
+        out.push(pick, b);
+      }
+    }
+    if (p.effects.some((e) => e.kind === 'svävar')) {
+      const b = button('Landa', () => g.land());
+      b.title = 'Avsluta LEVITATION eller FLYGA och sjunk till marken.';
+      out.push(b);
+    }
     if (actorHas(g, p, 'god_kroppskontroll')) {
       const b = button('Kroppskontroll', () => g.bodyControl(), '', !!bodyControlProblem(g, p));
       b.title = 'Normalt FYS-slag: +5 STY (och skadebonus) i tre rundor. Två gånger om dagen.';
       out.push(b);
     }
-    if (actorProfession(g, p, 'munk')) {
-      const skills = meditationSkills(p);
+    const kind = performanceKind(g, p);
+    if (kind === 'bard') {
+      const skills = performanceSkills(p);
       const pick = el('select');
-      pick.title = 'Färdigheten att meditera inför';
-      const weapon = weaponInfo(p).skill;
-      for (const k of skills) pick.append(new Option(skillName(k), k, false, k === (this.meditationSkill ?? weapon)));
-      pick.onchange = () => (this.meditationSkill = pick.value);
-      const b = button('Meditera', () => g.meditate(pick.value), '', !!meditationProblem(g, p, pick.value || weapon));
-      b.title = 'Varje hel runda ger +1 i färdigheten, högst dubbla FV. Gäller nästa slag inom en minut.';
-      out.push(pick, b);
+      pick.title = 'Sjunga eller spela';
+      for (const k of skills) pick.append(new Option(skillName(k), k, false, k === this.performanceSkill));
+      pick.onchange = () => (this.performanceSkill = pick.value);
+      const b = button('Framträd', () => g.perform(pick.value || undefined), '', !!performanceProblem(g, p, pick.value || undefined));
+      b.title = 'Förtrollande framträdande: en minuts sång eller spel och ett lyckat slag ger +5 på KAR-färdigheter i en timme. Inte i strid.';
+      if (skills.length > 1) out.push(pick);
+      out.push(b);
+    } else if (kind === 'munk') {
+      const b = button('Meditera', () => g.perform(), '', !!performanceProblem(g, p));
+      b.title = 'Meditation: en minut och ett lyckat Normalt PSY-slag ger +5 på INT-färdigheter i en timme. Inte i strid.';
+      out.push(b);
+    }
+    return out;
+  }
+
+  /** Låsta dörrar och kistor intill: dyrka upp, bryta upp och tömma en kista. */
+  private lockControls(): HTMLElement[] {
+    const g = this.g;
+    const p = g.player;
+    const out: HTMLElement[] = [];
+    for (const l of locksNear(g, p)) {
+      if (!l.def && !sealedAt(g, l.x, l.y)) continue;
+      if (isLocked(l) && !sealedAt(g, l.x, l.y) && (p.skills.lasdyrkning ?? 0) > 0) {
+        const why = pickProblem(g, p, l);
+        const b = button(`Dyrka upp ${l.name}`, () => pickLock(g, p, l), '', !!why);
+        b.title = why ?? 'Låsdyrkning: ett försök tar en minut, och differensvärdet nöter ned låsets svårighetsgrad.';
+        out.push(b);
+      }
+      if (!forceProblem(g, p, l)) {
+        const b = button(`Bryt upp ${l.name}`, () => forceLock(g, p, l));
+        b.title = 'STY mot låsets svårighetsgrad (20 mer om den är förseglad). Ett försök tar en minut.';
+        out.push(b);
+      }
+      if (!lootProblem(g, p, l)) out.push(button(`Öppna ${l.name}`, () => lootChest(g, p, l), 'primary'));
     }
     return out;
   }
@@ -435,8 +498,9 @@ export class Hud {
 
   private torchButton(): HTMLButtonElement {
     const p = this.g.player;
-    const b = button(p.torchOut ? 'Tänd facklan' : 'Släck facklan', () => this.g.toggleTorch());
-    b.title = 'Utan fackla syns du sämre i mörker, men du strider själv i mörker (−15) om du inte har mörkersyn.';
+    const lantern = p.light?.kind === 'oljelykta';
+    const b = button(p.torchOut ? (lantern ? 'Tänd lyktan' : 'Tänd en fackla') : lantern ? 'Släck lyktan' : 'Släck facklan', () => this.g.toggleTorch());
+    b.title = 'En fackla brinner en timme och en oljelykta sex timmar (fylls på med lampolja). Utan ljus syns du sämre i mörker, men du strider själv i mörker (−15) om du inte har mörkersyn.';
     return b;
   }
 
@@ -567,7 +631,7 @@ export class DialogUi {
       box.append(b);
     };
     for (const o of this.options) add(o, '', () => void this.say(o));
-    for (const id of NPCS[npc.npc!].intents) {
+    for (const id of dialogDef(npc).intents) {
       const intent = INTENTS[id];
       if (!intent.available(this.g, npc)) continue;
       add(`[${intent.label(this.g, npc)}]`, id === 'anfall' ? 'act danger' : 'act', () => void this.act(id));

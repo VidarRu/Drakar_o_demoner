@@ -33,7 +33,14 @@ import {
   type Check,
   type HitLocation,
 } from './rules';
-import type { Actor, Attrs, Character, GameState } from './types';
+import type { Actor, Attrs, Character, CreatureDef, GameState } from './types';
+import { fogBlocks, passable } from './spelleffects';
+import { lockBlocks } from './locks';
+import { startWeather } from './weather';
+import { ensureLight, toggleLight } from './light';
+import { syncItemEffects } from './magicitems';
+import { shapeAttack, shapeshift as shapeshiftActor } from './shapeshift';
+import { wardCheck } from './magic';
 
 export const FOV_RADIUS = 8;
 
@@ -184,7 +191,7 @@ export function spawnActors(state: GameState, map: GameMap, rng: Rng) {
           x: s.x,
           y: s.y,
           attrs: { ...def.attrs },
-          skills: { ...def.skills },
+          skills: { ...def.skills, ...magicSkills(def) },
           weapon: def.weapon,
           armor: [...(def.armor ?? [])],
           naturalArmor: def.naturalArmor ?? 0,
@@ -204,10 +211,16 @@ export function spawnActors(state: GameState, map: GameMap, rng: Rng) {
           fear: def.fear,
           ...(def.ranged ? { ranged: def.ranged.weapon, rangedAmmo: def.ranged.ammo } : {}),
           ...(def.loot ? { loot: [...def.loot] } : {}),
+          ...(def.magic ? { spells: [...def.magic.spells] } : {}),
         },
       ),
     );
   }
+}
+
+/** Magiskolorna som färdigheter (`magiskola:<skola>`). */
+function magicSkills(def: CreatureDef): Record<string, number> {
+  return Object.fromEntries(Object.entries(def.magic?.schools ?? {}).map(([k, v]) => [`magiskola:${k}`, v as number]));
 }
 
 const slugName = (n: string) => n.toLowerCase().replace(/[^a-zåäö]+/g, '_');
@@ -227,6 +240,12 @@ export class Game {
     public rng: Rng = Math.random,
   ) {
     this.map = parseMap(MAPS[state.mapId]);
+    // Den som bär en tänd fackla utan brinntid (nytt spel, äldre sparning) tänder en ur packningen.
+    for (const id of state.party) {
+      const a = state.actors.find((x) => x.id === id);
+      if (a) ensureLight(this, a);
+    }
+    syncItemEffects(this);
     this.updateFov();
   }
 
@@ -259,6 +278,7 @@ export class Game {
       log: [],
       nextId: 1,
     };
+    startWeather(state, mod.weather);
     spawnActors(state, map, rng);
     const game = new Game(state, rng);
     game.log(`${char.name} anländer till ${map.name}.`);
@@ -276,6 +296,8 @@ export class Game {
   changed() {
     // Uppdrag och dåd som just blev klara ger bonus-EP och hjältepoäng (steg 8).
     hero.grantRewards(this);
+    // Magiska föremål som verkar ständigt när de bärs.
+    syncItemEffects(this);
     for (const fn of this.listeners) fn();
   }
   emit(actorId: string, text: string, kind: Fx['kind']) {
@@ -337,18 +359,23 @@ export class Game {
   isVisible(x: number, y: number): boolean {
     return this.visible.has(idx(this.map, x, y));
   }
-  private occupied = (x: number, y: number) => !!this.actorAt(x, y);
+  /** Står någon på rutan, eller stänger en låst dörr eller en kista vägen? */
+  private occupied = (x: number, y: number) => !!this.actorAt(x, y) || lockBlocks(this, x, y);
+  blocked(x: number, y: number): boolean {
+    return this.occupied(x, y);
+  }
 
   /** Väg för den som går (ledaren utanför strid) till en ruta, eller till en ruta intill om `adjacentOk`. */
   pathTo(x: number, y: number, adjacentOk = false): Point[] | null {
     const who = this.state.mode === 'combat' ? this.player : this.leader;
-    return findPath(this.map, who, { x, y }, this.occupied, adjacentOk);
+    return findPath(this.map, who, { x, y }, this.occupied, adjacentOk, (px, py) => passable(this, who, px, py));
   }
 
   /** Rutor som den som har turen kan nå med sin återstående förflyttning i strid. */
   reachableTiles(): Point[] {
     if (!this.isPlayerTurn()) return [];
-    return reachable(this.map, this.player, this.state.combat!.movesLeft, this.occupied);
+    const p = this.player;
+    return reachable(this.map, p, this.state.combat!.movesLeft, this.occupied, (x, y) => passable(this, p, x, y));
   }
 
   /** Gruppen ser tillsammans: synfälten för alla som är vid medvetande läggs ihop. */
@@ -360,7 +387,8 @@ export class Game {
   }
 
   canSee(a: Actor, b: Actor): boolean {
-    return distance(a.x, a.y, b.x, b.y) <= a.sight && lineOfSight(this.map, a.x, a.y, b.x, b.y);
+    // DIMMA: ingen ser längre än 10 rutor in i eller ut ur dimman.
+    return distance(a.x, a.y, b.x, b.y) <= a.sight && lineOfSight(this.map, a.x, a.y, b.x, b.y) && !fogBlocks(this, a, b);
   }
 
   // ---------------------------------------------------------------- utforskning
@@ -395,7 +423,19 @@ export class Game {
         m.y = goal.y;
       }
     }
+    // Djur och personer som magin styr (TILLKALLA VARELSE, KONTROLLERA) går efter gruppen.
+    for (const f of this.state.actors.filter((a) => a.alive && a.effects.some((e) => e.kind === 'kontrollerad' && e.by && this.state.party.includes(e.by)))) {
+      const last = members[members.length - 1];
+      if (distance(f.x, f.y, last.x, last.y) <= 1) continue;
+      const path = findPath(this.map, f, last, this.occupied, true);
+      if (path?.length) {
+        combat.face(f, path[0].x, path[0].y);
+        f.x = path[0].x;
+        f.y = path[0].y;
+      }
+    }
     this.updateFov();
+    wardCheck(this);
     for (const m of members) combat.pickUp(this, m);
     for (const m of members) combat.tick(this, m);
     time.advanceTime(this, 5, 'aktiv');
@@ -465,6 +505,7 @@ export class Game {
     p.y = to.y;
     c.movesLeft--;
     p.movedLast = (p.movedLast ?? 0) + 1;
+    wardCheck(this);
     this.updateFov();
     if (!c.acted[p.id] && this.state.dropped.some((d) => d.x === p.x && d.y === p.y) && combat.pickUp(this)) {
       c.acted[p.id] = true;
@@ -586,9 +627,8 @@ export class Game {
 
   /** Tänder eller släcker facklan för den som styrs. */
   toggleTorch() {
-    const p = this.player;
-    p.torchOut = !p.torchOut;
-    this.log(p.torchOut ? `${p.name} släcker sin fackla.` : `${p.name} tänder sin fackla.`);
+    const r = toggleLight(this, this.player);
+    if (r) this.log(r);
     this.changed();
   }
 
@@ -693,6 +733,10 @@ export class Game {
    * av samma slag (husregel, se docs/regelbeslut.md).
    */
   skillFv(a: Actor, skill: string): number {
+    // Hamnbytare: djurets anfall har djurets FV.
+    if (skill === 'hamn') return shapeAttack(a)?.fv ?? 0;
+    // ASTRALVAPEN: FV är magikerns S när besvärjelsen lades.
+    if (skill === 'astralvapen') return a.effects.find((e) => e.kind === 'astralvapen')?.mod ?? 0;
     const own = a.skills[skill];
     const family = SKILLS[skill]?.weaponGroup;
     if (!family || family === 'sköld' || family === 'piska') return own ?? 0;
@@ -777,9 +821,36 @@ export class Game {
     return r;
   }
 
-  /** Munkens Meditation inför ett slag i färdigheten. */
-  meditate(skill: string): string | null {
-    const r = talents.meditate(this, this.player, skill);
+  /** Bardens Förtrollande framträdande eller munkens Meditation: +5 i en timme. */
+  perform(skill?: string): string | null {
+    const r = talents.perform(this, this.player, skill);
+    if (r) this.log(r);
+    this.changed();
+    return r;
+  }
+
+  /** Kan ledaren tala med figuren? Personer, och djur som inte är fientliga med TALA MED VARELSE. */
+  canTalk(a: Actor): boolean {
+    // Ett djur kan inte tala med människor.
+    if (this.leader.shape) return false;
+    if (a.kind === 'npc') return true;
+    return !a.hostile && hero.isCommonAnimal(this, a) && this.leader.effects.some((e) => e.kind === 'talaMed');
+  }
+
+  /** LEVITATION och FLYGA: den som svävar landar på sin ruta (eller närmaste lediga ruta). */
+  land(): string | null {
+    const p = this.player;
+    const air = p.effects.filter((e) => e.kind === 'svävar');
+    if (!air.length) return 'Du svävar inte.';
+    for (const e of air) combat.endSpellEffect(this, p, e);
+    this.log(`${p.name} landar.`);
+    this.changed();
+    return null;
+  }
+
+  /** Hamnbytare: förvandlas till djuret, eller tillbaka till människa. */
+  shapeshift(): string | null {
+    const r = shapeshiftActor(this, this.player);
     if (r) this.log(r);
     this.changed();
     return r;

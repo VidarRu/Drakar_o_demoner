@@ -54,6 +54,7 @@ Regelvärdena finns i koden:
 - **Magiker får automatiskt** Känna magi (som primär färdighet) och Kunskap om magi med samma FV som magiskolan.
 - **Utrustning köps för startkapitalet** till Bok III:s priser. Äventyrets priser och belöningar följer samma nivå: sovsal 10 sm, ringbrynjeskjorta 1 500 sm och uppdraget 500 sm (750 om man prutar upp det).
 - **Rustningens abs gäller kroppsdelen som träffas.** Skadan dras både från kroppsdelens KP och från totala KP (steg 4).
+- **Skada utan kroppsdel fördelas (Vidar):** skada som bara drabbar totala KP, till exempel BLIXT, ELD, EXPLOSION, fall, gift och snedtändning, fördelas jämnt över alla kroppsdelar i detaljerad strid (`spreadDamage` i `combat.ts`). Det som inte går jämnt ut går till de kroppsdelar som har flest KP kvar (Vidar), och förlorade kroppsdelar räknas inte. En kroppsdel som når 0 går inte att använda som vid en träff, men den blöder inte (Vidar). Blödningen fördelas inte heller (Vidar), eftersom den redan kommer från en kroppsdel. Skadan står alltså kvar tills kroppsdelarna har läkt.
 
 ## Vapenfärdigheter (husregel)
 
@@ -166,7 +167,7 @@ Vidar svarade på frågorna om magin i steg 6. Husreglerna markeras som husregel
 - **Magiskt motstånd:** besvärjelser som påverkar psyket (KÄNNA FIENDSKAP, KÄNSLOLÄSNING) måste övervinna målets PSY med magikerns kvarvarande PSY på motståndstabellen. Fysiska besvärjelser (F) och besvärjelser på föremål gör inte det.
 - **Besvärjelser som verkar i spelet:** BLIXT, ELD, FROST, ENERGISTRÅLE, EXPLOSION, ELCHOCK, KALLA HANDEN, KNÄCKA, SKÖLD, FÖRTROLLA VAPEN, FÖRBANNA VAPEN, ÖRTRANKOR, HELA, NEUTRALISERA GIFT, SKYDD, LÄDERHUD, MÖRKERSYN, ORÄDD, SKINGRA, KÄNNA FIENDSKAP och KÄNSLOLÄSNING. De andra kan läras men inte läggas än. Vidar har godkänt tolkningarna nedan:
   - BLIXT träffar ett mål som magikern väljer (Vidar), som andra besvärjelser.
-  - ELD och FROST drar skadan från totala KP, och rustningen på bröstkorgen tar emot den som i boken. Bara en sfär används.
+  - ELD och FROST drar skadan från totala KP, och rustningen på bröstkorgen tar emot den som i boken. Bara en sfär används. Skadan fördelas sedan över kroppsdelarna (se Strid).
   - EXPLOSION gör full skada inom E meter (E / 1,5 rutor, avrundat nedåt; E1 träffar bara mittrutan) och 1 mindre per ruta längre bort, även på magikern. Alla som ser den bländas nästa runda (räknas som mörker).
   - SKÖLD parerar nästa fysiska anfall, även en pil, fram till slutet av nästa runda.
   - KNÄCKA tar skölden om målet har en, annars vapnet.
@@ -374,7 +375,8 @@ varje besvärjelse och förmåga ska göra. Besluten flyttas hit allteftersom de
 - **ÖKA och MINSKA (Vidar):** STO och FYS ändrar KP medan besvärjelsen varar. Förlorade KP står kvar när den tar slut.
 - **Turgubbe (Vidar):** högst +3 på ett och samma slag, för 1 PSY per poäng.
 - **Gudarnas gunstling (Vidar):** gäller en gång per äventyr.
-- **Den andra handen (Vidar):** ger avdrag för den som inte är dubbelhänt eller ambidextriös. Avdraget hämtas ur Bok I när det byggs.
+- **Vänster hand (Vidar, ersätter beslutet om avdrag för den andra handen):** den som anfaller i närstrid med vänster hand ger motståndaren −2 på pareringen, oavsett om det är svärdshanden eller den andra handen. Den andra handen ger inget eget avdrag (`LEFT_HAND_PARRY` i `combat.ts`).
+- **Borttagna förmågor (Vidar):** Absolut ögonmått och God tidskänsla gör för lite i spelet och är borttagna. Ett slag som hamnar på dem ger raden ovanför i tabellen (`REMOVED_ABILITIES` i `src/data/abilities.ts`).
 - **FÖRÄNDRA (Vidar):** ett järnvapen kan förvandlas till ett trävapen.
 
 ### Förmågor med regelvärden (byggt)
@@ -391,31 +393,245 @@ varje besvärjelse och förmåga ska göra. Besluten flyttas hit allteftersom de
 ### Förmågor som används i spel (byggt)
 
 Regelvärdena står i `ABILITY_RULES` i `src/engine/rules/tables.ts`, och det mesta av koden i
-`src/engine/talents.ts`. Det som står som tolkning väntar på Vidars godkännande.
+`src/engine/talents.ts`. Vidar godkände tolkningarna den 26 november 2026.
 
 - **God bågskytt:** räckvidden för projektilvapen (bågar, armborst, slungor och blåsrör) gångras med 1,25 och avrundas nedåt till hela rutor. Kastvapen räknas inte.
 - **Järnnäve:** obeväpnade anfall gör alltid högsta skada, med SB.
 - **Snabb uppfattning:** +5 på CL vid parering i närstrid, med vapen och sköld. Den som ser skytten kan parera pilar och lod med ett närstridsvapen (inte med skölden), och kastvapen med vapnet eller skölden. Ett perfekt skott kan inte pareras.
 - **Djurvän:** vanliga djur (gruppen djur i regeldatan, inte de legendariska varelserna) väljer inte personen som mål och upptäcker inte gruppen för hens skull. Den som anfaller djuret, med vapen, skott eller skadlig magi, är inte fredad av det djuret längre (`Actor.provokedBy`).
-- **Gott läkekött (tolkning):** all naturlig läkning går dubbelt så fort. Spelet skiljer inte på skador av våld och av annat, och nästan alla skador kommer från vapen eller elementarbesvärjelser.
+- **Gott läkekött (Vidar):** all naturlig läkning går dubbelt så fort. Spelet skiljer inte på skador av våld och av annat, och nästan alla skador kommer från vapen eller elementarbesvärjelser.
 - **God mental kontroll:** PSY-poängen kommer tillbaka dubbelt så fort.
 - **Turgubbe (Vidar):** knappen köper +1 på CL för 1 PSY på nästa egna slag, högst +3. Ett tryck till efter taket stänger av den. PSY dras när slaget slås.
 - **Tjuvtur:** samma knapp, 1–3 PSY, två gånger mellan varje sömn (fyra för alver). Sömnen återställer den.
-- **Turen läggs på efter tärningen (tolkning):** tillägget räknas in i `heroic`, som alla slag går igenom. Bara slag 2–19 kan gå från misslyckat till lyckat; omslagen för perfekt och fummel räknas inte om. Turen kan inte ta PSY till 0, och den läggs på före en hjältepoäng.
-- **Gudarnas gunstling (Vidar och tolkning):** när KP når 0 slås 1T100, och på 25 eller lägre kommer alla KP tillbaka (också i kroppsdelarna). Kritiska skador, förlorade kroppsdelar och blödningar står kvar. Det slås varje gång KP når 0, tills guden har räddat personen en gång under äventyret; det börjar om när modulen lämnas.
-- **Riddarslag:** ett anfallssätt för riddare med ett närstridsvapen, för 5 PSY. Med sikte på en kroppsdel blir det inget avdrag för siktet; utan sikte gör anfallet högsta skada med högsta SB. Rustning och parering gäller som vanligt. PSY dras även om anfallet missar (tolkning).
-- **Anfall bakifrån (lönnmördare):** gäller när offret inte märker anfallaren som smyger fram (Smyga lyckas och Upptäcka fara misslyckas). Ett misslyckat anfall gör normal skada, ett lyckat dubbel och ett perfekt fyrdubbel, alltid utan SB. Ett fummel är ett fummel. Bara mot humanoider och inte med stridskonsternas slag och grepp. **Storleken (tolkning):** "högst 2 m längre" blir att offret har högst 10 STO mer än lönnmördaren.
+- **Turen läggs på efter tärningen (Vidar):** tillägget räknas in i `heroic`, som alla slag går igenom. Bara slag 2–19 kan gå från misslyckat till lyckat; omslagen för perfekt och fummel räknas inte om. Turen kan inte ta PSY till 0, och den läggs på före en hjältepoäng.
+- **Gudarnas gunstling (Vidar):** när KP når 0 slås 1T100, och på 25 eller lägre kommer alla KP tillbaka (också i kroppsdelarna). Kritiska skador, förlorade kroppsdelar och blödningar står kvar. Det slås varje gång KP når 0, tills guden har räddat personen en gång under äventyret; det börjar om när modulen lämnas.
+- **Riddarslag:** ett anfallssätt för riddare med ett närstridsvapen, för 5 PSY. Med sikte på en kroppsdel blir det inget avdrag för siktet; utan sikte gör anfallet högsta skada med högsta SB. Rustning och parering gäller som vanligt. PSY dras även om anfallet missar (Vidar).
+- **Anfall bakifrån (lönnmördare):** gäller när offret inte märker anfallaren som smyger fram (Smyga lyckas och Upptäcka fara misslyckas). Ett misslyckat anfall gör normal skada, ett lyckat dubbel och ett perfekt fyrdubbel, alltid utan SB. Ett fummel är ett fummel. Bara mot humanoider och inte med stridskonsternas slag och grepp. **Storleken (Vidar):** "högst 2 m längre" blir att offret har högst 10 STO mer än lönnmördaren.
 - **Handpåläggning (helare):** en hjälphandling på den som helaren kan röra vid, också på sig själv.
   - Läka: 1 KP för 1 PSY. I strid läker varje tur 1 KP; utanför strid läker helaren så mycket som PSY räcker till, och lika många rundor går.
   - Bota gift: PSY/2 mot det starkaste giftets STY på motståndstabellen, för lika många PSY som STY.
-  - Bota en infektion (tolkning): infektionerna och deras feber räknas som sjukdom med svårighetsgraden 10, och det kostar 10 PSY.
-  - PSY dras också när det misslyckas, och får inte gå ned till 0 (tolkning).
-- **Meditation (munk):** munken väljer en färdighet. Varje hel runda ger +1, högst till FV (alltså dubbla FV), och gäller nästa slag i färdigheten inom en minut (12 rundor). I strid tar varje runda turen. Utanför strid mediterar munken tills det inte går högre, och tiden går under tiden. Tolkning: tillägget räknas som CL.
-- **God kroppskontroll:** en handling med ett Normalt FYS-slag. Lyckas det får personen +5 STY i tre rundor, och det räknas in i skadebonusen, i greppet om tunga vapen och i STY mot STY. Två försök om dagen; ett misslyckat försök räknas också (tolkning).
+  - Bota en infektion (Vidar): infektionerna och deras feber räknas som sjukdom med svårighetsgraden 10, och det kostar 10 PSY.
+  - PSY dras också när det misslyckas (Vidar), och får inte gå ned till 0.
+- **Meditation (munk, husregel av Vidar):** bokens Meditation används inte. Munken mediterar i en minut och slår ett Normalt PSY-slag. Lyckas det får munken +5 på INT-baserade färdigheter i en timme. Bara utanför strid.
+- **Förtrollande framträdande (bard, Vidar):** barden sjunger eller spelar i en minut och slår i Sjunga eller Spela instrument. Lyckas det får barden +5 på KAR-baserade färdigheter (Övertala, Muta, Bluffa, Köpslå och de andra) i en timme, och AI-spelledaren får veta att åhörarna är förtrollade. Bara utanför strid. Ett misslyckat försök kostar minuten, och det går att försöka igen.
+- **God kroppskontroll:** en handling med ett Normalt FYS-slag. Lyckas det får personen +5 STY i tre rundor, och det räknas in i skadebonusen, i greppet om tunga vapen och i STY mot STY. Två försök om dagen; ett misslyckat försök räknas också (Vidar).
 
-### Vädret (Vidar)
+### Fiendernas magi (byggt)
 
-Vädret byggs i steg 7 i förslagets ordning. Upplägget:
+- **Bara med FV i skolan (Vidar):** ingen kan lära sig en besvärjelse utan FV i magiskolan, varken rollpersonen, följeslagare eller personer i modulerna. Alla sätt att lära sig (när rollpersonen skapas, lärare, bibliotek, kodex och `learnSpell`) kräver FV i skolan minst lika högt som besvärjelsens skolvärde, och `tests/data.test.ts` prövar att varelser och följeslagare i modulerna följer det.
+- **Samma regler för alla (Vidar):** `castSpell`, `castProblem` och `spellTargets` i `src/engine/magic.ts` tar magikern som argument (`CastOptions.caster`). Fienden har FV i sina skolor, S per besvärjelse, PSY-poäng, högsta E, järnregeln, snedtändning och bruten koncentration som gruppen.
+- **Data:** en varelse får magi med `CreatureDef.magic` (FV per skola och besvärjelserna). Besvärjelserna står i `Actor.spells` och räknas alla som memorerade. PSY-poängen är varelsens PSY.
+- **Fiendens val** (`enemyCast`), i den här ordningen:
+  1. HELA på en vän med hälften av KP eller mindre, också sig själv.
+  2. Skydd: SKYDD, LÄDERHUD och FÖRTROLLA VAPEN när de inte redan verkar, och SKÖLD en gång per strid när någon står intill.
+  3. En skadebesvärjelse (skada, köld, rankor) mot den närmaste som syns, när ingen står intill.
+  4. Annars närstrid eller skott som förut.
+- **Effektgraden (tolkning):** fienden väljer så hög E att CL blir minst 8, högst E3 för skada och E2 för skydd, och alltid med 2 PSY kvar efteråt (en E1 och aldrig PSY 0).
+- **Fienderna går bara på gruppen** med magi, som i närstrid. Den som är osynlig eller smyger oupptäckt kan de inte välja.
+- **Spelaren ser det komma:** en besvärjelse som inte är kvick står i loggen som "börjar mana … mot …" och verkar i början av nästa runda, om ingen hinner skada magikern innan.
+- **Häxkonstnären i Gråvad:** en svartalfisk häxkonstnär (INT 14, PSY 16, Elementarmagi 14, Animism 16) med BLIXT, SKÖLD och HELA och en trästav står vid Grukk i grottan.
+
+### Besvärjelser i strid (byggt)
+
+Koden står i `apply` i `src/engine/magic.ts`, och det som striden behöver i `src/engine/spelleffects.ts`.
+
+- **ÖKA och MINSKA (Vidar och tolkning):**
+  - Magikern väljer grundegenskap (STY, FYS, STO, KAR eller SMI), och den ändras med 1 per E så länge besvärjelsen varar. MINSKA sänker inte under 1.
+  - STO och FYS ändrar KP (Vidar): KP och KP i kroppsdelarna ändras lika mycket som maxvärdet, så förlorade KP står kvar när besvärjelsen tar slut.
+  - SB följer STY, och förflyttningen räknas om.
+  - Tolkning: baschansen ändras för alla färdigheter som bygger på grundegenskapen.
+  - Tolkning: ovilliga mål gör inte motstånd, eftersom besvärjelsen inte påverkar psyket. Samma besvärjelse på samma grundegenskap ersätter den gamla.
+- **FLAMMANDE HAND:** 1T3 per E i extra skada med händerna och med vapen som hålls i handen, inte med skott och naturliga vapen.
+- **VIRVELSKÖLD:** alla skott och kast till och från magikern missar. Ammunitionen går åt.
+- **MOTSTÅNDSKRAFT:** 1 mindre skada per E och angrepp från ELD, FROST, salamandern, thermen och glacialen, och från vapen som en elementar har hettat upp eller kylt ned.
+- **ANTIMAGI:**
+  - En besvärjelse som riktas mot någon annan med ANTIMAGI slår sin E mot ANTIMAGIs E på motståndstabellen. Misslyckas det studsar den tillbaka på magikern.
+  - Tolkning: EXPLOSION, MÖRKER och elementarerna påverkas inte, eftersom de inte riktas mot målet.
+- **LJUS:** målet lyser som en fackla, två rutor (tre meter) per E. Det räknas som fackelsken.
+- **MÖRKER:**
+  - En sfär med två rutors radie kring målets ruta (`GameState.zones`). Rutorna räknas som mörker också utomhus, och facklor där inne lyser inte.
+  - Tolkning: mörkersyn fungerar, eftersom den ser värme. I umbrans mörker fungerar den inte.
+- **MAGISK SYN:** ser den som är osynlig (men inte den som smyger) och bländas inte av EXPLOSION eller luminalen.
+- **OSYNLIGHET:**
+  - Kräver 1 E per 6 STO. Den osynlige räknas som oupptäckt: fienderna kan inte välja hen som mål.
+  - Den bryts när hen anfaller, skjuter, lägger magi, springer (mer än halva förflyttningen) eller skadas.
+  - Tolkning: den som anfaller osynlig behöver inte slå Smyga, men försvararen slår Upptäcka fara. Misslyckas det är försvararen omedveten, som vid anfall från smygarläge.
+- **KAMOUFLAGE:** bara utomhus (gräs och stig). Magikern är oupptäckt tills hen lämnar rutan, anfaller, skjuter, lägger magi eller skadas.
+- **VINDPIL (Vidar):** 1T10 + 1 per E i skada. Pilen skjuts direkt när besvärjelsen lyckas och träffar en kroppsdel efter avståndstabellen. Rustningen skyddar, och VIRVELSKÖLD stöter bort den.
+- **ASTRALVAPEN (Vidar):**
+  - Ett eggvapen av magisk energi i magikerns hand: 1T10 som enhandsvapen och 2T10 som tvåhandsvapen (Vidar).
+  - FV är magikerns S när besvärjelsen läggs, och skadebonus läggs till.
+  - "En E per kg": ett enhandsvapen kräver E2 och ett tvåhandsvapen E4.
+  - Vapnet tar platsen av det magikern håller i handen så länge det varar, går inte sönder och räknas som magiskt vapen, så det biter på elementarer som bara skadas av magi. Det räknas inte som järn.
+- **SPRÅNG:**
+  - Ett hopp till en ruta som magikern väljer med riktning och avstånd, högst 4 m per E: E1 två rutor, E2 fem och E3 åtta.
+  - Hoppet går över fiender och vatten men inte genom väggar, berg och träd, och landningsrutan måste vara ledig.
+  - Vid landningen slås ett Normalt SMI-slag, och Gott balanssinne ger +5. Tolkning: misslyckas det hamnar hoppet på marken i en runda.
+- **LEVITATION och FLYGA:**
+  - Figuren svävar. Den som svävar når och nås i närstrid bara med långa vapen (räckvidd 2 eller mer), om inte båda svävar. Skott går som vanligt.
+  - LEVITATION står still i luften.
+  - FLYGA ger E × 5 rutor per runda, men en E går åt för varje påbörjat 20-tal STO över 20. Den som flyger tar sig över vatten och träd (tolkning), och skador i benen spelar ingen roll.
+  - Knappen Landa avslutar båda. Tolkning: den som landar över vatten eller ett träd hamnar på närmaste lediga ruta, utan skada.
+- **LYFT:**
+  - Kräver 1 E per 3 STO och flyttar målet två rutor, plus en för varje E utöver det som krävs, över fiender och vatten.
+  - Tolkning: målet flyttas på en gång när besvärjelsen verkar och sätts ned utan skada.
+  - Tolkning: en fiende gör motstånd med E × 3 mot sin STY på motståndstabellen.
+- **TELEPORTERA (tolkning):** kräver 1 E per 3 STO och flyttar målet till en ledig ruta inom 100 m (66 rutor) som gruppen har sett. I strid måste rutan synas just nu.
+- **DIMMA:**
+  - En dimbank med tio rutors radie kring målet. Ingen ser eller skjuter längre än 10 rutor in i, ut ur eller inom dimman.
+  - Tolkning: det krävs vatten inom tio rutor från målet.
+- **BESKYDDARE (tolkning):**
+  - Fältet är tre gånger tre rutor kring magikern och varar tills vidare, på den karta där det lades.
+  - Den som går in träffas av en ENERGISTRÅLE E1: 1T3 mot en kroppsdel i detaljerad strid, annars 1T6.
+  - Magi utifrån mot någon där inne måste övervinna ANTIMAGI E1.
+  - Magikern själv kan gå in och ut. De som stod i fältet när det lades träffas inte förrän de har gått ut och in igen.
+- **KONTROLLERA PERSON och KONTROLLERA VARELSE (Vidar):**
+  - KONTROLLERA PERSON (mentalism) gäller bara personer, inte djur. Tolkning: personer är humanoider i detaljerad strid, alltså också alver, dvärgar, orcher och svartalfer.
+  - KONTROLLERA VARELSE (animism) gäller alla sorters ointelligenta djur (gruppen djur i regeldatan), men inte människor och inte magiska varelser. Den kräver 1 E per 20 STO. Det finns inga grupper av djur att lära sig var för sig. Detsamma gäller TILLKALLA VARELSE och TALA MED VARELSE.
+  - PSY mot PSY. Den kontrollerade slutar vara fientlig och slåss för gruppen i S stridsrundor.
+  - Den kontrollerade anfaller själv den närmaste fienden på sin tur (Vidar). Fienderna anfaller den inte (tolkning).
+  - Kontrollen bryts när magikern dör eller faller medvetslös, eller när den skingras. Sedan blir personen fientlig igen.
+- **Kvar:**
+  - NEDKALLA ÅSKVIGG behöver vädret.
+
+
+### Lås och besvärjelser utanför strid (byggt)
+
+Koden står i `src/engine/locks.ts` och `src/engine/worldspells.ts`.
+
+- **Låsta dörrar och kistor:**
+  - Modulerna anger dem i kartan (`MapDef.locks`) med en svårighetsgrad, och en kista med silver och föremål. Hur det står till med dem sparas i `GameState.locks`.
+  - En kista står alltid i vägen. En dörr står i vägen när den är låst eller förseglad, också för fienderna.
+  - Gråvad har Grukks kista (svårighetsgrad 12) i grottan.
+- **Låsdyrkning (tolkning av "differensvärdet nöter ner låsets svårighetsgrad"):**
+  - Det krävs dyrkar: för små lås till kistor och för större lås till dörrar.
+  - Varje försök tar en minut. Ett lyckat slag drar differensvärdet (minst 1) från svårighetsgraden, och låset går upp när den når 0. Ett perfekt slag öppnar på en gång.
+- **Bryta upp (tolkning):** STY mot låsets svårighetsgrad på motståndstabellen, 20 mer om den är förseglad (FÖRSEGLA ger 20 KP). Varje försök tar en minut.
+- **ÖPPNA:** öppnar ett lås som magikern rör vid. En försegling bryts om E övervinner förseglingens E på motståndstabellen.
+- **FÖRSEGLA:** en dörr eller kista som magikern rör vid sitter ihop så länge besvärjelsen varar. Ingen kan gå igenom den. Tolkning: fienderna slår inte sönder dörrar än.
+- **FINNA VATTEN (Vidar):** räckvidden spelar ingen roll, magikern hittar alltid vatten. Finns det vatten på kartan får hen riktning och avstånd till det närmaste, annars hittar hen en källa i närheten. Den fungerar inte när det regnar. **Vidar:** när spelet får regler för att äta och dricka ersätter besvärjelsen en dagsranson vatten.
+- **VARSEBLIVNING:** magikern väljer fientliga varelser, personer, djur, utgångar, kistor eller föremål på marken. Hen får riktning och avstånd till de E närmaste inom räckvidden.
+- **VÄXTKUNSKAP (Vidar och tolkning):** magikern hittar en ört som växer i närheten, utan slag (Vidar). Tolkning: det tar en timme och ger 1T4 doser, som bereds som vanligt med Drogkunskap eller Giftkunskap.
+- **TRÄELD och LÅGA (Vidar):** magikern plockar upp en kvist och tänder den med magisk eld. Den blir en fackla i packningen och brinner lika länge som en vanlig. LÅGA lyser också själv en ruta runt magikern i 1T3 SR.
+- **SPÅRLÖS (Vidar):** en fientlig grupp eller fiende som jagar gruppen på världskartan slutar följa efter den. Effekten sätts redan nu, men den har verkan först med världskartan.
+- **VATTENANDNING:** den som har den kan gå ut i vattnet. När den tar slut går hen upp på närmaste lediga ruta.
+- **SYN (Vidar):** identifierar framför allt magiska föremål, alltså vad de gör, när sådana finns. Modulerna kan också ge SYN scener (se nedan). Utan en scen visar den ingenting särskilt än.
+- **TALA MED VARELSE:** magikern kan tala med ointelligenta djur som inte är fientliga (Vidar). AI-spelledaren får veta att FV i djurets språk är E. Djuret får en enkel persona.
+- **TANKEÖVERFÖRING och TELEPATI (Vidar):** de är rollspel i modulernas scener: en fånge som ropar på hjälp, en uppdragsgivare som skickar nyheter. Utan en scen händer inget särskilt. TANKEÖVERFÖRING kan dessutom fylla en fiendes tankar med skräck i strid: fienden slår moral och kan fly. Den som inte lyder under moralreglerna och elementarerna påverkas inte.
+- **Scener för besvärjelser (Vidar):** en modul kan låta en besvärjelse visa något särskilt på en viss plats eller när flaggorna stämmer (`ModuleDef.spellScenes`). Texten skrivs i loggen och en flagga sätts, som AI-spelledaren får veta genom modulens anteckningar. Gråvads exempel är en syn av Grukk och häxkonstnären i grottan. Det fungerar med alla besvärjelser, till exempel SYN, TELEPATI och TANKEÖVERFÖRING.
+- **TANKELÄSNING:** i samtal med personen får AI-spelledaren avslöja vad personen tänker och döljer, utan att personen märker något.
+- **TILLKALLA VARELSE (Vidar och tolkning):**
+  - Ointelligenta djur på kartan kommer, närmast först och högst 20 STO per E. Det tar 1T10 minuter, och det går inte mitt i en strid.
+  - Djuren slåss för gruppen och går efter den. De ger sig av när besvärjelsen tar slut eller när nästa strid är slut, och blir inte fientliga igen.
+
+### Magiska föremål (byggt)
+
+Bok III s. 43–44. Koden står i `src/engine/magicitems.ts`, och föremålen anges i modulerna (`ModuleDef.magicItems`, `MagicItemDef`).
+
+- **Besvärjelserna i föremålet** har fasta effektgrader och lyckas alltid (Bok III).
+  - Utan NEXUS kostar de användaren lika många PSY som effektgraden.
+  - Utan PERMANENS förbrukas de.
+  - En brygd förbrukas när den dricks och verkar på den som dricker.
+- **Verkar ständigt:** besvärjelser med PERMANENS och NEXUS i vapen, rustningar och sköldar kan verka ständigt när föremålet bärs. Det gäller FÖRTROLLA VAPEN, SKYDD, ANTIMAGI, LJUS, VIRVELSKÖLD, MOTSTÅNDSKRAFT, MAGISK SYN och MÖRKERSYN. Sådana föremål behöver ingen analys. Ett vapen med FÖRTROLLA VAPEN räknas som magiskt mot elementarer.
+- **Analys (Bok III och Bok I):**
+  - (1) att föremålet är magiskt: Känna magi eller VARSEBLIVNING.
+  - (2) vilka besvärjelser det har: VARSEBLIVNING, SYN eller Magisk empati.
+  - (3) hur de aktiveras: bara SYN.
+  - Gruppen delar det den vet (`GameState.itemKnown`), och ett föremål visar sitt utseende tills (2) är känt.
+- **Känna magi (Bok I):**
+  - Slås i den skola som föremålets första besvärjelse hör till, eller i den bästa Känna magi för allmänna besvärjelser. Den som saknar FV slår med BC för PSY.
+  - −20 om man inte har känt på ett likadant föremål förut, och +1 per effektgrad. Ett perfekt slag ger antalet besvärjelser och effektgrader.
+  - Tolkning: ett försök tar en minut, och knappen finns för vapen, rustningar, sköldar och diverse föremål.
+- **Magisk empati (Bok I):** PSY mot antalet effektgrader på motståndstabellen ger (2). Tolkning: det tar tio minuter.
+- **VARSEBLIVNING och SYN (tolkning):** VARSEBLIVNING mot magiska föremål ger (1) och (2) för E föremål som gruppen bär eller som ligger på marken inom räckvidden. SYN ger (3) för E föremål som gruppen bär.
+- **Räckvidd och varaktighet** för besvärjelser ur föremål räknas med S 10 (tolkning). Verkan kommer direkt, och i strid tar det handlingen.
+- **LADDNING i en stav:** när staven är analyserad kan dess PSY dras ur den som ur ett laddat föremål.
+- **Registret:** magiska vapen, rustningar och sköldar får sina värden ur föremålet de bygger på (`base`) och läggs in i regeldatans register, så att de fungerar som vanliga föremål. Järnregeln följer grundföremålet.
+- **Gråvad (egna exempel):**
+  - Grukks bredsvärd: FÖRTROLLA VAPEN E1, verkar ständigt.
+  - Häxkonstnärens stav: LADDNING E2 och LJUS E1 med PERMANENS och NEXUS.
+  - En läkebrygd (HELA E2) i Grukks kista.
+
+### Magisk kanalisering (Vidar, byggt)
+
+Koden står i `src/engine/channel.ts`.
+
+- **Vidars förenkling av Bok I:** magikern med färdigheten kopplar ihop sig med en villig person efter ett lyckat slag i Magisk kanalisering, och kan sedan använda personens PSY till sina besvärjelser.
+- **Mottagligt medium:** +5 på slaget när personen med förmågan är mediet.
+- **Tolkningar:**
+  - Man måste kunna röra vid mediet, och alla i gruppen är villiga.
+  - Kopplingen håller till nästa sömn, eller tills mediet faller medvetslöst.
+  - Mediets PSY går inte under 1. I strid tar slaget handlingen.
+  - Magikern väljer när hen lägger en besvärjelse om PSY ska tas från mediet. Laddade föremål används först, sedan mediet och sist magikerns egna PSY.
+
+### HAMNSKIFTARE (Vidar, byggt)
+
+- **En egen besvärjelse i animism (Vidar),** inte ur böckerna: den gör samma sak som förmågan Hamnbytare.
+- **Tolkningar:**
+  - Skolvärde 10, personlig och utan särskild varaktighet. E1 räcker.
+  - Magikern väljer ett av de sex djuren.
+  - Magikern blir människa igen när hen vill, och samma PSY-slag gäller som för Hamnbytare.
+
+### Hamnbytare (byggt)
+
+Bok I, särskild förmåga 78. Koden står i `src/engine/shapeshift.ts` och djuren i `HAMN` i `src/engine/rules/tables.ts`.
+
+- **Djuret** slås med 1T6 första gången: varg, björn, hök, hjort, svan eller katt. Det sparas i förmågans val.
+- **Storleken (tolkning):**
+  - Varg ur regeldatan.
+  - Björnen är medelstor.
+  - Katten är en vanlig katt (Bok II:s "liten katt").
+  - Hjorten är ett litet klövdjur (Bok II räknar hjort som liten eller medelstor).
+- **Hök och svan** har inga värden i böckerna. Egna värden, som väntar på Vidars godkännande:
+  - Hök: STY 4, STO 2, FYS 8, SMI 18, flyger 30, klor 1T4 med FV 12, Upptäcka fara 18.
+  - Svan: STY 7, STO 6, FYS 10, SMI 12, flyger 24 och simmar, vingslag 1T4 med FV 9, Upptäcka fara 12.
+- **Förvandlingen (Bok I):** tar en stridsrunda och varar så länge personen vill.
+  - Personen får djurets STY, STO, FYS och SMI, förflyttning, naturliga skydd och anfall.
+  - INT, PSY, KAR och de INT-baserade färdigheterna är kvar. Besvärjelser går inte.
+  - Tolkning: djurets bästa anfall används (högst FV), ett per runda.
+- **Tolkningar för spelet:**
+  - I djurhamn strider personen vanligt, med totala KP.
+  - KP som var förlorade följer med in i hamnen. Skada som djuret får följer med tillbaka och fördelas över kroppsdelarna.
+  - Hök och svan flyger över vatten och träd, men slåss nere vid marken (de svävar inte). Svanen simmar.
+  - Ett djur kan inte tala med människor eller bära en fackla.
+- **Utrustningen (Vidar):** följer med magiskt men kan inte användas i djurhamn.
+- **PSY-slaget (Bok I):** för varje hel timme i hamnen utöver personens PSY slås ett Normalt PSY-slag. Misslyckas det är personen för alltid fast i hamnen (`Character.stuckInShape`).
+- **Figurer:** björn, hjort, katt, hök och svan (`src/game/art/sprites.ts`).
+
+### Ritualer och FÖRÄNDRA (byggt)
+
+Koden står i `src/engine/rituals.ts`.
+
+- **Ritualer (Vidar):** en ritual tar lika många timmar som effektgraden. LADDNING och FÖRYNGRA går bara utanför strid och kräver lugn och ro. Läses ritualen ur formelsamlingen tar det 1T6 minuter till (tolkning).
+- **LADDNING:**
+  - Magikern laddar ett föremål i packningen med 5 PSY per E. Ett föremål kan bara laddas en gång, också när det är tomt.
+  - När magikern lägger en besvärjelse kan hen välja att dra PSY ur laddade föremål som hen bär. De används före hens egna PSY.
+  - Tolkning: alla föremål av samma slag räknas som samma föremål.
+- **FÖRYNGRA (tolkning):** kroppen blir E × 5 år yngre i S/4 veckor. Hamnar personen i en yngre åldersgrupp ändras STY, FYS, SMI och STO efter ålderstabellen så länge besvärjelsen varar. Ankor saknar åldrar och påverkas inte.
+- **FÖRÄNDRA:**
+  - Ett vapen i handen blir ett annat vapen av samma slag (närstrid eller avstånd) i S minuter. Det gäller också ett järnvapen som blir ett trävapen (Vidar), så magikern kan lägga besvärjelser eller en fiende få ett sämre vapen.
+  - Tolkning: det krävs en E per påbörjade 3 kg av det tyngsta av de två vapnen.
+  - Att förvandla djur väntar på figurer och värden för fler djur.
+- **Rättat på vägen:**
+  - Effekter som räknas i dygn återställde inte det de ändrade när de tog slut. Nu gör de det (`onExpire`).
+  - Besvärjelser på figurer utanför gruppen räknades inte ned när tiden gick utanför strid (`expireSpells` i `time.ts`).
+
+### Ljus (Vidar, byggt)
+
+Koden står i `src/engine/light.ts` och brinntiderna i `LIGHT_SECONDS` i `src/engine/rules/tables.ts`.
+
+- **Facklor (Vidar):** en fackla brinner en timme och förbrukas när den tänds. Den som inte har någon fackla eller lykta har inget ljus.
+- **Oljelyktan (Vidar och tolkning):** den räcker längre: sex timmar på en fyllning, som utrustningslistan säger. Lyktan finns kvar och fylls på med lampolja, en timme per flaska. Tolkning: den slocknar inte i regn, eftersom den har glas.
+- **Tolkningar:**
+  - När ljuset brinner ut tänder man nästa fackla av sig själv.
+  - Ljuset brinner inte medan gruppen sover.
+  - En släckt fackla kan tändas igen med den tid som är kvar.
+  - Oljelyktan tänds före facklorna.
+- Ljuset syns i statuspanelen. Följeslagarna i Gråvad har fyra facklor var.
+
+### Vädret (Vidar, byggt)
+
+Koden står i `src/engine/weather.ts` och värdena i `WEATHER`, `SKY` och `WIND` i `src/engine/rules/tables.ts`. Upplägget:
 
 - **Två mätare** med fem steg var:
   - Himlen: klart, halvklart, mulet, regn, åska.
@@ -426,5 +642,12 @@ Vädret byggs i steg 7 i förslagets ordning. Upplägget:
   - Ett steg från ytterläget (halvklart, regn, svag vind, hård vind): mot ytterläget bara på 6, mot mitten på 1–2, kvar på 3–5.
   - I ytterläget (klart, åska, stiltje, storm): tillbaka på 1–3, kvar på 4–6.
 - **Modulerna** kan ange vädret vid start eller låsa det. Inomhus och i grottor märks det inte.
-- **Verkan:** regn släcker facklor utomhus, ger −2 på avståndsstrid och gör att FINNA VATTEN inte fungerar. Vinden påverkar skott och båtar; värdena bestäms när det byggs. Väderbesvärjelserna (VINDKONTROLL, REGNKONTROLL, NEDKALLA ÅSKVIGG och VIGGFÅNGARE) flyttar mätarna eller kräver ett visst väder.
+- **Verkan:** regn och åska släcker facklor utomhus, ger −2 på avståndsstrid när skytten eller målet står utomhus och gör att FINNA VATTEN inte fungerar.
+- **Vinden (tolkning):** hård vind ger −2 och storm −5 på skott och kast utomhus. Båtar finns inte än.
+- **Utomhus** är gräs, stig, vatten och träd. Hus och grottor märker inget av vädret.
+- **Vid start:** en modul kan ange vädret (`ModuleDef.weather`) och låsa det. Annars fortsätter det som var, och ett nytt spel börjar med halvklart och svag vind. Vädret syns i statuspanelen, och AI-spelledaren får veta det i samtal utomhus.
+- **VINDKONTROLL (tolkning av "E m/s"):** vinden ökar eller minskar ett steg per fyra E, minst ett, under S timmar. Sedan kommer vädret som var tillbaka.
+- **REGNKONTROLL:** när det är mulet eller regnar kan magikern få det att regna, och när det regnar kan hen stoppa regnet (det blir mulet). Det varar i S minuter, och sedan kommer vädret som var tillbaka. Det går inte där modulen har låst vädret.
+- **NEDKALLA ÅSKVIGG:** som BLIXT (1T6 per E, rustningen skyddar inte), men bara när det regnar, och både magikern och målet måste stå under bar himmel.
+- **VIGGFÅNGARE (Vidar):** under åska slår en blixt (5T6) ned i magikern, och hela blixten blir PSY utan att skada. Tolkning: PSY blir inte högre än grundvärdet.
 

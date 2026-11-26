@@ -5,7 +5,7 @@ import { Game } from '../src/engine/game';
 import { INTENTS } from '../src/engine/intents';
 import { FUMBLE_TABLES, FEAR_TABLE } from '../src/engine/rules';
 import type { Actor } from '../src/engine/types';
-import { testCharacter } from './helpers';
+import { lit, testCharacter } from './helpers';
 
 /** Slumpkälla som ger talen i tur och ordning och sedan 0,5. */
 function queue(...values: number[]): Rng {
@@ -195,6 +195,7 @@ describe('detaljerad strid', () => {
 
   it('mörker ger −15, facklans sken −5, och mörkersyn tar bort avdraget', () => {
     const { g, p, alf } = duel();
+    lit(p);
     // Grottgolv öster om byn.
     p.x = 31;
     p.y = 4;

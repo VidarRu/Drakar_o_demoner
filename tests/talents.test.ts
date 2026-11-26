@@ -5,7 +5,7 @@ import { Game } from '../src/engine/game';
 import { provokeAnimal, spares } from '../src/engine/hero';
 import { attackModes, maneuver } from '../src/engine/maneuvers';
 import { DAY, HOUR } from '../src/engine/rules';
-import { bodyControlProblem, layOnHands, luckProblem, meditate, thiefLuckLeft } from '../src/engine/talents';
+import { bodyControlProblem, layOnHands, luckProblem, perform, performanceProblem, thiefLuckLeft } from '../src/engine/talents';
 import { advanceTime } from '../src/engine/time';
 import type { Actor, Character } from '../src/engine/types';
 import { testCharacter } from './helpers';
@@ -212,15 +212,33 @@ describe('handlingar', () => {
     expect(p.infections).toHaveLength(0);
   });
 
-  it('Meditation ger upp till dubbla FV på nästa slag i färdigheten', () => {
+  it('Munkens Meditation ger +5 på INT-färdigheter i en timme efter ett PSY-slag', () => {
     const g = hero({ profession: 'munk' });
     const p = g.player;
-    const fv = g.skillFv(p, 'overtala');
-    expect(meditate(g, p, 'overtala')).toBeNull();
-    expect(combat.skillMod(g, p, 'overtala')).toBe(fv);
-    g.rng = queue(face(10));
-    g.playerCheck('overtala');
-    expect(combat.skillMod(g, p, 'overtala')).toBe(0);
+    const before = combat.skillMod(g, p, 'historia');
+    const t = g.state.time;
+    g.rng = queue(face(1));
+    expect(perform(g, p)).toBeNull();
+    expect(g.state.time - t).toBe(60);
+    expect(combat.skillMod(g, p, 'historia')).toBe(before + 5);
+    expect(combat.skillMod(g, p, 'overtala')).toBe(combat.skillMod(g, p, 'overtala'));
+    expect(performanceProblem(g, p)).toMatch(/redan/);
+    g.sleep(1);
+    expect(combat.skillMod(g, p, 'historia')).toBe(before);
+  });
+
+  it('Bardens framträdande ger +5 på KAR-färdigheter, men inte om slaget misslyckas', () => {
+    const g = hero({ profession: 'bard' });
+    const p = g.player;
+    p.skills.sjunga = 12;
+    const before = combat.skillMod(g, p, 'overtala');
+    g.rng = queue(face(20));
+    expect(perform(g, p, 'sjunga')).toBeNull();
+    expect(combat.skillMod(g, p, 'overtala')).toBe(before);
+    g.rng = queue(face(2));
+    expect(perform(g, p, 'sjunga')).toBeNull();
+    expect(combat.skillMod(g, p, 'overtala')).toBe(before + 5);
+    expect(combat.skillMod(g, p, 'historia')).toBe(combat.skillMod(g, p, 'historia'));
   });
 
   it('God kroppskontroll ger +5 STY två gånger om dagen', () => {

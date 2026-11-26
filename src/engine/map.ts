@@ -5,11 +5,13 @@ export interface TileDef {
   opaque: boolean;
   /** Mörkt utan ljuskälla (grottor). */
   dark?: boolean;
+  /** Utomhus i naturen (KAMOUFLAGE). */
+  outdoor?: boolean;
 }
 
 export const TILES: Record<string, TileDef> = {
-  '.': { name: 'gräs', walkable: true, opaque: false },
-  ',': { name: 'stig', walkable: true, opaque: false },
+  '.': { name: 'gräs', walkable: true, opaque: false, outdoor: true },
+  ',': { name: 'stig', walkable: true, opaque: false, outdoor: true },
   _: { name: 'trägolv', walkable: true, opaque: false },
   ':': { name: 'grottgolv', walkable: true, opaque: false, dark: true },
   '+': { name: 'dörr', walkable: true, opaque: true },
@@ -32,6 +34,21 @@ export interface MapDef {
   habitats?: string[];
   /** Utgångar ur modulen: tecken -> underlag och namn. Går gruppen dit kan den lämna äventyret. */
   exits?: Record<string, { tile: string; name: string }>;
+  /** Låsta dörrar och kistor: tecken -> underlag och låset. En dörr ska ha underlaget '+'. */
+  locks?: Record<string, LockDef>;
+}
+
+/** En låst dörr eller kista (steg 8, besvärjelserna utanför strid). */
+export interface LockDef {
+  tile: string;
+  kind: 'dörr' | 'kista';
+  name: string;
+  /** Låsets svårighetsgrad: Låsdyrkning nöter ned den med differensvärdet, och STY prövas mot den. */
+  difficulty: number;
+  /** Föremål i kistan (id ur regeldatan eller innehållet). */
+  loot?: string[];
+  /** Silver i kistan (tärningsuttryck). */
+  silver?: string;
 }
 
 export interface GameMap {
@@ -44,6 +61,7 @@ export interface GameMap {
   start: { x: number; y: number };
   habitats: string[];
   exits: { x: number; y: number; name: string }[];
+  locks: (LockDef & { x: number; y: number })[];
 }
 
 export function parseMap(def: MapDef): GameMap {
@@ -52,6 +70,7 @@ export function parseMap(def: MapDef): GameMap {
   const tiles: string[] = [];
   const spawns: GameMap['spawns'] = [];
   const exits: GameMap['exits'] = [];
+  const locks: GameMap['locks'] = [];
   let start = { x: 1, y: 1 };
   def.rows.forEach((row, y) => {
     if (row.length !== w) throw new Error(`Karta ${def.id}: rad ${y} har bredd ${row.length}, väntade ${w}`);
@@ -62,6 +81,9 @@ export function parseMap(def: MapDef): GameMap {
       } else if (def.spawns[ch]) {
         spawns.push({ creature: def.spawns[ch].creature, recruit: def.spawns[ch].recruit, x, y });
         tiles.push(def.spawns[ch].tile);
+      } else if (def.locks?.[ch]) {
+        locks.push({ ...def.locks[ch], x, y });
+        tiles.push(def.locks[ch].tile);
       } else if (def.exits?.[ch]) {
         exits.push({ x, y, name: def.exits[ch].name });
         tiles.push(def.exits[ch].tile);
@@ -72,7 +94,7 @@ export function parseMap(def: MapDef): GameMap {
       }
     });
   });
-  return { id: def.id, name: def.name, w, h, tiles, spawns, start, habitats: def.habitats ?? [], exits };
+  return { id: def.id, name: def.name, w, h, tiles, spawns, start, habitats: def.habitats ?? [], exits, locks };
 }
 
 export const idx = (map: GameMap, x: number, y: number) => y * map.w + x;
@@ -175,6 +197,8 @@ export function findPath(
   to: Point,
   blocked: (x: number, y: number) => boolean,
   adjacentOk = false,
+  /** Vilka rutor man kan gå på (FLYGA tar sig över vatten och träd). */
+  canPass: (x: number, y: number) => boolean = (x, y) => walkable(map, x, y),
 ): Point[] | null {
   const done = (x: number, y: number) =>
     adjacentOk ? distance(x, y, to.x, to.y) <= 1 : x === to.x && y === to.y;
@@ -190,7 +214,7 @@ export function findPath(
     for (const [dx, dy] of DIRS) {
       const nx = cx + dx;
       const ny = cy + dy;
-      if (!walkable(map, nx, ny)) continue;
+      if (!canPass(nx, ny)) continue;
       const ni = idx(map, nx, ny);
       if (prev.has(ni)) continue;
       if (blocked(nx, ny)) continue;
@@ -213,6 +237,7 @@ export function reachable(
   from: Point,
   steps: number,
   blocked: (x: number, y: number) => boolean,
+  canPass: (x: number, y: number) => boolean = (x, y) => walkable(map, x, y),
 ): Point[] {
   const dist = new Map<number, number>([[idx(map, from.x, from.y), 0]]);
   const queue: Point[] = [from];
@@ -224,7 +249,7 @@ export function reachable(
     for (const [dx, dy] of DIRS) {
       const nx = cur.x + dx;
       const ny = cur.y + dy;
-      if (!walkable(map, nx, ny) || blocked(nx, ny)) continue;
+      if (!canPass(nx, ny) || blocked(nx, ny)) continue;
       const ni = idx(map, nx, ny);
       if (dist.has(ni)) continue;
       dist.set(ni, d + 1);

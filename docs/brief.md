@@ -94,8 +94,40 @@ förslagets avsnitt 5.
   - `heroic` lägger på turen före hjältepoängen, och `raiseTarget` (`rules/check.ts`) räknar om slaget. Riddarslaget är anfallssättet `riddarslag` i `maneuvers.ts`, och Handpåläggning finns bland hjälphandlingarna.
   - STY räknas med `strength(a)` i striden, så att God kroppskontroll (effekten `styrka`) ger SB. Effekter kan gälla en enda färdighet (`scope: 'färdighet'` och `ActiveEffect.skill`), och `consumeSkillEffects` förbrukar dem efter `playerCheck`.
   - Gränssnittet har knappar för Turgubbe, Tjuvtur, Kroppskontroll och Meditera (med val av färdighet) i båda panelerna. Testerna står i `tests/talents.test.ts`.
-- **Nästa (steg 3):** magi för alla (`castSpell` och `resolve` tar magikern som argument), sedan fiender som lägger besvärjelser med häxkonstnären i Gråvad, och besvärjelserna i strid.
-- **Kvar av förmågorna:** Gott balanssinne (när SPRÅNG byggs), Absolut ögonmått och God tidskänsla (gränssnittet), Mottagligt medium och Magisk empati (väntar på kanalisering och magiska föremål), avdraget för den andra handen, bardens Förtrollande framträdande och Hamnbytare.
+- **Klart (barden och munken, Vidar):** bardens Förtrollande framträdande och munkens nya Meditation är en husregel. En minut och ett lyckat slag (Sjunga eller Spela instrument för barden, Normalt PSY-slag för munken) ger +5 på KAR- respektive INT-färdigheter i en timme, utanför strid. `perform` i `talents.ts`, effekterna har `scope: 'kar'` och `'int'`, och AI-spelledaren får veta när barden har förtrollat åhörarna. Knapparna Framträd och Meditera finns i panelerna. Vidar godkände samtidigt de andra tolkningarna för de enkla förmågorna.
+- **Klart (steg 3 och 4):** magi för alla och fiender som lägger besvärjelser.
+  - `castSpell`, `castProblem` och `spellTargets` tar magikern (`CastOptions.caster`). `spellbook` ger formelsamlingen och minnet för vem som helst.
+  - Varelser får magi med `CreatureDef.magic`, och besvärjelserna står i `Actor.spells`.
+  - `enemyCast` i `magic.ts` är fiendens val (HELA, skydd, skada) och anropas från `autoTurn`. `CombatState.cast` håller reda på vad varje fiende har lagt.
+  - Den svartalfiska häxkonstnären står i Gråvads grotta (BLIXT, SKÖLD, HELA, figuren `haxkonstnar`).
+- **Pågår (steg 5):** besvärjelserna i strid. ÖKA, MINSKA, FLAMMANDE HAND, VIRVELSKÖLD, MOTSTÅNDSKRAFT, ANTIMAGI, LJUS, MÖRKER, MAGISK SYN, OSYNLIGHET, KAMOUFLAGE, VINDPIL (1T10) och ASTRALVAPEN (1T10 eller 2T10, `ASTRAL_WEAPON` i `rules/magic.ts`) verkar nu. Det gör också SPRÅNG, LEVITATION, FLYGA, LYFT, TELEPORTERA, DIMMA, BESKYDDARE, KONTROLLERA PERSON och KONTROLLERA VARELSE (ointelligenta djur, `isCommonAnimal`).
+  - Skada utan kroppsdel fördelas jämnt över kroppsdelarna (Vidar, `spreadDamage` i `combat.ts`), utom blödningen.
+  - Verkan står i `apply` i `magic.ts`. Det som striden behöver står i `src/engine/spelleffects.ts`: zonerna (`GameState.zones`), `attrShift`, `flamingHand`, `inVortex`, `heatColdResist`, `unseen` och `breakHiding`.
+  - `changeAttribute` och `endSpellEffect` i `combat.ts` ändrar och återställer grundegenskaper.
+  - Magi-fönstret har ett val av grundegenskap för ÖKA och MINSKA, av en eller två händer för ASTRALVAPEN, och av riktning och avstånd för SPRÅNG, LYFT och TELEPORTERA (`moveReach`).
+  - Den som svävar har effekten `svävar`: `airborne`, `flightSpeed` och `passable` i `spelleffects.ts`. `findPath` och `reachable` i `map.ts` tar en egen `canPass`. Knappen Landa (`Game.land`).
+  - DIMMA och BESKYDDARE är zoner med `map`. `fogBlocks` styr `Game.canSee` och skotten. `wardCheck` i `magic.ts` slår till mot den som går in i BESKYDDARE.
+  - KONTROLLERA PERSON ger effekten `kontrollerad` (`by`, `was`). `autoTurn` låter den kontrollerade anfalla, och `revertSpell` i `combat.ts` återställer den och landar den som svävar.
+  - Testerna står i `tests/spells.test.ts`.
+- **Klart (steg 6):** besvärjelserna utanför strid och låsta dörrar och kistor.
+  - Låsen: `src/engine/locks.ts` (`lockAt`, `lockBlocks`, `pickLock`, `forceLock`, `lootChest`, `magicOpen` och `magicSeal`). Kartorna anger dem i `MapDef.locks`, och `GameState.locks` sparar läget. `Game.blocked` och `occupied` räknar med dem. Knapparna finns i panelen när man står intill, och kistorna, förseglingarna och zonerna ritas i `WorldScene`.
+  - Besvärjelserna: `src/engine/worldspells.ts` (`worldProblem` och `applyWorld`). `apply` i `magic.ts` lämnar över allt den inte känner till.
+  - Samtal: `dialogDef` i `dialogClient.ts` ger djuren en persona, `Game.canTalk` avgör vem man kan tala med, och `openUi('talk')` öppnar ett samtal på avstånd.
+  - Djur som magin styr går efter gruppen i `stepPlayer`.
+  - Scener för besvärjelser: `ModuleDef.spellScenes` och `showScenes` i `worldspells.ts`. Gråvad har en syn av Grukk.
+- **Klart (steg 7, vädret):** `src/engine/weather.ts`. `GameState.weather` har himlen och vinden (`WeatherState`). `updateWeather` körs i `advanceTime` och i början av varje stridsrunda. `torchBurns` ersätter `!torchOut` där ljuset räknas, och `weatherRanged` ger avdragen på skott. `holdWeather` används av VINDKONTROLL och REGNKONTROLL. NEDKALLA ÅSKVIGG är BLIXT med `needsRain`. Testerna står i `tests/weather.test.ts`.
+- **Klart (ljus):** facklor brinner en timme och oljelyktan sex timmar (`src/engine/light.ts`, `Actor.light`, `Character.lanternOil`). `burnLight` körs i `passTime` och i början av varje stridsrunda, och `ensureLight` när spelet laddas. `torchBurns` kräver ett ljus som brinner. I testerna tänder `lit` i `tests/helpers.ts` en fackla.
+- **Klart (TELEPATI och TANKEÖVERFÖRING, Vidar):** rollspel i modulernas scener, och TANKEÖVERFÖRING kan få en fiende att slå moral. Hela VIGGFÅNGARE blir PSY.
+- **Klart (ritualerna och FÖRÄNDRA):** `src/engine/rituals.ts`. En ritual tar lika många timmar som effektgraden (Vidar, `ritualHours` i `magic.ts`). LADDNING sparas i `Character.charges`, och `CastOptions.useCharge` drar PSY ur dem. FÖRYNGRA ändrar de kroppsliga grundegenskaperna efter ålderstabellen. FÖRÄNDRA byter vapnet i handen (effekten `förändrad`). Besvärjelser på figurer utanför gruppen räknas ned med `expireSpells` i `time.ts`.
+- **Alla besvärjelser verkar nu**, utom att förvandla djur med FÖRÄNDRA. Där väntar SYN på magiska föremål, SPÅRLÖS på världskartan och FINNA VATTEN på reglerna för mat och dryck.
+- **Klart (Hamnbytare):** `src/engine/shapeshift.ts` (`shapeOf`, `shapeshift`, `shapeTime`), `Actor.shape` med den mänskliga kroppen, och knappen i panelerna. Djuren står i `HAMN`, och hök och svan har egna värden i `src/data/creatures.ts`. Testerna står i `tests/shapeshift.test.ts`.
+- **Klart (magiska föremål):** `src/engine/magicitems.ts` (`senseMagic`, `empathy`, `seekMagic`, `seeMagic`, `useItem`, `syncItemEffects`, `itemCharges`). `castFromItem` i `magic.ts` lägger en besvärjelse ur ett föremål. `MAGIC_ITEMS` i `src/content/index.ts` registrerar föremålen i regeldatan. Packningen visar analysen och knapparna. Testerna står i `tests/magicitems.test.ts`.
+- **Klart (Vidars sista beslut i sessionen):**
+  - Magisk kanalisering (`src/engine/channel.ts`): ett lyckat slag ger magikern ett villigt mediums PSY, och Mottagligt medium ger +5.
+  - Vänster hand ger motståndaren −2 på parering (`LEFT_HAND_PARRY`).
+  - Absolut ögonmått och God tidskänsla är borttagna (`REMOVED_ABILITIES`).
+  - Den nya besvärjelsen HAMNSKIFTARE (animism) ger Hamnbytares förvandling.
+- **Nästa:** världskartan (nästa session). Kvar av förmågorna är bara Gott balanssinne vid fall, som väntar på fallskador.
 
 Vidar vill också göra en genomgång av hela regelsystemet när det är klart, för att se att det är konsekvent.
 
@@ -163,9 +195,9 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 202 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 262 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
-`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
+`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/spells.test.ts` prövar fiendernas magi och besvärjelserna i strid. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
 
 För att provköra gränssnittet: starta `npx vite` och styr sidan med Playwright. Ett snabbt sätt är
 att skapa ett spel med `Game.create(testCharacter())`, lägga `JSON.stringify(g.state)` i
@@ -174,5 +206,9 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 
 ## Öppna frågor till Vidar
 
-- Chanserna för vädret (tolkning i `docs/regelbeslut.md`) och vindens verkan på skott och båtar, när vädret byggs.
-- Tolkningarna för de enkla förmågorna i `docs/regelbeslut.md` under Förmågor som används i spel: Gott läkekött för all läkning, turen efter tärningen, storleksgränsen för Anfall bakifrån, svårighetsgraden 10 för infektioner, och att PSY och försök räknas även när det misslyckas.
+- Magisk kanalisering och HAMNSKIFTARE: tolkningarna i `docs/regelbeslut.md`.
+- Magiska föremål: tolkningarna i `docs/regelbeslut.md` under Magiska föremål (S 10 för räckvidd, tiden för Känna magi och Magisk empati, vad VARSEBLIVNING och SYN ger), och Gråvads tre föremål.
+- Hamnbytare: värdena för hök och svan, och storleken på björnen, katten och hjorten (`docs/regelbeslut.md` under Hamnbytare).
+- Vädret (`docs/regelbeslut.md` under Vädret): chanserna, att det ändras klockan sex och arton, vindens avdrag på skott, VINDKONTROLL och VIGGFÅNGARE är tolkningar. Tolkningarna för ljuset (se Ljus).
+- Tolkningarna för låsen och besvärjelserna utanför strid (`docs/regelbeslut.md` under Lås och besvärjelser utanför strid).
+- Tolkningarna för besvärjelserna i strid och fiendens val av effektgrad (`docs/regelbeslut.md` under Fiendernas magi och Besvärjelser i strid).

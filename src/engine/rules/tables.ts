@@ -589,6 +589,53 @@ export const PSY_RAISE = {
   potential: -5,
 };
 
+// ------------------------------------------------------------------ Hamnbytare (Bok I)
+
+/**
+ * Djuren som Hamnbytare kan förvandla sig till (1T6). Värdena tas ur regeldatan (`stats`).
+ * Tolkning av storleken: medelstor björn, en vanlig katt (bokens "liten katt") och en hjort som
+ * litet klövdjur. Hök och svan har egna värden.
+ */
+export const HAMN: { name: string; stats: string; sprite: string }[] = [
+  { name: 'varg', stats: 'varg', sprite: 'varg' },
+  { name: 'björn', stats: 'bjorn_medel', sprite: 'bjorn' },
+  { name: 'hök', stats: 'hok', sprite: 'hok' },
+  { name: 'hjort', stats: 'klovdjur_litet', sprite: 'hjort' },
+  { name: 'svan', stats: 'svan', sprite: 'svan' },
+  { name: 'katt', stats: 'katt_liten', sprite: 'katt' },
+];
+
+// ------------------------------------------------------------------ ljus (Bok III:s utrustningslista)
+
+/** Brinntid i sekunder: en fackla, en full oljelykta och en flaska lampolja. */
+export const LIGHT_SECONDS = { fackla: 3600, oljelykta: 6 * 3600, lampolja: 3600 } as const;
+
+// ------------------------------------------------------------------ vädret (Vidar, husregel)
+
+/** Himlen och vinden, fem steg var. Mittsteget är det vanligaste. */
+export const SKY = ['klart', 'halvklart', 'mulet', 'regn', 'åska'] as const;
+export const WIND = ['stiltje', 'svag vind', 'frisk vind', 'hård vind', 'storm'] as const;
+
+export const WEATHER = {
+  /** Vädret ändras klockan sex och arton (tolkning). */
+  changeHours: [6, 18],
+  /**
+   * 1T6 för varje mätare (tolkning): på mittsteget ned på 1–2 och upp på 5–6; ett steg från
+   * ytterläget mot ytterläget bara på 6 och mot mitten på 1–2; i ytterläget tillbaka på 1–3.
+   */
+  middle: { down: 2, up: 5 },
+  nearEdge: { toEdge: 6, toMiddle: 2 },
+  edge: { back: 3 },
+  /** Regn och åska: −2 på avståndsstrid utomhus. */
+  rainRanged: -2,
+  /** Vinden på avståndsstrid utomhus (tolkning): hård vind −2, storm −5. */
+  windRanged: [0, 0, 0, -2, -5],
+  /** VINDKONTROLL: ett steg på vindmätaren per så här många E (tolkning av "E m/s"). */
+  windPerStep: 4,
+  /** VIGGFÅNGARE: blixten gör 5T6, och hälften blir PSY (tolkning). */
+  lightning: '5T6',
+} as const;
+
 // ------------------------------------------------------------------ förmågor (Bok I s. 25–27 och yrkena)
 
 /** Regelvärden för särskilda förmågor och yrkesförmågor som används på turen. Tolkningarna står i docs/regelbeslut.md. */
@@ -611,8 +658,8 @@ export const ABILITY_RULES = {
   backstab: { misslyckat: 1, lyckat: 2, perfekt: 4 },
   /** Anfall bakifrån: offret får ha högst så här mycket mer STO än lönnmördaren (tolkning av "2 m längre"). */
   backstabMaxSto: 10,
-  /** Meditation: gäller ett slag inom en minut. */
-  meditationRounds: 12,
+  /** Bardens Förtrollande framträdande och munkens Meditation (husregel): en minut ger +5 i en timme. */
+  performance: { minutes: 1, bonus: 5, hours: 1 },
   /** God kroppskontroll: +5 STY i tre rundor, två gånger om dagen. */
   bodyControl: { sty: 5, rounds: 3, perDay: 2 },
   /** Handpåläggning: svårighetsgraden för infektioner och feber (tolkning). */

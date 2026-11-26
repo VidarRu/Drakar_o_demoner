@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import type { Fx, Game } from '../engine/game';
 import { distance, idx, inBounds, type Point } from '../engine/map';
 import type { Actor } from '../engine/types';
+import { activeZones } from '../engine/spelleffects';
+import { torchBurns } from '../engine/weather';
 import { bakeGround, bakeRows, caveMask, OVER, PADX, SPRITES, TILE } from './art';
 
 const STEP_MS = 95;
@@ -114,6 +116,45 @@ export class WorldScene extends Phaser.Scene {
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.hover(this.tileOf(p)));
   }
 
+  /** Kistor, förseglade dörrar och besvärjelser på kartan (MÖRKER, DIMMA och BESKYDDARE). */
+  private drawMagicAndLocks(o: Phaser.GameObjects.Graphics) {
+    const { g } = this;
+    for (const z of activeZones(g)) {
+      const x0 = (z.x - z.r) * TILE;
+      const y0 = (z.y - z.r) * TILE;
+      const size = (2 * z.r + 1) * TILE;
+      if (z.kind === 'mörker') {
+        o.fillStyle(0x000000, 0.55);
+        o.fillRect(x0, y0, size, size);
+      } else if (z.kind === 'dimma') {
+        o.fillStyle(0xd8dde4, 0.18);
+        o.fillRect(x0, y0, size, size);
+      } else {
+        o.lineStyle(2, 0x7fb8ff, 0.7);
+        o.strokeRect(x0 + 1, y0 + 1, size - 2, size - 2);
+      }
+    }
+    for (const l of g.map.locks) {
+      if (!g.state.explored[l.y * g.map.w + l.x] || l.kind !== 'kista') continue;
+      const st = g.state.locks?.[`${g.state.mapId}:${l.x},${l.y}`];
+      const cx = l.x * TILE + TILE / 2;
+      const cy = l.y * TILE + TILE / 2 + 2;
+      o.fillStyle(0x3a2414, 1);
+      o.fillRect(cx - 9, cy - 6, 18, 12);
+      o.fillStyle(0x6b4424, 1);
+      o.fillRect(cx - 8, cy - 5, 16, st?.looted ? 3 : 5);
+      o.fillStyle(0xc8a040, 1);
+      o.fillRect(cx - 9, cy - 1, 18, 2);
+      if (!st?.open) o.fillRect(cx - 1, cy - 2, 3, 4);
+    }
+    for (const [k, st] of Object.entries(g.state.locks ?? {})) {
+      if (!st.sealed || st.sealed.until <= g.state.time || !k.startsWith(`${g.state.mapId}:`)) continue;
+      const [x, y] = k.slice(g.state.mapId.length + 1).split(',').map(Number);
+      o.lineStyle(2, 0x9fd0ff, 0.9);
+      o.strokeRect(x * TILE + 3, y * TILE + 3, TILE - 6, TILE - 6);
+    }
+  }
+
   update(time: number) {
     const { g } = this;
     this.drawLight(time);
@@ -137,6 +178,7 @@ export class WorldScene extends Phaser.Scene {
       o.fillStyle(0xe3c476, 1);
       o.fillRect(cx - 3, cy, 2, 2);
     }
+    this.drawMagicAndLocks(o);
     for (const a of g.state.actors) {
       const s = this.sprites.get(a.id);
       if (!s || !s.visible || a.kp >= a.maxKp) continue;
@@ -193,7 +235,7 @@ export class WorldScene extends Phaser.Scene {
       if (!path) return;
       await this.walk(path, (step) => g.stepPlayer(step));
       const p = g.leader;
-      if (target?.kind === 'npc' && g.state.mode === 'explore' && distance(p.x, p.y, target.x, target.y) <= 1) {
+      if (target && g.canTalk(target) && g.state.mode === 'explore' && distance(p.x, p.y, target.x, target.y) <= 1) {
         this.onTalk(target);
       }
     } else if (g.isPlayerTurn()) {
@@ -369,7 +411,7 @@ export class WorldScene extends Phaser.Scene {
       const s = this.sprites.get(a.id);
       if (!s) continue;
       if (a.elemental?.kind === 'ljus') out.push({ x: s.x, y: s.y, r: 5 * a.elemental.grade });
-      else if (!a.elemental && !a.torchOut) out.push({ x: s.x, y: s.y, r: TORCH_RADIUS });
+      else if (!a.elemental && torchBurns(this.g, a)) out.push({ x: s.x, y: s.y, r: TORCH_RADIUS });
     }
     return out;
   }

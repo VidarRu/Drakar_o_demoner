@@ -110,8 +110,13 @@ export const ABILITIES: AbilityDef[] = [
   ab(81, Infinity, 'hojd_grundegenskap', 'Höjd grundegenskap', '+1 på tre olika grundegenskaper eller +2 på en (inte STO).', { kind: 'attrs' }),
 ];
 
+/** Förmågor som Vidar har tagit bort ur spelet: ett slag på dem ger raden ovanför. */
+export const REMOVED_ABILITIES = new Set(['god_tidskansla', 'absolut_ogonmatt']);
+
 export function abilityFor(total: number, magician = false): AbilityDef {
-  const row = ABILITIES.find((a) => total >= a.min && total <= a.max) ?? ABILITIES[0];
+  let i = Math.max(0, ABILITIES.findIndex((a) => total >= a.min && total <= a.max));
+  while (REMOVED_ABILITIES.has(ABILITIES[i].id) && i < ABILITIES.length - 1) i++;
+  const row = ABILITIES[i];
   if (row.magicianOnly && !magician) return ABILITIES.find((a) => a.id === row.magicianOnly!.otherwise)!;
   return row;
 }

@@ -287,8 +287,6 @@ export interface SpellDef {
   ritual: boolean;
   range: SpellRange;
   duration: SpellDuration;
-  /** Varelsebesvärjelser lärs separat för varje grupp av varelser. */
-  perCreatureGroup?: boolean;
   desc: string;
   /** Vad besvärjelsen gör i spelet. Saknas den kan besvärjelsen läras men inte användas än. */
   effect?: SpellEffect;
@@ -301,7 +299,20 @@ export interface SpellDef {
 /** Besvärjelsernas verkan som spelmotorn (src/engine/magic.ts) känner till. */
 export type SpellEffect =
   /** Skada per E. Rustningen skyddar fullt, inte alls eller till hälften om den är av metall. */
-  | { kind: 'skada'; dice: string; detailedDice?: string; armor: 'ingen' | 'full' | 'halvMetall'; loc: boolean }
+  | {
+      kind: 'skada';
+      dice: string;
+      detailedDice?: string;
+      armor: 'ingen' | 'full' | 'halvMetall';
+      loc: boolean;
+      /** Skadan är `dice` hur hög E än är, plus `perGrade` per E (VINDPIL). */
+      fixed?: boolean;
+      perGrade?: number;
+      /** En projektil: VIRVELSKÖLD stöter bort den. */
+      projectile?: boolean;
+      /** Verkar bara utomhus när det regnar (NEDKALLA ÅSKVIGG). */
+      needsRain?: boolean;
+    }
   /** Skada per E på alla inom E meter, sedan 1 mindre per ruta. Alla som ser den bländas. */
   | { kind: 'explosion'; perGrade: number }
   /** Svårt FYS-slag: misslyckas det kan offret inte handla, annars −4 på CL rundan ut. */
@@ -325,7 +336,86 @@ export type SpellEffect =
   /** Snärjer ett mål med en E per 10 STO. */
   | { kind: 'rankor' }
   /** FRAMMANA/SKICKA BORT ELEMENTAR: en besvärjelse per sorts elementar. */
-  | { kind: 'elementar'; element: ElementKind };
+  | { kind: 'elementar'; element: ElementKind }
+  /** ÖKA (+1) och MINSKA (−1): en grundegenskap per E så länge besvärjelsen varar. */
+  | { kind: 'egenskap'; sign: 1 | -1 }
+  /** FLAMMANDE HAND: 1T3 extra skada per E med händerna och med vapen i handen. */
+  | { kind: 'flammandeHand' }
+  /** VIRVELSKÖLD: alla projektiler till och från magikern missar. */
+  | { kind: 'virvelsköld' }
+  /** MOTSTÅNDSKRAFT: 1 mindre skada per E och angrepp av eld och köld. */
+  | { kind: 'motståndskraft' }
+  /** ANTIMAGI: inkommande magi måste övervinna E, annars studsar den tillbaka. */
+  | { kind: 'antimagi' }
+  /** LJUS: målet lyser som en fackla, tre meter per E. */
+  | { kind: 'ljus' }
+  /** MÖRKER: en sfär av mörker kring målets ruta. */
+  | { kind: 'mörker' }
+  /** MAGISK SYN: ser det osynliga och kan inte bländas. */
+  | { kind: 'magiskSyn' }
+  /** OSYNLIGHET: 6 STO per E blir osynliga. */
+  | { kind: 'osynlighet' }
+  /** KAMOUFLAGE: oupptäckt utomhus så länge magikern står still. */
+  | { kind: 'kamouflage' }
+  /** ASTRALVAPEN: ett magiskt eggvapen i handen, 1T10 med en hand och 2T10 med två. */
+  | { kind: 'astralvapen' }
+  /** SPRÅNG: ett hopp till en ruta, 4 m per E, över fiender och vatten. */
+  | { kind: 'språng' }
+  /** LEVITATION: svävar ovanför marken. */
+  | { kind: 'levitation' }
+  /** FLYGA: E × 5 rutor per runda, över vatten och träd. */
+  | { kind: 'flyga' }
+  /** LYFT: flyttar 3 STO per E två rutor, plus en per E utöver det som krävs. */
+  | { kind: 'lyft' }
+  /** TELEPORTERA: 3 STO per E till en känd ruta inom 100 m. */
+  | { kind: 'teleportera' }
+  /** DIMMA: sikten blir 10 rutor i ett område. Kräver vatten. */
+  | { kind: 'dimma' }
+  /** BESKYDDARE: en skyddad kub kring magikern (ANTIMAGI E1 och ENERGISTRÅLE E1). */
+  | { kind: 'beskyddare' }
+  /** KONTROLLERA PERSON (en person) och KONTROLLERA VARELSE (ointelligenta djur): målet slåss för magikern. */
+  | { kind: 'kontrollera'; who: 'person' | 'djur' }
+  // ---------------------------------------------------------------- utanför strid
+  /** ÖPPNA: öppnar ett lås och kan bryta FÖRSEGLA. */
+  | { kind: 'öppna' }
+  /** FÖRSEGLA: en dörr eller kista sitter ihop så länge den varar. */
+  | { kind: 'försegla' }
+  /** FINNA VATTEN: riktning och avstånd till närmaste vatten inom räckvidden. */
+  | { kind: 'finnaVatten' }
+  /** VARSEBLIVNING: riktning och avstånd till det närmaste av ett valt slag, en sak per E. */
+  | { kind: 'varseblivning' }
+  /** VÄXTKUNSKAP: allt om en ört, och nästa sökning efter den lyckas. */
+  | { kind: 'växtkunskap' }
+  /** TRÄELD och LÅGA: tänder en fackla. LÅGA lyser också själv en kort stund. */
+  | { kind: 'tända'; glow?: boolean }
+  /** SPÅRLÖS: lämnar varken spår eller lukt. */
+  | { kind: 'spårlös' }
+  /** VATTENANDNING: kan gå ut i vattnet så länge den varar. */
+  | { kind: 'vattenandning' }
+  /** SYN: ser och hör en känd plats. */
+  | { kind: 'syn' }
+  /** TALA MED VARELSE: samtal med ointelligenta djur. */
+  | { kind: 'talaMed' }
+  /** TANKEÖVERFÖRING, TELEPATI och TANKELÄSNING: tankekontakt med en person. */
+  | { kind: 'tankar'; mode: 'överföring' | 'telepati' | 'läsning' }
+  /** TILLKALLA VARELSE: ointelligenta djur i trakten kommer och följer med en tid. */
+  | { kind: 'tillkalla' }
+  // ---------------------------------------------------------------- vädret
+  /** VINDKONTROLL: vinden ökar eller minskar. */
+  | { kind: 'vindkontroll' }
+  /** REGNKONTROLL: molnen regnar, eller regnet slutar. */
+  | { kind: 'regnkontroll' }
+  /** VIGGFÅNGARE: under åska drar magikern till sig en blixt och får PSY av den. */
+  | { kind: 'viggfångare' }
+  // ---------------------------------------------------------------- ritualer och FÖRÄNDRA
+  /** LADDNING: ett föremål lagrar 5 PSY per E. */
+  | { kind: 'laddning' }
+  /** FÖRYNGRA: kroppen blir E × 5 år yngre en tid. */
+  | { kind: 'föryngra' }
+  /** FÖRÄNDRA: ett vapen blir ett annat vapen av samma slag en tid. */
+  | { kind: 'förändra' }
+  /** HAMNSKIFTARE (Vidar): magikern förvandlar sig till ett djur, som med Hamnbytare. */
+  | { kind: 'hamnskifte' };
 
 export interface ItemDef {
   id: string;

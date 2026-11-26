@@ -1,7 +1,7 @@
 # Förslag: fiendernas magi, alla besvärjelser och förmågorna utan verkan
 
 **Vidar godkände förslagen den 23 november 2026.** Svaren på frågorna i avsnitt 6 och upplägget
-för vädret står i `docs/regelbeslut.md` under Förmågor, besvärjelser och väder. Avsnitt 0 och steg 2 i byggordningen (de enkla förmågorna) är byggda.
+för vädret står i `docs/regelbeslut.md` under Förmågor, besvärjelser och väder. Avsnitt 0 och steg 2–4 i byggordningen är byggda: de enkla förmågorna, magi för alla och fiender som lägger besvärjelser. Steg 5, 6 och vädret i steg 7 är klara (se `docs/regelbeslut.md` under Besvärjelser i strid). Barden och munken har fått en husregel i stället för förslaget i avsnitt 4.
 Besluten för varje besvärjelse och förmåga flyttas till `docs/regelbeslut.md` när de byggs. Texten är egen och återger inte böckerna. Där boken anger ett värde som
 inte finns i `src/data/` står det **(Bok III)** eller **(Bok I)**, och då behövs avskriften när
 det byggs.
@@ -82,7 +82,7 @@ Grupperade efter vad som behövs för att bygga dem. Varje rad är ett förslag.
 | KAMOUFLAGE | Som OSYNLIGHET, men bara utomhus och bara så länge magikern inte flyttar sig. |
 | MAGISK SYN | Ser osynliga och skyddar mot bländning (EXPLOSION, luminalen). |
 | KONTROLLERA PERSON | En humanoid byter sida så länge det varar, PSY mot PSY. Magikern styr den på dess tur. |
-| KONTROLLERA VARELSE | Som KONTROLLERA PERSON för djur ur den valda gruppen, 20 STO per E. |
+| KONTROLLERA VARELSE | Som KONTROLLERA PERSON för alla ointelligenta djur, 20 STO per E (Vidar: inga grupper). |
 | SPRÅNG | Ett hopp till en ruta inom 4 m per E (2–3 rutor), över fiender och vatten, med ett Normalt SMI-slag vid landningen. |
 | LEVITATION | Magikern svävar ovanför marken. Närstridsanfall når bara med långa vapen, och skott går som vanligt. |
 | FLYGA | Flyger E × 5 rutor per runda och över vatten och hinder. Närstrid som för LEVITATION. |

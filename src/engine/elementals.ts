@@ -1,3 +1,4 @@
+import { torchBurns } from './weather';
 import { NON_IRON_WEAPONS, WEAPONS } from '../data/weapons';
 import { roll } from './dice';
 import type { Game } from './game';
@@ -9,6 +10,7 @@ import {
   darkAt,
   DIRS,
   finishTurn,
+  hasEffect,
   isOut,
   isParty,
   moraleCheck,
@@ -139,7 +141,7 @@ export function elementSourceProblem(g: Game, caster: Actor, kind: ElementKind):
 
 /** Magikern eller någon intill har en tänd fackla. */
 function ownTorch(g: Game, caster: Actor): boolean {
-  return g.state.actors.some((a) => a.alive && isParty(a) && !a.elemental && !a.torchOut && distance(a.x, a.y, caster.x, caster.y) <= 1);
+  return g.state.actors.some((a) => a.alive && isParty(a) && !a.elemental && torchBurns(g, a) && distance(a.x, a.y, caster.x, caster.y) <= 1);
 }
 
 function waterNear(g: Game, caster: Actor): { x: number; y: number } | null {
@@ -297,7 +299,7 @@ export const elementalAttacks = (a: Actor) => !!ELEMENTALS[a.elemental!.kind].at
 export function elementalTakes(g: Game, att: Actor, def: Actor, w: WeaponInfo, dmg: number): number | null {
   const info = def.elemental!;
   const d = ELEMENTALS[info.kind];
-  const magic = weaponMagic(att, w.slot) > 0 || !!att.elemental;
+  const magic = weaponMagic(att, w.slot) > 0 || !!att.elemental || !!w.magical;
   const key = w.bvKey;
   const harm = (amount: number, why: string) => {
     if (key && att.bv[key] !== undefined && amount > att.bv[key]) wearItem(g, att, key, why);
@@ -427,7 +429,7 @@ export function act(g: Game, e: Actor, id: string, targetId?: string): string | 
       break;
     }
     case 'blända':
-      for (const x of g.state.actors.filter((y) => y.alive && y.hostile && !isParty(y) && !y.unconscious && g.canSee(y, e))) {
+      for (const x of g.state.actors.filter((y) => y.alive && y.hostile && !isParty(y) && !y.unconscious && !hasEffect(y, 'magiskSyn') && g.canSee(y, e))) {
         const hard = x.darkvision ? 'Svårt' : 'Normalt';
         const psy = attributeCheck(x.attrs.PSY, g.rng, hard);
         if (psy.success) g.log(`${x.name} vänder bort blicken i tid (${hard} PSY-slag, ${short(psy)}).`);

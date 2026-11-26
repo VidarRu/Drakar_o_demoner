@@ -1,3 +1,6 @@
+import { updateWeather } from './weather';
+import { burnLight } from './light';
+import { shapeTime } from './shapeshift';
 import { RACES } from '../data/races';
 import { SKILLS } from '../data/skills';
 import { WEAPONS } from '../data/weapons';
@@ -79,8 +82,27 @@ export function advanceTime(g: Game, seconds: number, activity: Activity) {
   if (seconds <= 0) return;
   const before = g.state.time;
   g.state.time += seconds;
+  updateWeather(g, before);
   for (const a of g.partyMembers()) passTime(g, a, seconds, activity, before);
+  // Besvärjelser på andra figurer (MINSKA, FÖRÄNDRA, KONTROLLERA …) tar också slut med tiden.
+  const party = new Set(g.partyMembers());
+  for (const a of g.state.actors) if (a.alive && !party.has(a)) expireSpells(g, a, seconds);
   payWages(g);
+}
+
+/** Räknar ned besvärjelsernas effekter på en figur utanför gruppen. */
+function expireSpells(g: Game, a: Actor, seconds: number) {
+  const rounds = Math.floor(seconds / 5);
+  const days = seconds / DAY;
+  a.effects = a.effects.filter((e) => {
+    if (!e.spell) return true;
+    if (e.rounds !== undefined) e.rounds -= rounds;
+    else if (e.days !== undefined) e.days -= days;
+    else return true;
+    if ((e.rounds ?? e.days ?? 1) > 0) return true;
+    onExpire(g, a, e);
+    return false;
+  });
 }
 
 /** Tiden går för en rollperson eller följeslagare. */
@@ -114,7 +136,10 @@ function passTime(g: Game, a: Actor, seconds: number, activity: Activity, before
     a.effects = a.effects.filter((e) => {
       if (e.days === undefined) return true;
       e.days -= days;
-      return e.days > 0;
+      if (e.days > 0) return true;
+      // Det som effekten ändrade återställs (FÖRYNGRA, ÖKA och liknande).
+      onExpire(g, a, e);
+      return false;
     });
   }
   // Effekter som räknas i rundor går ned när mer än en runda har gått.
@@ -127,6 +152,10 @@ function passTime(g: Game, a: Actor, seconds: number, activity: Activity, before
     });
   }
   if (seconds > 5) advancePoisons(g, a);
+  // Facklor och lyktor brinner, utom medan gruppen sover (tolkning).
+  if (activity !== 'sömn') burnLight(g, a, seconds);
+  // Hamnbytare: PSY-slag för varje timme över PSY i djurhamn.
+  shapeTime(g, a);
   const race = RACES[(g.charOf(a) ?? g.state.character).race];
   if (activity === 'sömn' && seconds >= race.sleepHours * HOUR) {
     a.epBlocked = [];

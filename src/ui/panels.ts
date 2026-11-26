@@ -17,6 +17,8 @@ import {
   type EquipSlot,
 } from '../engine/inventory';
 import {
+  BODY_ATTRS,
+  moveReach,
   castProblem,
   castSpell,
   forget,
@@ -30,9 +32,15 @@ import {
   spellTargets,
 } from '../engine/magic';
 import { herbProblem, herbsHere, searchHerb, useHerb } from '../engine/poison';
+import { herbChoices, lockChoices, SEEK_KINDS } from '../engine/worldspells';
+import { empathy, empathyProblem, itemDetails, itemLabel, itemUses, ITEM_S, magicDef, senseMagic, senseProblem, useItem, useProblem, type ItemUse } from '../engine/magicitems';
+import { actorHas } from '../engine/hero';
+import { mediumOf, mediumPsy } from '../engine/channel';
+import { HAMN } from '../engine/rules';
+import { chargeableItems, chargeAvailable, transformChoices, transformGrade } from '../engine/rituals';
 import { spellCl } from '../engine/rules';
 import { buy, buyPrice, canHaggle, discount, haggle, sell, sellable, wares } from '../engine/trade';
-import type { Actor } from '../engine/types';
+import type { Actor, AttrKey } from '../engine/types';
 import { $, el } from './hud';
 import { renderQuestLog } from './module';
 
@@ -168,7 +176,19 @@ export class PackUi {
         if (WEAPONS[id].kind === 'närstrid') offer('Andra handen', 'offhand');
       } else if (info.kind === 'sköld') offer('Ta på', 'shield');
       else if (info.kind === 'rustning') offer('Ta på', 'armor');
-      rows.push([`${info.name}${n > 1 ? ` ×${n}` : ''}`, `${info.weight} kg`, actions]);
+      // Magiska föremål (Bok III s. 43–44): analys och användning.
+      const name = itemLabel(g, id) ?? info.name;
+      const details = magicDef(id) ? itemDetails(g, id) : '';
+      // Känna magi går att pröva på vapen, rustningar, sköldar och diverse föremål (inte på facklor och mat).
+      const suspect = info.kind !== 'föremål' || info.category === 'diverse' || !!magicDef(id);
+      if (suspect && !senseProblem(g, p, id)) {
+        const b = button('Känn efter magi', () => this.act(() => senseMagic(g, p, id)));
+        b.title = 'Känna magi: −20 första gången, +1 per effektgrad i föremålet. Tar en minut.';
+        actions.append(b);
+      }
+      if (actorHas(g, p, 'magisk_empati') && !empathyProblem(g, p, id)) actions.append(button('Magisk empati', () => this.act(() => empathy(g, p, id))));
+      for (const u of itemUses(g, p, id)) actions.append(this.useControl(id, u));
+      rows.push([`${name}${n > 1 ? ` ×${n}` : ''}${details ? ` – ${details}` : ''}`, `${info.weight} kg`, actions]);
     }
     for (const [item, n] of Object.entries(ch.ammo)) if (n > 0) rows.push([`${itemInfo(item)?.name.replace(/ \(10 st\)/, '') ?? item}: ${n} st`, '', '']);
     body.append(el('h3', '', 'I packningen'), table(['Föremål', 'Vikt', ''], rows));
@@ -198,6 +218,35 @@ export class PackUi {
         button('Leta en dag', () => this.act(() => searchHerb(g, sel.value)), '', !g.canRest()),
       );
     }
+  }
+
+  /** En besvärjelse ur ett magiskt föremål: mål (om det behövs) och knappen. */
+  private useControl(id: string, u: ItemUse): HTMLElement {
+    const g = this.g;
+    const p = g.player;
+    const sp = SPELLS[u.spell];
+    const box = el('span');
+    let target = p.id;
+    let attr: AttrKey = 'STY';
+    // En brygd verkar alltid på den som dricker den.
+    if (sp.aim !== 'själv' && magicDef(id)?.kind !== 'brygd') {
+      const s = el('select');
+      for (const t of spellTargets(g, u.spell, 0, p, ITEM_S)) s.append(new Option(t === p ? `${t.name} (dig själv)` : t.name, t.id));
+      target = s.value;
+      s.onchange = () => (target = s.value);
+      box.append(s);
+    }
+    if (sp.effect?.kind === 'egenskap') {
+      const s = el('select');
+      for (const k of BODY_ATTRS) s.append(new Option(k, k));
+      s.onchange = () => (attr = s.value as AttrKey);
+      box.append(s);
+    }
+    const problem = useProblem(g, p, id, u.index);
+    box.append(
+      button(`${sp.name} E${u.grade}`, () => this.act(() => useItem(g, p, id, u.index, { target, attr })), 'primary', !!problem, problem ?? (u.nexus ? 'Kostar inga PSY.' : `Kostar ${u.grade} PSY.`)),
+    );
+    return box;
   }
 
   private act(fn: () => string | null | void) {
@@ -244,7 +293,7 @@ export class ShopUi {
 
 /** Magin: formelsamlingen, minnet och att lägga besvärjelser. */
 export class MagicUi {
-  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean } | null = null;
+  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean; attr: AttrKey; hands: 1 | 2; dir: number; dist: number; seek: string; herb: string; lock: number; change: 1 | -1; item: string; useCharge: boolean; useMedium: boolean; animal: number } | null = null;
 
   constructor(private g: Game, private panel: Panel) {}
 
@@ -282,7 +331,7 @@ export class MagicUi {
 
   private pick(id: string) {
     const targets = spellTargets(this.g, id);
-    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false };
+    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false, attr: 'STY', hands: 1, dir: 0, dist: 1, seek: 'fiende', herb: '', lock: 0, change: 1, item: '', useCharge: false, useMedium: false, animal: 0 };
     this.panel.refresh();
   }
 
@@ -323,6 +372,115 @@ export class MagicUi {
       box.append(l);
       if (!c.target && s.options.length) c.target = s.options[0].value;
     }
+    if (sp.effect?.kind === 'egenskap') {
+      const s = el('select');
+      for (const k of BODY_ATTRS) s.append(new Option(k, k, false, k === c.attr));
+      s.onchange = () => (c.attr = s.value as AttrKey);
+      const l = el('label', '', 'Grundegenskap ');
+      l.append(s);
+      box.append(l);
+    }
+    if (sp.effect?.kind === 'astralvapen') {
+      const s = el('select');
+      s.append(new Option('Enhandsvapen, 1T10 (E2)', '1', false, c.hands === 1), new Option('Tvåhandsvapen, 2T10 (E4)', '2', false, c.hands === 2));
+      s.onchange = () => {
+        c.hands = s.value === '2' ? 2 : 1;
+        this.panel.refresh();
+      };
+      const l = el('label', '', 'Vapen ');
+      l.append(s);
+      box.append(l);
+    }
+    // SPRÅNG, LYFT och TELEPORTERA: rutan väljs med riktning och avstånd från målet.
+    const mover = c.target ? g.actor(c.target) : sp.aim === 'själv' ? p : undefined;
+    const reach = mover ? moveReach(g, c.id, c.grade, mover) : null;
+    let at: { x: number; y: number } | undefined;
+    if (reach !== null && mover) {
+      c.dist = Math.min(Math.max(1, c.dist), Math.max(1, reach));
+      const dirSel = el('select');
+      COMPASS.forEach(([name], i) => dirSel.append(new Option(name, String(i), false, i === c.dir)));
+      dirSel.onchange = () => {
+        c.dir = Number(dirSel.value);
+        this.panel.refresh();
+      };
+      const distSel = el('select');
+      for (let i = 1; i <= Math.max(1, reach); i++) distSel.append(new Option(String(i), String(i), false, i === c.dist));
+      distSel.onchange = () => {
+        c.dist = Number(distSel.value);
+        this.panel.refresh();
+      };
+      const l1 = el('label', '', 'Riktning ');
+      l1.append(dirSel);
+      const l2 = el('label', '', `Rutor (högst ${reach}) `);
+      l2.append(distSel);
+      box.append(l1, l2);
+      const [, dx, dy] = COMPASS[c.dir];
+      at = { x: mover.x + dx * c.dist, y: mover.y + dy * c.dist };
+    }
+    const kind = sp.effect?.kind;
+    const pick = (label: string, options: [string, string][], value: string, set: (v: string) => void) => {
+      const s = el('select');
+      for (const [v, text] of options) s.append(new Option(text, v, false, v === value));
+      s.onchange = () => {
+        set(s.value);
+        this.panel.refresh();
+      };
+      const l = el('label', '', `${label} `);
+      l.append(s);
+      box.append(l);
+      return s.value;
+    };
+    // ÖPPNA och FÖRSEGLA: en dörr eller kista som magikern kan röra vid.
+    if (kind === 'öppna' || kind === 'försegla') {
+      const locks = lockChoices(g, p);
+      if (locks.length) {
+        const v = pick('Dörr eller kista', locks.map((l, i) => [String(i), l.text]), String(c.lock), (v) => (c.lock = Number(v)));
+        const l = locks[Number(v)] ?? locks[0];
+        at = { x: l.spot.x, y: l.spot.y };
+      }
+    }
+    if (kind === 'vindkontroll') pick('Vinden', [['1', 'Öka'], ['-1', 'Minska']], String(c.change), (v) => (c.change = v === '1' ? 1 : -1));
+    if (kind === 'regnkontroll') pick('Regnet', [['1', 'Få molnen att regna'], ['-1', 'Stoppa regnet']], String(c.change), (v) => (c.change = v === '1' ? 1 : -1));
+    if (kind === 'laddning') {
+      const items = chargeableItems(g, p);
+      if (items.length) c.item = pick('Föremål', items.map((id) => [id, itemInfo(id)?.name ?? id]), items.includes(c.item) ? c.item : items[0], (v) => (c.item = v));
+    }
+    if (kind === 'förändra') {
+      const t = c.target ? g.actor(c.target) : undefined;
+      const options = t ? transformChoices(t.weapon) : [];
+      if (options.length) c.item = pick('Blir', options.map((id) => [id, `${WEAPONS[id].name} (E${transformGrade(t!.weapon, id)})`]), options.includes(c.item) ? c.item : options[0], (v) => (c.item = v));
+    }
+    if (chargeAvailable(g, p) > 0) {
+      const l = el('label', '', `Ta PSY ur laddade föremål (${chargeAvailable(g, p)} kvar) `);
+      const cb = el('input');
+      cb.type = 'checkbox';
+      cb.checked = c.useCharge;
+      cb.onchange = () => {
+        c.useCharge = cb.checked;
+        this.panel.refresh();
+      };
+      l.append(cb);
+      box.append(l);
+    }
+    if (kind === 'hamnskifte') pick('Djur', HAMN.map((h, i) => [String(i), h.name]), String(c.animal), (v) => (c.animal = Number(v)));
+    const medium = mediumOf(g, p);
+    if (medium && mediumPsy(g, p) > 0) {
+      const l = el('label', '', `Ta PSY från ${medium.name} (${mediumPsy(g, p)} att ta) `);
+      const cb = el('input');
+      cb.type = 'checkbox';
+      cb.checked = c.useMedium;
+      cb.onchange = () => {
+        c.useMedium = cb.checked;
+        this.panel.refresh();
+      };
+      l.append(cb);
+      box.append(l);
+    }
+    if (kind === 'varseblivning') c.seek = pick('Leta efter', Object.entries(SEEK_KINDS), c.seek, (v) => (c.seek = v));
+    if (kind === 'växtkunskap') {
+      const herbs = herbChoices(g, p);
+      if (herbs.length) c.herb = pick('Ört', herbs.map((id) => [id, HERBS[id].name]), c.herb || herbs[0], (v) => (c.herb = v));
+    }
     const suicide = el('label', '', 'Självmordsattack (CL = S, kostar mer PSY än du har, du dör) ');
     const cb = el('input');
     cb.type = 'checkbox';
@@ -333,7 +491,7 @@ export class MagicUi {
     };
     suicide.append(cb);
     const S = spellS(p, c.id);
-    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide };
+    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide, attr: c.attr, hands: c.hands, at, seek: c.seek, herb: c.herb, change: c.change, item: c.item || undefined, useCharge: c.useCharge, useMedium: c.useMedium, animal: c.animal };
     const problem = castProblem(g, c.id, opts);
     box.append(
       suicide,
@@ -360,6 +518,18 @@ export class MagicUi {
     this.panel.report(typeof r === 'string' ? r : null);
   }
 }
+
+/** Väderstrecken för SPRÅNG, LYFT och TELEPORTERA: namn och steg på kartan (norr är uppåt). */
+const COMPASS: [string, number, number][] = [
+  ['Norr', 0, -1],
+  ['Nordost', 1, -1],
+  ['Öster', 1, 0],
+  ['Sydost', 1, 1],
+  ['Söder', 0, 1],
+  ['Sydväst', -1, 1],
+  ['Väster', -1, 0],
+  ['Nordväst', -1, -1],
+];
 
 /** Skapar fönstren och kopplar dem till spelet. */
 export function mountPanels(g: Game) {

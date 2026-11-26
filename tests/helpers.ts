@@ -1,5 +1,5 @@
 import { finalize, newDraft } from '../src/engine/creation';
-import type { Character } from '../src/engine/types';
+import type { Actor, Character } from '../src/engine/types';
 
 /** En färdig mänsklig krigare med bredsvärd, sköld och läderharnesk, skapad enligt reglerna. */
 export function testCharacter(): Character {
@@ -28,4 +28,11 @@ export function testCharacter(): Character {
   d.bought_items = { bredsvard: 1, vanlig_skold: 1, harnesk_lader: 1 };
   d.equipped = { weapon: 'bredsvard', shield: 'vanlig_skold', armor: ['harnesk_lader'] };
   return finalize(d);
+}
+
+/** Tänder en fackla åt figuren utan att ta den ur packningen (för tester som behöver ljus). */
+export function lit(a: Actor): Actor {
+  a.light = { kind: 'fackla', left: 3600 };
+  a.torchOut = false;
+  return a;
 }

@@ -10,7 +10,7 @@ import type { Intent } from '../../engine/intents';
 import { finalize, newDraft, type Draft } from '../../engine/creation';
 import { ARMOR } from '../../data/armor';
 import type { Character } from '../../engine/types';
-import type { BookDef, DeedDef, ModuleDef, QuestDef, RecruitDef } from '../types';
+import type { BookDef, DeedDef, MagicItemDef, ModuleDef, QuestDef, RecruitDef, SpellSceneDef } from '../types';
 
 const human = { STY: 11, STO: 13, FYS: 11, SMI: 11, INT: 11, PSY: 11, KAR: 11 };
 
@@ -66,7 +66,7 @@ const creatures: CreatureDef[] = [
     sprite: 'hovding',
     attrs: { STY: 14, STO: 11, FYS: 13, SMI: 11, INT: 10, PSY: 11, KAR: 8 },
     skills: { enhandssvard: 11, skoldar: 9, upptacka_fara: 9 },
-    weapon: 'bredsvard',
+    weapon: 'grukks_bredsvard',
     armor: ['harnesk_nitlader', 'nitladerhuva'],
     shield: 'vanlig_skold',
     move: 10,
@@ -81,6 +81,24 @@ const creatures: CreatureDef[] = [
     silver: '6T6+20',
     deathFlag: 'hovding_dod',
     loot: ['kronika_gravad'],
+  },
+  {
+    // Provfiende för fiendernas magi (Vidar): svartalfer kan lära sig magi, och hon följer samma
+    // regler som gruppens magiker. Trästaven är inte av järn.
+    id: 'haxkonstnar',
+    name: 'Svartalfisk häxkonstnär',
+    sprite: 'haxkonstnar',
+    attrs: { STY: 8, STO: 7, FYS: 10, SMI: 11, INT: 14, PSY: 16, KAR: 8 },
+    skills: { trastav: 6, upptacka_fara: 11, smyga: 8 },
+    weapon: 'haxstav',
+    magic: { schools: { elementarmagi: 14, animism: 16 }, spells: ['blixt', 'skold', 'hela'] },
+    move: 10,
+    hostile: true,
+    humanoid: true,
+    folk: 'svartalf',
+    darkvision: true,
+    sight: 8,
+    silver: '3T6',
   },
   {
     id: 'vardshusvard',
@@ -250,7 +268,7 @@ const recruits: RecruitDef[] = [
       d.capitalDice = 12;
       d.profSkills = ['enhandsyxor', 'skoldar', 'bagar', 'dolkar', 'dra_vapen', 'avvapna', 'geografi', 'hasardspel', 'kulturkannedom:manniskor', 'simma', 'trastav', 'barsarkagang'];
       d.targets = { enhandsyxor: 13, skoldar: 12, dra_vapen: 10, avvapna: 8, upptacka_fara: 9, forsta_hjalpen: 7 };
-      d.bought_items = { stridsyxa: 1, vanlig_skold: 1, harnesk_nitlader: 1, nitladerhuva: 1 };
+      d.bought_items = { stridsyxa: 1, vanlig_skold: 1, harnesk_nitlader: 1, nitladerhuva: 1, fackla: 4 };
       d.equipped = { weapon: 'stridsyxa', shield: 'vanlig_skold', armor: ['harnesk_nitlader', 'nitladerhuva'] };
       d.appearance = 'Grånad legoknekt med ärrat ansikte och en yxa som sett många strider.';
     }),
@@ -272,7 +290,7 @@ const recruits: RecruitDef[] = [
       d.capitalDice = 9;
       d.profSkills = ['bagar', 'dolkar', 'stickvapen', 'djurhelning:hund', 'drogkunskap', 'geografi', 'knopar', 'orientering', 'simma', 'spa_vader', 'ortkunskap', 'overlevnad'];
       d.targets = { bagar: 13, dolkar: 9, smyga: 12, gomma_sig: 10, spara: 12, upptacka_fara: 11, forsta_hjalpen: 9 };
-      d.bought_items = { kortbage: 1, dolk: 1, pilar: 2, harnesk_lader: 1 };
+      d.bought_items = { kortbage: 1, dolk: 1, pilar: 2, harnesk_lader: 1, fackla: 4 };
       d.equipped = { weapon: 'kortbage', armor: ['harnesk_lader'] };
       d.appearance = 'Smidig och tystlåten jägarinna i grön kappa, med en båge över axeln.';
     }),
@@ -295,7 +313,7 @@ const recruits: RecruitDef[] = [
       d.capitalDice = 3;
       d.profSkills = ['dolkar', 'drogkunskap', 'geografi', 'kulturkannedom:manniskor', 'lakekonst', 'massage', 'orientering', 'simma', 'trastav', 'zoologi', 'ortkunskap', 'overlevnad'];
       d.targets = { trastav: 8, lakekonst: 11, ortkunskap: 10, forsta_hjalpen: 12 };
-      d.bought_items = { trastav: 1 };
+      d.bought_items = { trastav: 1, fackla: 4 };
       d.equipped = { weapon: 'trastav', armor: [] };
       d.appearance = 'Ung kvinna med flätat hår och örtpåsar i bältet. Svartalferna dödade hennes far.';
     }),
@@ -309,7 +327,51 @@ const flagNotes: Record<string, string> = {
   uppdrag_klart: 'Spelaren har fått sin belöning för att ha dödat hövdingen.',
   hogre_beloning: 'Värdshusvärden har gått med på en högre belöning (750 silvermynt).',
   kopt_ringbrynja: 'Spelaren har köpt smedens ringbrynjeskjorta.',
+  syn_grukk: 'Spelaren har med besvärjelsen SYN sett Grukk och hans häxkonstnär i grottans innersta del, och vet att de har en låst kista.',
 };
+
+/** Magiska föremål i Gråvad (egna exempel enligt Bok III s. 43–44). */
+const magicItems: MagicItemDef[] = [
+  {
+    id: 'grukks_bredsvard',
+    name: 'Grukks bredsvärd',
+    looks: 'Bredsvärd med svarta runor',
+    kind: 'vapen',
+    base: 'bredsvard',
+    spells: [{ spell: 'fortrolla_vapen', grade: 1, permanent: true, nexus: true, always: true }],
+  },
+  {
+    id: 'haxstav',
+    name: 'Häxkonstnärens stav',
+    looks: 'Knotig trästav med en ugglefjäder',
+    kind: 'stav',
+    base: 'trastav',
+    spells: [
+      { spell: 'laddning', grade: 2 },
+      { spell: 'ljus', grade: 1, permanent: true, nexus: true },
+    ],
+  },
+  {
+    id: 'lakebrygd',
+    name: 'Läkebrygd',
+    looks: 'Liten flaska med grönaktig dryck',
+    kind: 'brygd',
+    weight: 0,
+    price: 300,
+    spells: [{ spell: 'hela', grade: 2, nexus: true }],
+  },
+];
+
+/** Scener som besvärjelser kan visa i Gråvad (exempel för modulformatet). */
+const spellScenes: SpellSceneDef[] = [
+  {
+    id: 'syn_grukk',
+    spells: ['syn'],
+    unlessFlag: 'hovding_dod',
+    text: 'I synen ser du grottan österut. I dess innersta del sitter en storvuxen svartalf med bredsvärd och sköld vid en järnbeslagen kista, och bredvid honom en svartalfisk häxkonstnär i mörk kåpa som viskar besvärjelser över en trästav.',
+    setFlag: 'syn_grukk',
+  },
+];
 
 const maps: MapDef[] = [
   {
@@ -318,6 +380,8 @@ const maps: MapDef[] = [
     start: { char: '@', tile: ',' },
     habitats: ['överallt', 'skog', 'ängar', 'åkerkanter', 'snårskog'],
     exits: { X: { tile: ',', name: 'Vägen västerut' } },
+    // Grukks kista: låst, med svartalfernas rövade silver.
+    locks: { K: { tile: ':', kind: 'kista', name: 'Grukks kista', difficulty: 12, silver: '5T10+20', loot: ['oljelykta', 'lakebrygd'] } },
     spawns: {
       i: { tile: '_', creature: 'vardshusvard' },
       s: { tile: '_', creature: 'smed' },
@@ -326,6 +390,7 @@ const maps: MapDef[] = [
       g: { tile: ':', creature: 'svartalf' },
       b: { tile: ':', creature: 'svartalf_skytt' },
       C: { tile: ':', creature: 'svartalfshovding' },
+      m: { tile: ':', creature: 'haxkonstnar' },
       h: { tile: '_', recruit: 'hjalmar' },
       j: { tile: '.', recruit: 'sigrid' },
       l: { tile: '.', recruit: 'linnea' },
@@ -334,9 +399,9 @@ const maps: MapDef[] = [
       'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',
       'T..........T....TT......T...%%%%%%%%%%%%%%%T',
       'T.#######.......T....T......%%::::%%%%:::%%T',
-      'T.#___h_#..........TT....T..%:::g::%%::::%%T',
+      'T.#___h_#..........TT....T..%:::g::%%:::K%%T',
       'T.#_i___#....T..........T...%::::::::b:C:%%T',
-      'T.#_____#.........T.........%%::::%%%::::%%T',
+      'T.#_____#.........T.........%%::::%%%:::m%%T',
       'T.###+###......T......w..T..%%%:%%%%%%%%%%%T',
       'T....,..............T.......%%%:%%%%%%%%%%%T',
       'T....,....####.........T....%%::%%%%%%%%%%%T',
@@ -456,6 +521,8 @@ export const SPELTEST: ModuleDef = {
   books,
   intents,
   flagNotes,
+  spellScenes,
+  magicItems,
   epilogue: [
     'Med Grukk död skingras svartalferna, och stigen genom skogen blir åter säker att gå.',
     'På Gyllene Galten bjuder Bertil på öl, och för en kväll är ni byns hjältar. Men vägen västerut leder vidare, mot nya äventyr.',

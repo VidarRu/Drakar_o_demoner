@@ -100,7 +100,7 @@ export function ironProblem(g: Game, p: Actor = g.player): string | null {
   // Vidar: alla sköldar har metallbeslag och räknas som järn.
   if (p.shield && SHIELDS[p.shield]) return `${SHIELDS[p.shield].name} har metallbeslag.`;
   let iron = 0;
-  for (const id of (g.charOf(p) ?? g.char).inventory) {
+  for (const id of g.charOf(p)?.inventory ?? []) {
     if (id === p.weapon || id === p.offhand || id === p.shield || p.armor.includes(id)) continue;
     if ((WEAPONS[id] && !NON_IRON_WEAPONS.has(id)) || ARMOR[id]?.metal || SHIELDS[id] || IRON_ITEMS.has(id)) iron += weightOf(g, id, p);
   }
@@ -124,6 +124,7 @@ function ownedFree(g: Game, id: string): boolean {
 export function equipProblem(g: Game, id: string, slot: EquipSlot | 'armor'): string | null {
   const p = g.player;
   const sty = p.attrs.STY;
+  if (p.shape) return 'I djurhamn kan du inte använda utrustning.';
   if (!ownedFree(g, id)) return 'Du har inget ledigt exemplar.';
   if (g.state.mode === 'combat') {
     if (slot === 'armor') return 'Rustning kan inte bytas mitt i en strid.';

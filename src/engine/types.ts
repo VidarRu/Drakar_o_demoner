@@ -57,6 +57,11 @@ export interface CreatureDef {
   npc?: string;
   /** Föremål som varelsen bär och som blir kvar på marken när den dör (t.ex. en bok). */
   loot?: string[];
+  /**
+   * Magi (Vidar: samma regler som för gruppen). FV per magiskola och besvärjelserna, som alla
+   * räknas som memorerade. PSY-poängen är varelsens PSY.
+   */
+  magic?: { schools: Partial<Record<'animism' | 'elementarmagi' | 'mentalism', number>>; spells: string[] };
 }
 
 /** Varor som en handlare säljer: vapen, rustningar, sköldar, droger eller en kategori ur utrustningslistan. */
@@ -165,7 +170,44 @@ export interface ActiveEffect {
     | 'initiativ'
     // ------------------------------------------------ förmågor
     /** `mod` på STY (God kroppskontroll), även för skadebonusen. */
-    | 'styrka';
+    | 'styrka'
+    // ------------------------------------------------ besvärjelser i strid
+    /** ÖKA eller MINSKA: `mod` har lagts på grundegenskapen `attr` och tas bort när den slutar. */
+    | 'egenskap'
+    /** FLAMMANDE HAND: `grade` × 1T3 extra skada med händerna och vapen i handen. */
+    | 'flammandeHand'
+    /** VIRVELSKÖLD: projektiler till och från figuren missar. */
+    | 'virvelsköld'
+    /** MOTSTÅNDSKRAFT: `grade` mindre skada per angrepp av eld och köld. */
+    | 'motståndskraft'
+    /** ANTIMAGI med effektgraden `grade`. */
+    | 'antimagi'
+    /** LJUS: figuren lyser som en fackla `mod` rutor runt sig. */
+    | 'ljus'
+    /** MAGISK SYN: ser osynliga och bländas inte. */
+    | 'magiskSyn'
+    /** OSYNLIGHET: osynlig tills hen anfaller, springer, lägger magi eller skadas. */
+    | 'osynlig'
+    /** KAMOUFLAGE: oupptäckt så länge hen står kvar på rutan `at`. */
+    | 'kamouflage'
+    /** ASTRALVAPEN: vapnet i handen gör `dice` i skada och har FV `mod`. */
+    | 'astralvapen'
+    /** LEVITATION eller FLYGA: svävar ovanför marken; `mod` är flygfarten (0 = står still i luften). */
+    | 'svävar'
+    /** KONTROLLERA PERSON: slåss för `by` så länge den varar; `was` är hur den var innan. */
+    | 'kontrollerad'
+    // ------------------------------------------------ besvärjelser utanför strid
+    | 'spårlös'
+    /** VATTENANDNING: kan gå ut i vattnet. */
+    | 'vattenandning'
+    /** TALA MED VARELSE: kan tala med ointelligenta djur, FV `mod` i deras språk. */
+    | 'talaMed'
+    /** TANKELÄSNING: läser tankarna hos personen `by` (npc-id) i samtal. */
+    | 'tankeläsning'
+    /** FÖRÄNDRA: vapnet i handen var `item` innan. */
+    | 'förändrad'
+    /** Magisk kanalisering: kopplad till mediet `by` och kan använda dess PSY. */
+    | 'kanal';
   /** Kort text till rollformuläret och loggen. */
   label: string;
   mod?: number;
@@ -198,6 +240,59 @@ export interface ActiveEffect {
   dice?: string;
   /** Färdigheten som modifikationen gäller (scope 'färdighet', t.ex. munkens Meditation). */
   skill?: string;
+  /** Grundegenskapen som ÖKA eller MINSKA har ändrat. */
+  attr?: AttrKey;
+  /** Rutan där figuren stod när effekten började (KAMOUFLAGE). */
+  at?: { x: number; y: number };
+  /** Magikern som styr (KONTROLLERA PERSON). */
+  by?: string;
+  /** Fientlig innan den blev kontrollerad. */
+  was?: { hostile: boolean };
+  /** Tillkallad med TILLKALLA VARELSE: går sin väg när striden är slut. */
+  summoned?: boolean;
+  /** Föremålet som effekten gäller (FÖRÄNDRA: vapnet som det var innan). */
+  item?: string;
+}
+
+/** Vädret: himlen och vinden som index i SKY och WIND (rules/tables.ts). */
+export interface WeatherState {
+  sky: number;
+  wind: number;
+  /** Modulen har låst vädret. */
+  locked?: boolean;
+  /** En besvärjelse håller vädret till speltiden `until`; sedan kommer `prev` tillbaka. */
+  held?: { until: number; prev: { sky: number; wind: number } };
+}
+
+/** Hur det står till med en dörr eller kista på kartan. */
+export interface LockState {
+  /** Låset är öppnat (dyrkat, uppbrutet eller med ÖPPNA). */
+  open?: boolean;
+  /** Svårighetsgraden som är kvar efter Låsdyrkning. */
+  left?: number;
+  /** Kistan är tömd. */
+  looted?: boolean;
+  /** FÖRSEGLA: dörren eller kistan sitter ihop till speltiden `until`. */
+  sealed?: { until: number; grade: number };
+}
+
+/** En besvärjelse som verkar på en plats i stället för på en figur (MÖRKER). */
+export interface SpellZone {
+  kind: 'mörker' | 'dimma' | 'beskyddare';
+  /** Kartan där zonen finns. */
+  map?: string;
+  /** Magikern som lade den (BESKYDDARE skadar inte magikern själv). */
+  caster?: string;
+  /** Figurer som står i zonen (BESKYDDARE slår till mot den som går in). */
+  inside?: string[];
+  x: number;
+  y: number;
+  /** Radie i rutor. */
+  r: number;
+  /** Speltiden då den upphör. */
+  until: number;
+  spell: string;
+  grade: number;
 }
 
 /** Ett gift som verkar i kroppen (Bok II s. 50–51). */
@@ -239,6 +334,29 @@ export interface PendingSpell {
   rounds: number;
   /** Självmordsattack: CL är S oavsett effektgrad, och magikern dör efteråt. */
   suicide?: boolean;
+  /** Grundegenskapen för ÖKA och MINSKA. */
+  attr?: AttrKey;
+  /** ASTRALVAPEN med en eller två händer. */
+  hands?: 1 | 2;
+  /** Rutan som besvärjelsen gäller (SPRÅNG, LYFT, TELEPORTERA, SYN, ÖPPNA, FÖRSEGLA). */
+  at?: { x: number; y: number };
+  /** Vad VARSEBLIVNING letar efter, och örten för VÄXTKUNSKAP. */
+  seek?: string;
+  herb?: string;
+  /** En scen i modulen visades när besvärjelsen verkade. */
+  scene?: boolean;
+  /** VINDKONTROLL och REGNKONTROLL: mer (1) eller mindre (−1). */
+  change?: 1 | -1;
+  /** Föremålet: det som LADDNING laddar, eller vapnet som FÖRÄNDRA gör. */
+  item?: string;
+  /** PSY ur laddade föremål (LADDNING) som besvärjelsen får använda. */
+  useCharge?: boolean;
+  /** PSY från mediet (Magisk kanalisering). */
+  useMedium?: boolean;
+  /** Djuret för HAMNSKIFTARE (index i HAMN). */
+  animal?: number;
+  /** Fast S för räckvidd och varaktighet (besvärjelser ur magiska föremål). */
+  s?: number;
 }
 
 export type WeaponSlot = 'weapon' | 'offhand';
@@ -355,6 +473,8 @@ export interface Actor {
   hidden?: boolean;
   /** Facklan är släckt (rollpersoner och följeslagare bär annars en tänd fackla). */
   torchOut?: boolean;
+  /** Ljuset som figuren bär: en fackla eller en oljelykta, och hur länge det brinner till. */
+  light?: { kind: 'fackla' | 'oljelykta'; left: number };
   /** Stridskonstens tekniker (från rollformuläret). */
   techniques?: string[];
   /** Skräck och moral: följeslagare som flytt och vägrar fortsätta. */
@@ -372,6 +492,23 @@ export interface Actor {
   provokedBy?: string[];
   /** Föremål som varelsen bär och som blir kvar när den dör. */
   loot?: string[];
+  /** Besvärjelser som en varelse utan rollformulär kan (alltid i minnet). */
+  spells?: string[];
+  /** Hamnbytare: figuren är ett djur just nu (se engine/shapeshift.ts). */
+  shape?: ShapeState;
+}
+
+/** Hamnbytarens djurhamn och den mänskliga kroppen som väntar. */
+export interface ShapeState {
+  /** Index i HAMN. */
+  animal: number;
+  /** Speltiden när förvandlingen skedde, och hur många PSY-slag som har slagits. */
+  since: number;
+  checks: number;
+  /** KP som var förlorade när förvandlingen skedde. */
+  lost: number;
+  /** Den mänskliga kroppen, som den var. */
+  human: Pick<Actor, 'attrs' | 'skills' | 'maxKp' | 'kp' | 'locKp' | 'locMax' | 'move' | 'detailed' | 'weapon' | 'offhand' | 'armor' | 'shield' | 'naturalArmor' | 'sprite' | 'sight' | 'darkvision' | 'bv' | 'torchOut'>;
 }
 
 /** Hur en följeslagare följer med: dagslön, en del av bytet eller gratis (husregel). */
@@ -430,6 +567,8 @@ export interface CombatState {
   attackMode?: string;
   /** Fint tillsammans med nästa anfall (stridskonsttekniken Fint). */
   feint?: boolean;
+  /** Besvärjelser som varje fiende har lagt i striden (för fiendens val av besvärjelse). */
+  cast?: Record<string, string[]>;
 }
 
 /** Ett föremål som ligger på marken (tappat i strid). */
@@ -501,6 +640,16 @@ export interface GameState {
   met?: Record<string, boolean>;
   /** Belöningar (bonus-EP och HP) som redan har delats ut, som "modul:id". */
   rewarded?: string[];
+  /** Besvärjelser som verkar på en plats på kartan (MÖRKER, DIMMA, BESKYDDARE). */
+  zones?: SpellZone[];
+  /** Lås och förseglingar per ruta, som "karta:x,y". */
+  locks?: Record<string, LockState>;
+  /** Vädret. */
+  weather?: WeatherState;
+  /** Magiska föremål som gruppen har analyserat: 1 vet att det är magiskt, 2 vet vilka besvärjelser, 3 vet hur de används. */
+  itemKnown?: Record<string, number>;
+  /** Besvärjelser i magiska föremål som är förbrukade (index i föremålets lista). */
+  itemSpent?: Record<string, number[]>;
   log: string[];
   nextId: number;
 }
@@ -566,6 +715,12 @@ export interface Character {
   psyWin?: 'magiker' | 'motstånd';
   /** Gudarnas gunstling har räddat personen under det här äventyret. */
   favorUsed?: boolean;
+  /** Oljan som är kvar i oljelyktan (sekunder). Utan värde är den full. */
+  lanternOil?: number;
+  /** LADDNING: föremål med lagrad PSY. Ett föremål kan bara laddas en gång, så tomma står kvar. */
+  charges?: { item: string; psy: number }[];
+  /** Hamnbytare som har fastnat i sin djurhamn för alltid. */
+  stuckInShape?: boolean;
 }
 
 /** Valet till en särskild förmåga, som när rollpersonen skapas (engine/creation.ts). */
@@ -580,6 +735,8 @@ export interface AbilityChoice {
   profession?: string;
   /** Folkslaget eller rasen (Baneman). */
   foe?: string;
+  /** Djuret för Hamnbytare (1–6 i HAMN), slaget första gången förmågan används. */
+  animal?: number;
   /** Höjd grundegenskap: +2 på en eller +1 på tre (inte STO). */
   attrs?: Partial<Record<AttrKey, number>>;
 }
