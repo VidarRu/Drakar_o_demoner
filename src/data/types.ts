@@ -310,6 +310,8 @@ export type SpellEffect =
       perGrade?: number;
       /** En projektil: VIRVELSKÖLD stöter bort den. */
       projectile?: boolean;
+      /** Verkar bara utomhus när det regnar (NEDKALLA ÅSKVIGG). */
+      needsRain?: boolean;
     }
   /** Skada per E på alla inom E meter, sedan 1 mindre per ruta. Alla som ser den bländas. */
   | { kind: 'explosion'; perGrade: number }
@@ -397,7 +399,14 @@ export type SpellEffect =
   /** TANKEÖVERFÖRING, TELEPATI och TANKELÄSNING: tankekontakt med en person. */
   | { kind: 'tankar'; mode: 'överföring' | 'telepati' | 'läsning' }
   /** TILLKALLA VARELSE: ointelligenta djur i trakten kommer och följer med en tid. */
-  | { kind: 'tillkalla' };
+  | { kind: 'tillkalla' }
+  // ---------------------------------------------------------------- vädret
+  /** VINDKONTROLL: vinden ökar eller minskar. */
+  | { kind: 'vindkontroll' }
+  /** REGNKONTROLL: molnen regnar, eller regnet slutar. */
+  | { kind: 'regnkontroll' }
+  /** VIGGFÅNGARE: under åska drar magikern till sig en blixt och får PSY av den. */
+  | { kind: 'viggfångare' };
 
 export interface ItemDef {
   id: string;

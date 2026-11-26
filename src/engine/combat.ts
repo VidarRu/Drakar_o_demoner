@@ -5,6 +5,7 @@ import type { ArmorDef, MeleeWeaponDef, RangedWeaponDef } from '../data/types';
 import { WEAPONS, weaponSkill } from '../data/weapons';
 import { itemInfo, loadMod, loadPenalty, smiBlocked } from './inventory';
 import { breakConcentration, enemyCast, forgetOnKnockout, resolvePending, wardCheck } from './magic';
+import { torchBurns, updateWeather, weatherRanged } from './weather';
 import { airborne, attrShift, breakHiding, checkCamouflage, controller, flamingHand, flightSpeed, fogBlocks, heatColdResist, inDarkness, inVortex, magicallyHidden, unseen } from './spelleffects';
 import { poisonOnHit, updatePoisons } from './poison';
 import { die, maxRoll, roll } from './dice';
@@ -553,7 +554,7 @@ export function torchLit(g: Game, at: { x: number; y: number }): boolean {
     // LJUS: figuren lyser som en fackla, tre meter per E.
     const glow = a.effects.filter((e) => e.kind === 'ljus').reduce((n, e) => Math.max(n, e.mod ?? 0), 0);
     if (glow && d <= glow) return true;
-    return isParty(a) && !a.elemental && !a.torchOut && d <= TORCH_RANGE;
+    return isParty(a) && !a.elemental && torchBurns(g, a) && d <= TORCH_RANGE;
   });
 }
 
@@ -909,7 +910,7 @@ export function ambush(g: Game, att: Actor, def: Actor, invisible = false): bool
  */
 export function sneakMod(g: Game, a: Actor): number {
   let mod = skillMod(g, a, 'smyga');
-  if (darkAt(g, a) && !a.torchOut && !a.elemental) mod += SNEAK_MODS.torch;
+  if (darkAt(g, a) && torchBurns(g, a) && !a.elemental) mod += SNEAK_MODS.torch;
   else if (!darkAt(g, a)) {
     const near = g.state.actors.some((e) => e.alive && e.hostile && !e.fled && distance(e.x, e.y, a.x, a.y) <= Math.floor(e.sight / 2) && lineOfSight(g.map, e.x, e.y, a.x, a.y));
     if (near) mod += SNEAK_MODS.daylight;
@@ -1751,6 +1752,7 @@ function newRound(g: Game): boolean {
   c.round++;
   c.turn = -1;
   g.state.time += ROUND_SECONDS;
+  updateWeather(g, g.state.time - ROUND_SECONDS);
   c.acted = {};
   c.parries = {};
   for (const a of participants(g)) tick(g, a);
@@ -2337,6 +2339,8 @@ export function shoot(g: Game, a: Actor, target: Actor) {
   const cover = target.effects.find((e) => e.kind === 'täckning');
   if (cover) situational.push(['skydd', cover.half ? RANGED.dropPerSquare * (d - 1) : (cover.mod ?? 0)]);
   situational.push(...abilityMods(g, a, target, false));
+  // Vädret: regn och hård vind utomhus.
+  situational.push(...weatherRanged(g, a, target));
   const running = isRunning(target) && !target.unconscious ? 'halverad mot rörligt mål' : undefined;
 
   const arms = r.kind === 'projektil' ? [a.swordArm, shieldArm(a)] : [a.swordArm];

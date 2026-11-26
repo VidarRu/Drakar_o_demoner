@@ -3,6 +3,7 @@ import type { Fx, Game } from '../engine/game';
 import { distance, idx, inBounds, type Point } from '../engine/map';
 import type { Actor } from '../engine/types';
 import { activeZones } from '../engine/spelleffects';
+import { torchBurns } from '../engine/weather';
 import { bakeGround, bakeRows, caveMask, OVER, PADX, SPRITES, TILE } from './art';
 
 const STEP_MS = 95;
@@ -410,7 +411,7 @@ export class WorldScene extends Phaser.Scene {
       const s = this.sprites.get(a.id);
       if (!s) continue;
       if (a.elemental?.kind === 'ljus') out.push({ x: s.x, y: s.y, r: 5 * a.elemental.grade });
-      else if (!a.elemental && !a.torchOut) out.push({ x: s.x, y: s.y, r: TORCH_RADIUS });
+      else if (!a.elemental && torchBurns(this.g, a)) out.push({ x: s.x, y: s.y, r: TORCH_RADIUS });
     }
     return out;
   }

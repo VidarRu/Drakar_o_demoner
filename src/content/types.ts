@@ -117,6 +117,8 @@ export interface ModuleDef {
   books?: BookDef[];
   /** Scener där en besvärjelse visar något särskilt (SYN, TELEPATI, TANKEÖVERFÖRING …). */
   spellScenes?: SpellSceneDef[];
+  /** Vädret när modulen börjar (index i SKY och WIND), och om det är låst. Annars fortsätter det som var. */
+  weather?: { sky: number; wind: number; locked?: boolean };
 }
 
 /**

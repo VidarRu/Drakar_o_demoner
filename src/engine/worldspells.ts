@@ -14,6 +14,9 @@ import { isLocked, lockTargets, magicOpen, magicSeal, type LockSpot } from './lo
 import { distance, tileAt, walkable } from './map';
 import { commonFor, herbsHere, prepareDose } from './poison';
 import { advanceTime } from './time';
+import { holdWeather, raining, underSky, weatherOf, weatherText } from './weather';
+import { WEATHER } from './rules';
+import { wound as woundActor } from './combat';
 import type { ActiveEffect, Actor, PendingSpell } from './types';
 
 /** Riktningen från en ruta till en annan, i väderstreck (norr är uppåt på kartan). */
@@ -57,7 +60,7 @@ export function telepathyTargets(g: Game): Actor[] {
 // ------------------------------------------------------------------ hinder
 
 /** Varför besvärjelsen utanför strid inte kan läggas, eller null. */
-export function worldProblem(g: Game, caster: Actor, spell: SpellDef, o: { target?: string; at?: { x: number; y: number }; seek?: string; herb?: string; grade: number }): string | null {
+export function worldProblem(g: Game, caster: Actor, spell: SpellDef, o: { target?: string; at?: { x: number; y: number }; seek?: string; herb?: string; change?: 1 | -1; grade: number }): string | null {
   const e = spell.effect!;
   switch (e.kind) {
     case 'öppna':
@@ -67,6 +70,8 @@ export function worldProblem(g: Game, caster: Actor, spell: SpellDef, o: { targe
       if (e.kind === 'försegla' && l.kind === 'dörr' && g.actorAt(l.x, l.y)) return 'Någon står i dörröppningen.';
       return null;
     }
+    case 'finnaVatten':
+      return raining(g) ? 'Det regnar, och FINNA VATTEN hittar inget i regnet.' : null;
     case 'varseblivning':
       return o.seek && SEEK_KINDS[o.seek] ? null : 'Välj vad du letar efter.';
     case 'växtkunskap':
@@ -79,6 +84,18 @@ export function worldProblem(g: Game, caster: Actor, spell: SpellDef, o: { targe
     }
     case 'tillkalla':
       return g.state.mode === 'combat' ? 'Djuren hinner inte fram mitt i en strid.' : null;
+    case 'vindkontroll':
+    case 'regnkontroll': {
+      if (!underSky(g, caster)) return 'Det går bara under bar himmel.';
+      if (weatherOf(g).locked) return 'Vädret här går inte att ändra.';
+      if (o.change !== 1 && o.change !== -1) return 'Välj mer eller mindre.';
+      if (e.kind === 'regnkontroll' && o.change === 1 && weatherOf(g).sky < 2) return 'Det finns inga moln som kan regna.';
+      if (e.kind === 'regnkontroll' && o.change === -1 && !raining(g)) return 'Det regnar inte.';
+      return null;
+    }
+    case 'viggfångare':
+      if (!underSky(g, caster) || weatherOf(g).sky < 4) return 'Det krävs åska, under bar himmel.';
+      return null;
     default:
       return null;
   }
@@ -168,6 +185,31 @@ export function applyWorld(g: Game, caster: Actor, t: Actor, s: PendingSpell, sp
     case 'tillkalla':
       summonAnimals(g, caster, grade, effect, seconds);
       return true;
+    case 'vindkontroll': {
+      // Tolkning av "E m/s": ett steg på vindmätaren per fyra E, minst ett. Det håller i S timmar.
+      const w = weatherOf(g);
+      const steps = Math.max(1, Math.floor(grade / WEATHER.windPerStep));
+      holdWeather(g, w.sky, w.wind + steps * (s.change ?? 1), seconds);
+      g.log(`Vinden lyder ${caster.name}: ${weatherText(weatherOf(g))}.`);
+      return true;
+    }
+    case 'regnkontroll': {
+      const w = weatherOf(g);
+      holdWeather(g, s.change === 1 ? 3 : 2, w.wind, seconds);
+      g.log(s.change === 1 ? 'Molnen öppnar sig och det börjar regna.' : 'Regnet upphör, och molnen hänger stilla.');
+      return true;
+    }
+    case 'viggfångare': {
+      // Tolkning: blixten gör 5T6. Hälften (nedåt) blir PSY, högst upp till grundvärdet, och resten
+      // tar magikern i skada.
+      const bolt = roll(WEATHER.lightning, g.rng);
+      const psy = Math.min(Math.floor(bolt / 2), caster.attrs.PSY - caster.psy);
+      caster.psy += psy;
+      g.log(`En blixt slår ned i ${caster.name} (${bolt}): ${psy} blir PSY och ${bolt - psy} skadar.`);
+      g.emit(caster.id, `+${psy} PSY`, 'heal');
+      if (bolt - psy > 0) woundActor(g, caster, bolt - psy, null);
+      return true;
+    }
     default:
       return false;
   }

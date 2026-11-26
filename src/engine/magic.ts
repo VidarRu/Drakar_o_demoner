@@ -47,6 +47,7 @@ import {
 } from './rules';
 import type { ActiveEffect, Actor, AttrKey, PendingSpell } from './types';
 import { applyWorld, showScenes, worldProblem } from './worldspells';
+import { raining, underSky } from './weather';
 import { between, breakHiding, FOG_SIGHT, heatColdResist, inVortex, outdoors, unseen, zonesAt } from './spelleffects';
 import { advanceTime } from './time';
 import { dissolve, spellVersusElemental, summonOrBanish, summonProblem } from './elementals';
@@ -186,6 +187,8 @@ export interface CastOptions {
   /** Vad VARSEBLIVNING letar efter (`SEEK_KINDS`), och örten för VÄXTKUNSKAP. */
   seek?: string;
   herb?: string;
+  /** VINDKONTROLL och REGNKONTROLL: mer (1) eller mindre (−1). */
+  change?: 1 | -1;
 }
 
 /** Hur långt målet kan flyttas (rutor) med SPRÅNG, LYFT och TELEPORTERA, eller null. */
@@ -333,6 +336,11 @@ export function castProblem(g: Game, id: string, o: CastOptions): string | null 
   }
   const world = worldProblem(g, p, spell, o);
   if (world) return world;
+  if (spell.effect.kind === 'skada' && spell.effect.needsRain) {
+    const t = o.target ? g.actor(o.target) : undefined;
+    if (!raining(g)) return 'Det måste regna.';
+    if (!underSky(g, p) || (t && !underSky(g, t))) return 'Både magikern och målet måste stå under bar himmel.';
+  }
   if (spell.effect.kind === 'dimma') {
     const t = o.target ? g.actor(o.target) : undefined;
     if (t && !waterWithin(g, t, 10)) return 'DIMMA kräver vatten i närheten.';
@@ -370,6 +378,7 @@ export function castSpell(g: Game, id: string, o: CastOptions): string | null {
     at: o.at,
     seek: o.seek,
     herb: o.herb,
+    change: o.change,
   };
   // Den som lägger magi syns igen (OSYNLIGHET och KAMOUFLAGE).
   breakHiding(g, p, 'lägger magi');

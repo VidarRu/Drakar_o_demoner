@@ -1,3 +1,4 @@
+import { torchBurns } from './weather';
 import { NON_IRON_WEAPONS, WEAPONS } from '../data/weapons';
 import { roll } from './dice';
 import type { Game } from './game';
@@ -140,7 +141,7 @@ export function elementSourceProblem(g: Game, caster: Actor, kind: ElementKind):
 
 /** Magikern eller någon intill har en tänd fackla. */
 function ownTorch(g: Game, caster: Actor): boolean {
-  return g.state.actors.some((a) => a.alive && isParty(a) && !a.elemental && !a.torchOut && distance(a.x, a.y, caster.x, caster.y) <= 1);
+  return g.state.actors.some((a) => a.alive && isParty(a) && !a.elemental && torchBurns(g, a) && distance(a.x, a.y, caster.x, caster.y) <= 1);
 }
 
 function waterNear(g: Game, caster: Actor): { x: number; y: number } | null {

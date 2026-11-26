@@ -36,6 +36,7 @@ import {
 import type { Actor, Attrs, Character, CreatureDef, GameState } from './types';
 import { fogBlocks, passable } from './spelleffects';
 import { lockBlocks } from './locks';
+import { startWeather } from './weather';
 import { wardCheck } from './magic';
 
 export const FOV_RADIUS = 8;
@@ -269,6 +270,7 @@ export class Game {
       log: [],
       nextId: 1,
     };
+    startWeather(state, mod.weather);
     spawnActors(state, map, rng);
     const game = new Game(state, rng);
     game.log(`${char.name} anländer till ${map.name}.`);

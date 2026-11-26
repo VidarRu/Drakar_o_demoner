@@ -527,9 +527,9 @@ Koden står i `src/engine/locks.ts` och `src/engine/worldspells.ts`.
   - Ointelligenta djur på kartan kommer, närmast först och högst 20 STO per E. Det tar 1T10 minuter, och det går inte mitt i en strid.
   - Djuren slåss för gruppen och går efter den. De ger sig av när besvärjelsen tar slut eller när nästa strid är slut, och blir inte fientliga igen.
 
-### Vädret (Vidar)
+### Vädret (Vidar, byggt)
 
-Vädret byggs i steg 7 i förslagets ordning. Upplägget:
+Koden står i `src/engine/weather.ts` och värdena i `WEATHER`, `SKY` och `WIND` i `src/engine/rules/tables.ts`. Upplägget:
 
 - **Två mätare** med fem steg var:
   - Himlen: klart, halvklart, mulet, regn, åska.
@@ -540,5 +540,12 @@ Vädret byggs i steg 7 i förslagets ordning. Upplägget:
   - Ett steg från ytterläget (halvklart, regn, svag vind, hård vind): mot ytterläget bara på 6, mot mitten på 1–2, kvar på 3–5.
   - I ytterläget (klart, åska, stiltje, storm): tillbaka på 1–3, kvar på 4–6.
 - **Modulerna** kan ange vädret vid start eller låsa det. Inomhus och i grottor märks det inte.
-- **Verkan:** regn släcker facklor utomhus, ger −2 på avståndsstrid och gör att FINNA VATTEN inte fungerar. Vinden påverkar skott och båtar; värdena bestäms när det byggs. Väderbesvärjelserna (VINDKONTROLL, REGNKONTROLL, NEDKALLA ÅSKVIGG och VIGGFÅNGARE) flyttar mätarna eller kräver ett visst väder.
+- **Verkan:** regn och åska släcker facklor utomhus, ger −2 på avståndsstrid när skytten eller målet står utomhus och gör att FINNA VATTEN inte fungerar.
+- **Vinden (tolkning):** hård vind ger −2 och storm −5 på skott och kast utomhus. Båtar finns inte än.
+- **Utomhus** är gräs, stig, vatten och träd. Hus och grottor märker inget av vädret.
+- **Vid start:** en modul kan ange vädret (`ModuleDef.weather`) och låsa det. Annars fortsätter det som var, och ett nytt spel börjar med halvklart och svag vind. Vädret syns i statuspanelen, och AI-spelledaren får veta det i samtal utomhus.
+- **VINDKONTROLL (tolkning av "E m/s"):** vinden ökar eller minskar ett steg per fyra E, minst ett, under S timmar. Sedan kommer vädret som var tillbaka.
+- **REGNKONTROLL:** när det är mulet eller regnar kan magikern få det att regna, och när det regnar kan hen stoppa regnet (det blir mulet). Det varar i S minuter, och sedan kommer vädret som var tillbaka. Det går inte där modulen har låst vädret.
+- **NEDKALLA ÅSKVIGG:** som BLIXT (1T6 per E, rustningen skyddar inte), men bara när det regnar, och både magikern och målet måste stå under bar himmel.
+- **VIGGFÅNGARE (tolkning):** under åska slår en blixt (5T6) ned i magikern. Hälften, avrundat nedåt, blir PSY, upp till grundvärdet. Resten tar magikern i skada, fördelad över kroppsdelarna.
 

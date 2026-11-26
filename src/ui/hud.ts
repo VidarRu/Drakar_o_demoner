@@ -1,3 +1,4 @@
+import { underSky, weatherOf, weatherText } from '../engine/weather';
 import { forceLock, forceProblem, isLocked, locksNear, lootChest, lootProblem, pickLock, pickProblem, sealedAt } from '../engine/locks';
 import { dialogDef, requestTurn, scriptedTurn, type DialogEntry } from '../ai/dialogClient';
 import { actorHas, canArmHero, meet } from '../engine/hero';
@@ -231,6 +232,7 @@ export class Hud {
       ...(ch.heroTotal ? [kv('Hjältepoäng', String(ch.heroPoints ?? 0))] : []),
       kv('Silvermynt', String(p.silver)),
       kv('Tid', clockText(g.state.time)),
+      kv('Väder', underSky(g, p) ? weatherText(weatherOf(g)) : 'inomhus'),
       ...(states.length ? [el('h3', '', 'Tillstånd'), ...states.map((s) => el('p', 'state', s))] : []),
       button('Rollformulär (R)', () => this.toggleSheet(true), 'primary sheet-btn'),
     );

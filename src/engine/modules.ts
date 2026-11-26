@@ -3,6 +3,7 @@
  * Gruppen, rollformulären, packningen, pengarna, tiden och skadorna följer med mellan modulerna.
  * Besluten står i docs/regelbeslut.md under Äventyrsmoduler.
  */
+import { startWeather } from './weather';
 import { MAPS, MODULES, MODULE_LIST, type ModuleDef, type QuestDef } from '../content';
 import type { Rng } from './dice';
 import { spawnActors, type Game } from './game';
@@ -125,6 +126,7 @@ export function startModule(prev: GameState, moduleId: string, rng: Rng): GameSt
     m.hidden = false;
     m.reload = 0;
   }
+  startWeather(s, mod.weather);
   s.mode = 'explore';
   s.combat = null;
   s.focus = s.playerId;

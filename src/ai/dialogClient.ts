@@ -2,6 +2,7 @@ import { NPCS } from '../content';
 import { flagNotes } from '../engine/modules';
 import { recognizes } from '../engine/hero';
 import { enchanting } from '../engine/talents';
+import { underSky, weatherOf, weatherText } from '../engine/weather';
 import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
 import type { Game } from '../engine/game';
@@ -59,6 +60,8 @@ export async function requestTurn(game: Game, npc: Actor, history: DialogEntry[]
   const p = game.player;
   const notes = flagNotes(game);
   const leader = game.leader;
+  // Vädret, om samtalet sker utomhus.
+  if (underSky(game, leader)) notes.push(`Vädret just nu: ${weatherText(weatherOf(game))}.`);
   // TALA MED VARELSE: magikern talar djurens språk med FV lika med E.
   const animalTalk = leader.effects.find((e) => e.kind === 'talaMed');
   if (!npc.npc && animalTalk) notes.push(`${leader.name} talar med djuret genom magi (TALA MED VARELSE) och behärskar dess språk med FV ${animalTalk.mod ?? 1} av 20: ju lägre, desto enklare och mer bristfälligt förstår de varandra.`);

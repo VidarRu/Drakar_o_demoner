@@ -250,6 +250,16 @@ export interface ActiveEffect {
   summoned?: boolean;
 }
 
+/** Vädret: himlen och vinden som index i SKY och WIND (rules/tables.ts). */
+export interface WeatherState {
+  sky: number;
+  wind: number;
+  /** Modulen har låst vädret. */
+  locked?: boolean;
+  /** En besvärjelse håller vädret till speltiden `until`; sedan kommer `prev` tillbaka. */
+  held?: { until: number; prev: { sky: number; wind: number } };
+}
+
 /** Hur det står till med en dörr eller kista på kartan. */
 export interface LockState {
   /** Låset är öppnat (dyrkat, uppbrutet eller med ÖPPNA). */
@@ -331,6 +341,8 @@ export interface PendingSpell {
   herb?: string;
   /** En scen i modulen visades när besvärjelsen verkade. */
   scene?: boolean;
+  /** VINDKONTROLL och REGNKONTROLL: mer (1) eller mindre (−1). */
+  change?: 1 | -1;
 }
 
 export type WeaponSlot = 'weapon' | 'offhand';
@@ -601,6 +613,8 @@ export interface GameState {
   zones?: SpellZone[];
   /** Lås och förseglingar per ruta, som "karta:x,y". */
   locks?: Record<string, LockState>;
+  /** Vädret. */
+  weather?: WeatherState;
   log: string[];
   nextId: number;
 }

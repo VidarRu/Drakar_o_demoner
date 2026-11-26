@@ -1,3 +1,4 @@
+import { updateWeather } from './weather';
 import { RACES } from '../data/races';
 import { SKILLS } from '../data/skills';
 import { WEAPONS } from '../data/weapons';
@@ -79,6 +80,7 @@ export function advanceTime(g: Game, seconds: number, activity: Activity) {
   if (seconds <= 0) return;
   const before = g.state.time;
   g.state.time += seconds;
+  updateWeather(g, before);
   for (const a of g.partyMembers()) passTime(g, a, seconds, activity, before);
   payWages(g);
 }

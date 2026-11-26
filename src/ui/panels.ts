@@ -247,7 +247,7 @@ export class ShopUi {
 
 /** Magin: formelsamlingen, minnet och att lägga besvärjelser. */
 export class MagicUi {
-  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean; attr: AttrKey; hands: 1 | 2; dir: number; dist: number; seek: string; herb: string; lock: number } | null = null;
+  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean; attr: AttrKey; hands: 1 | 2; dir: number; dist: number; seek: string; herb: string; lock: number; change: 1 | -1 } | null = null;
 
   constructor(private g: Game, private panel: Panel) {}
 
@@ -285,7 +285,7 @@ export class MagicUi {
 
   private pick(id: string) {
     const targets = spellTargets(this.g, id);
-    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false, attr: 'STY', hands: 1, dir: 0, dist: 1, seek: 'fiende', herb: '', lock: 0 };
+    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false, attr: 'STY', hands: 1, dir: 0, dist: 1, seek: 'fiende', herb: '', lock: 0, change: 1 };
     this.panel.refresh();
   }
 
@@ -393,6 +393,8 @@ export class MagicUi {
         at = { x: l.spot.x, y: l.spot.y };
       }
     }
+    if (kind === 'vindkontroll') pick('Vinden', [['1', 'Öka'], ['-1', 'Minska']], String(c.change), (v) => (c.change = v === '1' ? 1 : -1));
+    if (kind === 'regnkontroll') pick('Regnet', [['1', 'Få molnen att regna'], ['-1', 'Stoppa regnet']], String(c.change), (v) => (c.change = v === '1' ? 1 : -1));
     if (kind === 'varseblivning') c.seek = pick('Leta efter', Object.entries(SEEK_KINDS), c.seek, (v) => (c.seek = v));
     if (kind === 'växtkunskap') {
       const herbs = herbChoices(g, p);
@@ -412,7 +414,7 @@ export class MagicUi {
     };
     suicide.append(cb);
     const S = spellS(p, c.id);
-    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide, attr: c.attr, hands: c.hands, at, seek: c.seek, herb: c.herb };
+    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide, attr: c.attr, hands: c.hands, at, seek: c.seek, herb: c.herb, change: c.change };
     const problem = castProblem(g, c.id, opts);
     box.append(
       suicide,

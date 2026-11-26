@@ -589,6 +589,32 @@ export const PSY_RAISE = {
   potential: -5,
 };
 
+// ------------------------------------------------------------------ vädret (Vidar, husregel)
+
+/** Himlen och vinden, fem steg var. Mittsteget är det vanligaste. */
+export const SKY = ['klart', 'halvklart', 'mulet', 'regn', 'åska'] as const;
+export const WIND = ['stiltje', 'svag vind', 'frisk vind', 'hård vind', 'storm'] as const;
+
+export const WEATHER = {
+  /** Vädret ändras klockan sex och arton (tolkning). */
+  changeHours: [6, 18],
+  /**
+   * 1T6 för varje mätare (tolkning): på mittsteget ned på 1–2 och upp på 5–6; ett steg från
+   * ytterläget mot ytterläget bara på 6 och mot mitten på 1–2; i ytterläget tillbaka på 1–3.
+   */
+  middle: { down: 2, up: 5 },
+  nearEdge: { toEdge: 6, toMiddle: 2 },
+  edge: { back: 3 },
+  /** Regn och åska: −2 på avståndsstrid utomhus. */
+  rainRanged: -2,
+  /** Vinden på avståndsstrid utomhus (tolkning): hård vind −2, storm −5. */
+  windRanged: [0, 0, 0, -2, -5],
+  /** VINDKONTROLL: ett steg på vindmätaren per så här många E (tolkning av "E m/s"). */
+  windPerStep: 4,
+  /** VIGGFÅNGARE: blixten gör 5T6, och hälften blir PSY (tolkning). */
+  lightning: '5T6',
+} as const;
+
 // ------------------------------------------------------------------ förmågor (Bok I s. 25–27 och yrkena)
 
 /** Regelvärden för särskilda förmågor och yrkesförmågor som används på turen. Tolkningarna står i docs/regelbeslut.md. */
