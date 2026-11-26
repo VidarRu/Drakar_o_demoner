@@ -484,13 +484,15 @@ Koden står i `apply` i `src/engine/magic.ts`, och det som striden behöver i `s
   - Den som går in träffas av en ENERGISTRÅLE E1: 1T3 mot en kroppsdel i detaljerad strid, annars 1T6.
   - Magi utifrån mot någon där inne måste övervinna ANTIMAGI E1.
   - Magikern själv kan gå in och ut. De som stod i fältet när det lades träffas inte förrän de har gått ut och in igen.
-- **KONTROLLERA PERSON:**
-  - Bara mot humanoider, PSY mot PSY. Den kontrollerade slutar vara fientlig och slåss för gruppen i S stridsrundor.
-  - Tolkning: magikern låter den anfalla den närmaste fienden på dess tur, i stället för att styra den knapp för knapp. Fienderna anfaller den inte.
+- **KONTROLLERA PERSON och KONTROLLERA VARELSE (Vidar):**
+  - KONTROLLERA PERSON (mentalism) gäller bara personer, inte djur. Tolkning: personer är humanoider i detaljerad strid, alltså också alver, dvärgar, orcher och svartalfer.
+  - KONTROLLERA VARELSE (animism) gäller alla sorters ointelligenta djur (gruppen djur i regeldatan), men inte människor och inte magiska varelser. Den kräver 1 E per 20 STO. Det finns inga grupper av djur att lära sig var för sig. Detsamma gäller TILLKALLA VARELSE och TALA MED VARELSE.
+  - PSY mot PSY. Den kontrollerade slutar vara fientlig och slåss för gruppen i S stridsrundor.
+  - Den kontrollerade anfaller själv den närmaste fienden på sin tur (Vidar). Fienderna anfaller den inte (tolkning).
   - Kontrollen bryts när magikern dör eller faller medvetslös, eller när den skingras. Sedan blir personen fientlig igen.
 - **Kvar:**
   - NEDKALLA ÅSKVIGG behöver vädret.
-  - KONTROLLERA VARELSE väntar på ett beslut om varelsegrupperna (se `docs/brief.md`).
+
 
 ### Vädret (Vidar)
 

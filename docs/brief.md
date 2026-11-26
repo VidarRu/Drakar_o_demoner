@@ -100,7 +100,7 @@ förslagets avsnitt 5.
   - Varelser får magi med `CreatureDef.magic`, och besvärjelserna står i `Actor.spells`.
   - `enemyCast` i `magic.ts` är fiendens val (HELA, skydd, skada) och anropas från `autoTurn`. `CombatState.cast` håller reda på vad varje fiende har lagt.
   - Den svartalfiska häxkonstnären står i Gråvads grotta (BLIXT, SKÖLD, HELA, figuren `haxkonstnar`).
-- **Pågår (steg 5):** besvärjelserna i strid. ÖKA, MINSKA, FLAMMANDE HAND, VIRVELSKÖLD, MOTSTÅNDSKRAFT, ANTIMAGI, LJUS, MÖRKER, MAGISK SYN, OSYNLIGHET, KAMOUFLAGE, VINDPIL (1T10) och ASTRALVAPEN (1T10 eller 2T10, `ASTRAL_WEAPON` i `rules/magic.ts`) verkar nu. Det gör också SPRÅNG, LEVITATION, FLYGA, LYFT, TELEPORTERA, DIMMA, BESKYDDARE och KONTROLLERA PERSON.
+- **Pågår (steg 5):** besvärjelserna i strid. ÖKA, MINSKA, FLAMMANDE HAND, VIRVELSKÖLD, MOTSTÅNDSKRAFT, ANTIMAGI, LJUS, MÖRKER, MAGISK SYN, OSYNLIGHET, KAMOUFLAGE, VINDPIL (1T10) och ASTRALVAPEN (1T10 eller 2T10, `ASTRAL_WEAPON` i `rules/magic.ts`) verkar nu. Det gör också SPRÅNG, LEVITATION, FLYGA, LYFT, TELEPORTERA, DIMMA, BESKYDDARE, KONTROLLERA PERSON och KONTROLLERA VARELSE (ointelligenta djur, `isCommonAnimal`).
   - Skada utan kroppsdel fördelas jämnt över kroppsdelarna (Vidar, `spreadDamage` i `combat.ts`), utom blödningen.
   - Verkan står i `apply` i `magic.ts`. Det som striden behöver står i `src/engine/spelleffects.ts`: zonerna (`GameState.zones`), `attrShift`, `flamingHand`, `inVortex`, `heatColdResist`, `unseen` och `breakHiding`.
   - `changeAttribute` och `endSpellEffect` i `combat.ts` ändrar och återställer grundegenskaper.
@@ -109,7 +109,7 @@ förslagets avsnitt 5.
   - DIMMA och BESKYDDARE är zoner med `map`. `fogBlocks` styr `Game.canSee` och skotten. `wardCheck` i `magic.ts` slår till mot den som går in i BESKYDDARE.
   - KONTROLLERA PERSON ger effekten `kontrollerad` (`by`, `was`). `autoTurn` låter den kontrollerade anfalla, och `revertSpell` i `combat.ts` återställer den och landar den som svävar.
   - Testerna står i `tests/spells.test.ts`.
-- **Nästa:** KONTROLLERA VARELSE (beslut behövs om varelsegrupperna). Sedan besvärjelserna utanför strid (avsnitt 2b i förslaget) och låsta dörrar. NEDKALLA ÅSKVIGG väntar på vädret.
+- **Nästa:** besvärjelserna utanför strid (avsnitt 2b i förslaget) och låsta dörrar och kistor. TILLKALLA VARELSE och TALA MED VARELSE gäller alla ointelligenta djur, utan grupper (Vidar). NEDKALLA ÅSKVIGG väntar på vädret.
 - **Kvar av förmågorna:** Gott balanssinne (när SPRÅNG byggs), Absolut ögonmått och God tidskänsla (gränssnittet), Mottagligt medium och Magisk empati (väntar på kanalisering och magiska föremål), avdraget för den andra handen och Hamnbytare.
 
 Vidar vill också göra en genomgång av hela regelsystemet när det är klart, för att se att det är konsekvent.
@@ -178,7 +178,7 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 230 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 231 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
 `tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/spells.test.ts` prövar fiendernas magi och besvärjelserna i strid. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
 
@@ -190,5 +190,4 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 ## Öppna frågor till Vidar
 
 - Chanserna för vädret (tolkning i `docs/regelbeslut.md`) och vindens verkan på skott och båtar, när vädret byggs.
-- **Varelsegrupperna:** KONTROLLERA VARELSE, TILLKALLA VARELSE och TALA MED VARELSE är en egen besvärjelse per grupp (däggdjur, fåglar, kräldjur …), och bara mot ointelligenta varelser. Varelserna har ingen sådan grupp i datan, och rollformuläret sparar inte vilken grupp magikern kan. Förslag: varje grupp blir en egen besvärjelse i datan (till exempel KONTROLLERA VARELSE (däggdjur)), och varelserna får en grupp.
 - Tolkningarna för besvärjelserna i strid och fiendens val av effektgrad (`docs/regelbeslut.md` under Fiendernas magi och Besvärjelser i strid).

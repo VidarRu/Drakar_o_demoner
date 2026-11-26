@@ -69,9 +69,9 @@ export const SPELL_LIST: SpellDef[] = [
   spell('animism', 13, 'REGNKONTROLL', '', Sdiv(4, 'km'), T(1, 'minuter'), 'Får molnen att regna, eller stoppar regnet.'),
   spell('animism', 15, 'DIMMA', '', S(10, 'rutor'), Tdiv(4, 'timmar'), 'Dimbank med högst 15 meters sikt. Kräver vatten i terrängen.', { effect: { kind: 'dimma' }, aim: 'valfri' }),
   spell('animism', 15, 'NEUTRALISERA GIFT', 'F', 'beröring', 'omedelbar', 'Tar bort 1T6+1 giftstyrka per E. Läker inte skada som redan skett.', { effect: { kind: 'motgift', dice: '1T6+1' }, aim: 'valfri' }),
-  spell('animism', 2, 'TILLKALLA VARELSE', '', Sdiv(4, 'km'), 'omedelbar', 'Kallar till sig 20 STO varelser per E ur en viss grupp.', { perCreatureGroup: true }),
-  spell('animism', 5, 'TALA MED VARELSE', '', 'personlig', T(1, 'minuter'), 'Samtal med en varelse ur en viss grupp, med 1 FV i språket per E.', { perCreatureGroup: true }),
-  spell('animism', 10, 'KONTROLLERA VARELSE', '', S(10, 'rutor'), T(1, 'SR'), 'Styr 20 STO varelser per E ur en viss grupp genom telepati.', { perCreatureGroup: true }),
+  spell('animism', 2, 'TILLKALLA VARELSE', '', Sdiv(4, 'km'), 'omedelbar', 'Kallar till sig 20 STO ointelligenta djur per E. Inte människor och inte magiska varelser (Vidar).'),
+  spell('animism', 5, 'TALA MED VARELSE', '', 'personlig', T(1, 'minuter'), 'Samtal med ett ointelligent djur, med 1 FV i språket per E. Inte människor och inte magiska varelser (Vidar).'),
+  spell('animism', 10, 'KONTROLLERA VARELSE', '', S(10, 'rutor'), T(1, 'SR'), 'Styr 20 STO ointelligenta djur per E genom telepati. Inte människor och inte magiska varelser (Vidar).', { effect: { kind: 'kontrollera', who: 'djur' }, aim: 'valfri', resisted: true }),
 
   // ---------------------------------------------------------------- elementarmagi
   spell('elementarmagi', 2, 'LJUS', 'F', S(10, 'rutor'), T(4, 'minuter'), 'Ett föremål lyser upp tre meter, tre meter till eller fem minuter till per extra E.', { effect: { kind: 'ljus' }, aim: 'valfri' }),
@@ -128,7 +128,7 @@ export const SPELL_LIST: SpellDef[] = [
   spell('mentalism', 9, 'SYN', '', 'personlig', T(1, 'SR'), 'Ser och hör ett känt ställe inom 120 m (annars 30 m), en dag bakåt per extra E. Identifierar magiska föremål.'),
   spell('mentalism', 10, 'ELCHOCK', 'FK', 'beröring', 'omedelbar', '1T4 per E på den som berörs. Metallrustning skyddar bara till hälften.', { effect: { kind: 'skada', dice: '1T4', armor: 'halvMetall', loc: true }, aim: 'fiende' }),
   spell('mentalism', 11, 'TANKELÄSNING', '', S(2, 'rutor'), T(1, 'minuter'), 'Läser en intelligent varelses tankar utan att den märker det.'),
-  spell('mentalism', 12, 'KONTROLLERA PERSON', '', S(4, 'rutor'), T(1, 'SR'), 'Styr en humanoids kropp, en per E. PSY mot PSY.', { effect: { kind: 'kontrollera' }, aim: 'fiende', resisted: true }),
+  spell('mentalism', 12, 'KONTROLLERA PERSON', '', S(4, 'rutor'), T(1, 'SR'), 'Styr en humanoids kropp, en per E. PSY mot PSY.', { effect: { kind: 'kontrollera', who: 'person' }, aim: 'fiende', resisted: true }),
   spell('mentalism', 12, 'TELEPATI', '', 'särskild', T(1, 'minuter'), 'Tankekontakt på vilket avstånd som helst med någon man känner till namnet, en person till per extra E.'),
   spell('mentalism', 12, 'TELEPORTERA', '', 'beröring', 'omedelbar', 'Flyttar 3 STO per E till en välkänd plats inom 100 m, längre med extra E.', { effect: { kind: 'teleportera' }, aim: 'valfri' }),
   spell('mentalism', 13, 'MAGISK SYN', '', 'beröring', T(1, 'minuter'), 'Ser det osynliga och skyddar mot besvärjelser som förblindar.', { effect: { kind: 'magiskSyn' }, aim: 'valfri' }),
@@ -145,17 +145,3 @@ export function spellRange(range: SpellRange, s: number, extraGrades = 0): { val
   const value = range.unit === 'rutor' ? Math.floor(base) : base;
   return { value: value * (1 + extraGrades), unit: range.unit };
 }
-
-/** Grupper för varelsebesvärjelserna; varje grupp är en egen besvärjelse. Bara mot ointelligenta varelser. */
-export const CREATURE_SPELL_GROUPS = [
-  'Däggdjur',
-  'Fåglar',
-  'Kräldjur',
-  'Groddjur',
-  'Fiskar',
-  'Insekter och spindlar',
-  'Skaldjur',
-  'Maskar',
-  'Blötdjur',
-  'Växter',
-];

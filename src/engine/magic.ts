@@ -3,7 +3,7 @@ import { SPELLS, spellRange } from '../data/spells';
 import type { SpellDef, SpellDuration } from '../data/types';
 import { die, roll } from './dice';
 import type { Game } from './game';
-import { actorHas, heroic, markPsyWin, passive, provokeAnimal } from './hero';
+import { actorHas, heroic, isCommonAnimal, markPsyWin, passive, provokeAnimal } from './hero';
 import { ironProblem } from './inventory';
 import { distance, lineOfSight, tileAt, walkable } from './map';
 import { neutralize } from './poison';
@@ -312,7 +312,15 @@ export function castProblem(g: Game, id: string, o: CastOptions): string | null 
     if (spell.effect.kind === 'osynlighet' && o.grade * 6 < t.attrs.STO) return `Det krävs E${Math.ceil(t.attrs.STO / 6)} för att göra ${t.name} osynlig (6 STO per E).`;
     if ((spell.effect.kind === 'lyft' || spell.effect.kind === 'teleportera') && o.grade * 3 < t.attrs.STO) return `Det krävs E${Math.ceil(t.attrs.STO / 3)} för ${t.name} (3 STO per E).`;
     if (spell.effect.kind === 'flyga' && o.grade <= flightGrades(t)) return `${t.name} är tung: det krävs mer än E${flightGrades(t)}.`;
-    if (spell.effect.kind === 'kontrollera' && (!t.detailed || t.elemental)) return 'KONTROLLERA PERSON verkar bara på humanoider.';
+    if (spell.effect.kind === 'kontrollera') {
+      // KONTROLLERA PERSON gäller personer, KONTROLLERA VARELSE ointelligenta djur men inte magiska
+      // varelser (Vidar), 20 STO per E.
+      if (spell.effect.who === 'person' && (!t.detailed || t.elemental || isCommonAnimal(g, t))) return 'KONTROLLERA PERSON verkar bara på personer.';
+      if (spell.effect.who === 'djur') {
+        if (!isCommonAnimal(g, t)) return 'KONTROLLERA VARELSE verkar bara på ointelligenta djur, inte på människor eller magiska varelser.';
+        if (o.grade * 20 < t.attrs.STO) return `Det krävs E${Math.ceil(t.attrs.STO / 20)} för ${t.name} (20 STO per E).`;
+      }
+    }
     if (moveReach(g, id, o.grade, t) !== null) {
       const m = moveProblem(g, id, o.grade, t, o.at);
       if (m) return m;

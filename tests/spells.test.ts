@@ -111,7 +111,7 @@ function allRounder(): Character {
   c.skills['magiskola:animism'] = 14;
   c.skills['magiskola:elementarmagi'] = 14;
   c.skills['magiskola:mentalism'] = 14;
-  c.spells = ['oka', 'minska', 'kamouflage', 'flammande_hand', 'virvelskold', 'ljus', 'morker', 'motstandskraft', 'magisk_syn', 'osynlighet', 'antimagi', 'eld', 'vindpil', 'astralvapen', 'sprang', 'levitation', 'flyga', 'lyft', 'teleportera', 'dimma', 'beskyddare', 'kontrollera_person'];
+  c.spells = ['oka', 'minska', 'kamouflage', 'flammande_hand', 'virvelskold', 'ljus', 'morker', 'motstandskraft', 'magisk_syn', 'osynlighet', 'antimagi', 'eld', 'vindpil', 'astralvapen', 'sprang', 'levitation', 'flyga', 'lyft', 'teleportera', 'dimma', 'beskyddare', 'kontrollera_person', 'kontrollera_varelse'];
   c.memorized = [...c.spells];
   c.inventory = ['trastav', 'harnesk_lader'];
   c.equipped = { weapon: 'trastav', armor: ['harnesk_lader'] };
@@ -466,6 +466,26 @@ describe('rörelse, zoner och kontroll', () => {
     const ctl = alf.effects.find((e) => e.kind === 'kontrollerad')!;
     combat.endSpellEffect(g, alf, ctl);
     expect(alf.hostile).toBe(true);
+  });
+});
+
+describe('varelsebesvärjelserna', () => {
+  it('KONTROLLERA VARELSE gäller ointelligenta djur, KONTROLLERA PERSON bara personer', () => {
+    const { g, p, foe } = explore('varg', 3);
+    foe.hostile = true;
+    const alf = g.state.actors.find((a) => a.defId === 'svartalf')!;
+    alf.x = 10;
+    alf.y = 13;
+    alf.hostile = true;
+    g.updateFov();
+    expect(castProblem(g, 'kontrollera_person', { grade: 1, target: foe.id })).toMatch(/bara på personer/);
+    expect(castProblem(g, 'kontrollera_varelse', { grade: 1, target: alf.id })).toMatch(/ointelligenta djur/);
+    expect(castProblem(g, 'kontrollera_varelse', { grade: 1, target: foe.id })).toBeNull();
+    // Slaget (2) och PSY mot vargens PSY (1).
+    g.rng = queue(face(2), face(1));
+    expect(castSpell(g, 'kontrollera_varelse', { grade: 1, target: foe.id })).toBeNull();
+    expect(foe.hostile).toBe(false);
+    expect(foe.effects.some((e) => e.kind === 'kontrollerad' && e.by === p.id)).toBe(true);
   });
 });
 

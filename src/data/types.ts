@@ -287,8 +287,6 @@ export interface SpellDef {
   ritual: boolean;
   range: SpellRange;
   duration: SpellDuration;
-  /** Varelsebesvärjelser lärs separat för varje grupp av varelser. */
-  perCreatureGroup?: boolean;
   desc: string;
   /** Vad besvärjelsen gör i spelet. Saknas den kan besvärjelsen läras men inte användas än. */
   effect?: SpellEffect;
@@ -373,8 +371,8 @@ export type SpellEffect =
   | { kind: 'dimma' }
   /** BESKYDDARE: en skyddad kub kring magikern (ANTIMAGI E1 och ENERGISTRÅLE E1). */
   | { kind: 'beskyddare' }
-  /** KONTROLLERA PERSON: en humanoid slåss för magikern. */
-  | { kind: 'kontrollera' };
+  /** KONTROLLERA PERSON (en person) och KONTROLLERA VARELSE (ointelligenta djur): målet slåss för magikern. */
+  | { kind: 'kontrollera'; who: 'person' | 'djur' };
 
 export interface ItemDef {
   id: string;
