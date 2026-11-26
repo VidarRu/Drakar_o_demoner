@@ -9,6 +9,12 @@ import type { Band } from './tables';
 /** Husregel: CL minskar med 1 (inte 2 som i boken) för varje effektgrad utöver den första. */
 export const SPELL_GRADE_PENALTY = -1;
 
+/**
+ * ASTRALVAPEN (Vidar): 1T10 som enhandsvapen och 2T10 som tvåhandsvapen. Tolkning av "en E per kg":
+ * ett enhandsvapen kräver E2 och ett tvåhandsvapen E4.
+ */
+export const ASTRAL_WEAPON = { 1: { dice: '1T10', grade: 2 }, 2: { dice: '2T10', grade: 4 } } as const;
+
 /** Memorering: 20 minuter per skolvärdespoäng för en besvärjelse, en timme för en ritual. */
 export const MEMORIZE_MINUTES_PER_SV = 20;
 export const RITUAL_MEMORIZE_MINUTES_PER_SV = 60;

@@ -699,6 +699,8 @@ export class Game {
    * av samma slag (husregel, se docs/regelbeslut.md).
    */
   skillFv(a: Actor, skill: string): number {
+    // ASTRALVAPEN: FV är magikerns S när besvärjelsen lades.
+    if (skill === 'astralvapen') return a.effects.find((e) => e.kind === 'astralvapen')?.mod ?? 0;
     const own = a.skills[skill];
     const family = SKILLS[skill]?.weaponGroup;
     if (!family || family === 'sköld' || family === 'piska') return own ?? 0;

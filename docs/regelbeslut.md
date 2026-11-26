@@ -54,6 +54,7 @@ Regelvärdena finns i koden:
 - **Magiker får automatiskt** Känna magi (som primär färdighet) och Kunskap om magi med samma FV som magiskolan.
 - **Utrustning köps för startkapitalet** till Bok III:s priser. Äventyrets priser och belöningar följer samma nivå: sovsal 10 sm, ringbrynjeskjorta 1 500 sm och uppdraget 500 sm (750 om man prutar upp det).
 - **Rustningens abs gäller kroppsdelen som träffas.** Skadan dras både från kroppsdelens KP och från totala KP (steg 4).
+- **Skada utan kroppsdel fördelas (Vidar):** skada som bara drabbar totala KP, till exempel BLIXT, ELD, EXPLOSION, fall, gift och snedtändning, fördelas jämnt över alla kroppsdelar i detaljerad strid (`spreadDamage` i `combat.ts`). Det som inte går jämnt ut går till de kroppsdelar som har flest KP kvar (tolkning), och förlorade kroppsdelar räknas inte. En kroppsdel som når 0 får samma följder som vid en träff. Blödningen fördelas inte (tolkning), eftersom den redan kommer från en kroppsdel. Skadan står alltså kvar tills kroppsdelarna har läkt.
 
 ## Vapenfärdigheter (husregel)
 
@@ -166,7 +167,7 @@ Vidar svarade på frågorna om magin i steg 6. Husreglerna markeras som husregel
 - **Magiskt motstånd:** besvärjelser som påverkar psyket (KÄNNA FIENDSKAP, KÄNSLOLÄSNING) måste övervinna målets PSY med magikerns kvarvarande PSY på motståndstabellen. Fysiska besvärjelser (F) och besvärjelser på föremål gör inte det.
 - **Besvärjelser som verkar i spelet:** BLIXT, ELD, FROST, ENERGISTRÅLE, EXPLOSION, ELCHOCK, KALLA HANDEN, KNÄCKA, SKÖLD, FÖRTROLLA VAPEN, FÖRBANNA VAPEN, ÖRTRANKOR, HELA, NEUTRALISERA GIFT, SKYDD, LÄDERHUD, MÖRKERSYN, ORÄDD, SKINGRA, KÄNNA FIENDSKAP och KÄNSLOLÄSNING. De andra kan läras men inte läggas än. Vidar har godkänt tolkningarna nedan:
   - BLIXT träffar ett mål som magikern väljer (Vidar), som andra besvärjelser.
-  - ELD och FROST drar skadan från totala KP, och rustningen på bröstkorgen tar emot den som i boken. Bara en sfär används.
+  - ELD och FROST drar skadan från totala KP, och rustningen på bröstkorgen tar emot den som i boken. Bara en sfär används. Skadan fördelas sedan över kroppsdelarna (se Strid).
   - EXPLOSION gör full skada inom E meter (E / 1,5 rutor, avrundat nedåt; E1 träffar bara mittrutan) och 1 mindre per ruta längre bort, även på magikern. Alla som ser den bländas nästa runda (räknas som mörker).
   - SKÖLD parerar nästa fysiska anfall, även en pil, fram till slutet av nästa runda.
   - KNÄCKA tar skölden om målet har en, annars vapnet.
@@ -391,7 +392,7 @@ varje besvärjelse och förmåga ska göra. Besluten flyttas hit allteftersom de
 ### Förmågor som används i spel (byggt)
 
 Regelvärdena står i `ABILITY_RULES` i `src/engine/rules/tables.ts`, och det mesta av koden i
-`src/engine/talents.ts`. Vidar godkände tolkningarna den 26 november 2026, utom svårighetsgraden för infektioner vid Handpåläggning, som fortfarande är en tolkning.
+`src/engine/talents.ts`. Vidar godkände tolkningarna den 26 november 2026.
 
 - **God bågskytt:** räckvidden för projektilvapen (bågar, armborst, slungor och blåsrör) gångras med 1,25 och avrundas nedåt till hela rutor. Kastvapen räknas inte.
 - **Järnnäve:** obeväpnade anfall gör alltid högsta skada, med SB.
@@ -408,7 +409,7 @@ Regelvärdena står i `ABILITY_RULES` i `src/engine/rules/tables.ts`, och det me
 - **Handpåläggning (helare):** en hjälphandling på den som helaren kan röra vid, också på sig själv.
   - Läka: 1 KP för 1 PSY. I strid läker varje tur 1 KP; utanför strid läker helaren så mycket som PSY räcker till, och lika många rundor går.
   - Bota gift: PSY/2 mot det starkaste giftets STY på motståndstabellen, för lika många PSY som STY.
-  - Bota en infektion (tolkning): infektionerna och deras feber räknas som sjukdom med svårighetsgraden 10, och det kostar 10 PSY.
+  - Bota en infektion (Vidar): infektionerna och deras feber räknas som sjukdom med svårighetsgraden 10, och det kostar 10 PSY.
   - PSY dras också när det misslyckas (Vidar), och får inte gå ned till 0.
 - **Meditation (munk, husregel av Vidar):** bokens Meditation används inte. Munken mediterar i en minut och slår ett Normalt PSY-slag. Lyckas det får munken +5 på INT-baserade färdigheter i en timme. Bara utanför strid.
 - **Förtrollande framträdande (bard, Vidar):** barden sjunger eller spelar i en minut och slår i Sjunga eller Spela instrument. Lyckas det får barden +5 på KAR-baserade färdigheter (Övertala, Muta, Bluffa, Köpslå och de andra) i en timme, och AI-spelledaren får veta att åhörarna är förtrollade. Bara utanför strid. Ett misslyckat försök kostar minuten, och det går att försöka igen.
@@ -454,8 +455,13 @@ Koden står i `apply` i `src/engine/magic.ts`, och det som striden behöver i `s
   - Den bryts när hen anfaller, skjuter, lägger magi, springer (mer än halva förflyttningen) eller skadas.
   - Tolkning: den som anfaller osynlig behöver inte slå Smyga, men försvararen slår Upptäcka fara. Misslyckas det är försvararen omedveten, som vid anfall från smygarläge.
 - **KAMOUFLAGE:** bara utomhus (gräs och stig). Magikern är oupptäckt tills hen lämnar rutan, anfaller, skjuter, lägger magi eller skadas.
+- **VINDPIL (Vidar):** 1T10 i skada, hur hög E än är. Pilen skjuts direkt när besvärjelsen lyckas och träffar en kroppsdel efter avståndstabellen. Rustningen skyddar, och VIRVELSKÖLD stöter bort den. Tolkning: högre E ger bara längre räckvidd.
+- **ASTRALVAPEN (Vidar och tolkning):**
+  - Ett eggvapen av magisk energi i magikerns hand: 1T10 som enhandsvapen och 2T10 som tvåhandsvapen (Vidar).
+  - FV är magikerns S när besvärjelsen läggs, och skadebonus läggs till (tolkning).
+  - Tolkning av "en E per kg": ett enhandsvapen kräver E2 och ett tvåhandsvapen E4.
+  - Vapnet tar platsen av det magikern håller i handen så länge det varar, går inte sönder och räknas som magiskt vapen, så det biter på elementarer som bara skadas av magi. Det räknas inte som järn.
 - **Kvar:**
-  - VINDPIL och ASTRALVAPEN behöver värden ur Bok III.
   - NEDKALLA ÅSKVIGG behöver vädret.
   - KONTROLLERA PERSON, KONTROLLERA VARELSE, SPRÅNG, LEVITATION, FLYGA, LYFT, TELEPORTERA, DIMMA och BESKYDDARE väntar på att byggas.
 

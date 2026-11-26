@@ -273,10 +273,33 @@ export interface WeaponInfo {
   noParryWear: boolean;
   /** Nyckeln för vapnets BV, eller null om det inte kan gå sönder. */
   bvKey: string | null;
+  /** Magiskt vapen (ASTRALVAPEN): biter på elementarer som bara skadas av magi. */
+  magical?: boolean;
 }
 
 export function weaponInfo(a: Actor, slot: WeaponSlot = 'weapon'): WeaponInfo {
   if (a.elemental) return elementalWeapon(a);
+  // ASTRALVAPEN tar platsen av det som magikern håller i handen så länge det varar.
+  const astral = slot === 'weapon' ? a.effects.find((e) => e.kind === 'astralvapen') : undefined;
+  if (astral?.dice) {
+    return {
+      slot,
+      id: 'astralvapen',
+      name: 'Astralvapen',
+      damage: astral.dice,
+      skill: 'astralvapen',
+      sb: true,
+      natural: false,
+      unarmed: false,
+      twoHanded: astral.dice.startsWith('2'),
+      twoHandBonus: false,
+      reach: 1,
+      entangling: false,
+      noParryWear: true,
+      bvKey: null,
+      magical: true,
+    };
+  }
   const id = (slot === 'weapon' ? a.weapon : a.offhand) ?? 'nave';
   const nat = NATURAL_WEAPONS[id];
   const w = WEAPONS[id];
@@ -1120,8 +1143,12 @@ export function shieldCovers(a: Actor, loc: HitLocation): boolean {
 
 // ------------------------------------------------------------------ skador
 
-/** Drar skada från en kroppsdel (om någon) och från totala KP, och avgör följderna. */
-export function wound(g: Game, a: Actor, dmg: number, loc: HitLocation | null) {
+/**
+ * Drar skada från en kroppsdel (om någon) och från totala KP, och avgör följderna. Skada utan
+ * kroppsdel (BLIXT, ELD, fall, gift) fördelas jämnt över alla kroppsdelar (Vidar), utom
+ * blödningen, som redan kommer från en kroppsdel (`spread` = false).
+ */
+export function wound(g: Game, a: Actor, dmg: number, loc: HitLocation | null, spread = true) {
   if (dmg <= 0 || !a.alive) return;
   const awake = !a.unconscious;
   a.kp -= dmg;
@@ -1130,9 +1157,25 @@ export function wound(g: Game, a: Actor, dmg: number, loc: HitLocation | null) {
   if (loc && a.detailed) {
     a.locKp[loc] -= dmg;
     checkLocation(g, a, loc);
+  } else if (a.detailed && spread) {
+    const shares = spreadDamage(a, dmg);
+    for (const [l, d] of shares) a.locKp[l] -= d;
+    for (const [l] of shares) if (a.alive) checkLocation(g, a, l);
   }
   if (a.alive) checkTotal(g, a);
   if (awake && a.unconscious && a.alive) forgetOnKnockout(g, a);
+}
+
+/**
+ * Skada på totala KP fördelad jämnt över kroppsdelarna (Vidar). Det som inte går jämnt ut går till
+ * de kroppsdelar som har flest KP kvar (tolkning). Förlorade kroppsdelar räknas inte.
+ */
+export function spreadDamage(a: Actor, dmg: number): [HitLocation, number][] {
+  const locs = HIT_LOCATIONS.filter((l) => !a.injuries.some((i) => i.loc === l && i.lost));
+  if (!locs.length) return [];
+  const base = Math.floor(dmg / locs.length);
+  const extra = [...locs].sort((x, y) => a.locKp[y] - a.locKp[x]).slice(0, dmg % locs.length);
+  return locs.map((l) => [l, base + (extra.includes(l) ? 1 : 0)] as [HitLocation, number]).filter(([, d]) => d > 0);
 }
 
 function checkLocation(g: Game, a: Actor, loc: HitLocation) {
@@ -1768,7 +1811,7 @@ export function tick(g: Game, a: Actor) {
     a.bleedTimer++;
     if (a.bleedTimer % BLEED_INTERVAL === 0) {
       g.log(`${a.name} blöder (−${a.bleeding.length} KP).`);
-      wound(g, a, a.bleeding.length, null);
+      wound(g, a, a.bleeding.length, null, false);
     }
   }
 }

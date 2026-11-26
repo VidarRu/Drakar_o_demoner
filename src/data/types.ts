@@ -301,7 +301,17 @@ export interface SpellDef {
 /** Besvärjelsernas verkan som spelmotorn (src/engine/magic.ts) känner till. */
 export type SpellEffect =
   /** Skada per E. Rustningen skyddar fullt, inte alls eller till hälften om den är av metall. */
-  | { kind: 'skada'; dice: string; detailedDice?: string; armor: 'ingen' | 'full' | 'halvMetall'; loc: boolean }
+  | {
+      kind: 'skada';
+      dice: string;
+      detailedDice?: string;
+      armor: 'ingen' | 'full' | 'halvMetall';
+      loc: boolean;
+      /** Skadan är `dice` hur hög E än är (VINDPIL). */
+      fixed?: boolean;
+      /** En projektil: VIRVELSKÖLD stöter bort den. */
+      projectile?: boolean;
+    }
   /** Skada per E på alla inom E meter, sedan 1 mindre per ruta. Alla som ser den bländas. */
   | { kind: 'explosion'; perGrade: number }
   /** Svårt FYS-slag: misslyckas det kan offret inte handla, annars −4 på CL rundan ut. */
@@ -345,7 +355,9 @@ export type SpellEffect =
   /** OSYNLIGHET: 6 STO per E blir osynliga. */
   | { kind: 'osynlighet' }
   /** KAMOUFLAGE: oupptäckt utomhus så länge magikern står still. */
-  | { kind: 'kamouflage' };
+  | { kind: 'kamouflage' }
+  /** ASTRALVAPEN: ett magiskt eggvapen i handen, 1T10 med en hand och 2T10 med två. */
+  | { kind: 'astralvapen' };
 
 export interface ItemDef {
   id: string;

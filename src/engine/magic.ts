@@ -16,6 +16,8 @@ import {
   hasEffect,
   isParty,
   kill,
+  limbUsable,
+  shieldArm,
   magicArmor,
   skillMod,
   unequip,
@@ -23,6 +25,7 @@ import {
 } from './combat';
 import {
   attributeCheck,
+  ASTRAL_WEAPON,
   BOOK_CAST,
   DURATION_SECONDS,
   HIT_TABLE,
@@ -43,7 +46,7 @@ import {
   type HitLocation,
 } from './rules';
 import type { ActiveEffect, Actor, AttrKey, PendingSpell } from './types';
-import { breakHiding, heatColdResist, outdoors, unseen } from './spelleffects';
+import { breakHiding, heatColdResist, inVortex, outdoors, unseen } from './spelleffects';
 import { advanceTime } from './time';
 import { dissolve, spellVersusElemental, summonOrBanish, summonProblem } from './elementals';
 
@@ -175,6 +178,8 @@ export interface CastOptions {
   caster?: Actor;
   /** Grundegenskapen för ÖKA och MINSKA. */
   attr?: AttrKey;
+  /** ASTRALVAPEN med en eller två händer. */
+  hands?: 1 | 2;
 }
 
 /** Grundegenskaperna som ÖKA och MINSKA kan ändra. */
@@ -250,6 +255,11 @@ export function castProblem(g: Game, id: string, o: CastOptions): string | null 
   } else if (total >= p.psy) return `Du har bara ${p.psy} PSY kvar. Når PSY 0 dör du.`;
   if (spell.effect.kind === 'egenskap' && (!o.attr || !BODY_ATTRS.includes(o.attr))) return 'Välj grundegenskap: STY, FYS, STO, KAR eller SMI.';
   if (spell.effect.kind === 'kamouflage' && !outdoors(g, p)) return 'KAMOUFLAGE verkar bara ute i naturen.';
+  if (spell.effect.kind === 'astralvapen') {
+    const need = ASTRAL_WEAPON[o.hands ?? 1].grade;
+    if (o.grade < need) return `Ett ${o.hands === 2 ? 'tvåhandsvapen' : 'enhandsvapen'} kräver E${need}.`;
+    if (o.hands === 2 && p.detailed && !limbUsable(p, shieldArm(p))) return 'Det krävs två hela armar.';
+  }
   if (spell.aim !== 'själv') {
     const t = o.target ? g.actor(o.target) : undefined;
     if (!t || !spellTargets(g, id, o.extraRange, p).includes(t)) return 'Välj ett mål inom räckhåll som du ser.';
@@ -283,6 +293,7 @@ export function castSpell(g: Game, id: string, o: CastOptions): string | null {
     rounds: 1,
     suicide: o.suicide,
     attr: o.attr,
+    hands: o.hands,
   };
   // Den som lägger magi syns igen (OSYNLIGHET och KAMOUFLAGE).
   breakHiding(g, p, 'lägger magi');
@@ -448,8 +459,15 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
   const perfect = check.result === 'perfekt';
   switch (e.kind) {
     case 'skada': {
+      // VINDPIL är en projektil: VIRVELSKÖLD stöter bort den.
+      if (e.projectile && (inVortex(t) || inVortex(caster))) {
+        g.log(`Virvelskölden stöter bort ${spell.name}.`);
+        g.emit(t.id, 'Miss', 'miss');
+        return;
+      }
       const detailed = t.detailed && e.detailedDice ? e.detailedDice : e.dice;
-      const dmg = perfect ? maxDice(detailed, grade) : sumDice(detailed, grade, g);
+      const n = e.fixed ? 1 : grade;
+      const dmg = perfect ? maxDice(detailed, n) : sumDice(detailed, n, g);
       let loc: HitLocation | null = null;
       let abs = 0;
       if (e.armor !== 'ingen') {
@@ -652,6 +670,14 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       t.hidden = true;
       g.log(`${t.name} smälter in i naturen och syns inte så länge hen står still.`);
       return;
+    case 'astralvapen': {
+      const w = ASTRAL_WEAPON[s.hands ?? 1];
+      t.effects = t.effects.filter((x) => x.kind !== 'astralvapen');
+      // FV är magikerns S när besvärjelsen läggs.
+      t.effects.push({ kind: 'astralvapen', dice: w.dice, mod: spellS(caster, spell.id), ...effectFor(caster, spell, s, grade, g) });
+      g.log(`Ett ${s.hands === 2 ? 'tvåhandsvapen' : 'enhandsvapen'} av glödande magisk energi formas i ${t.name}s ${s.hands === 2 ? 'händer' : 'hand'} (${w.dice}, FV ${spellS(caster, spell.id)}).`);
+      return;
+    }
     case 'rankor': {
       const need = Math.ceil(t.attrs.STO / 10);
       if (grade < need) {

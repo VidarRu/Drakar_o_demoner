@@ -100,12 +100,13 @@ förslagets avsnitt 5.
   - Varelser får magi med `CreatureDef.magic`, och besvärjelserna står i `Actor.spells`.
   - `enemyCast` i `magic.ts` är fiendens val (HELA, skydd, skada) och anropas från `autoTurn`. `CombatState.cast` håller reda på vad varje fiende har lagt.
   - Den svartalfiska häxkonstnären står i Gråvads grotta (BLIXT, SKÖLD, HELA, figuren `haxkonstnar`).
-- **Pågår (steg 5):** besvärjelserna i strid. ÖKA, MINSKA, FLAMMANDE HAND, VIRVELSKÖLD, MOTSTÅNDSKRAFT, ANTIMAGI, LJUS, MÖRKER, MAGISK SYN, OSYNLIGHET och KAMOUFLAGE verkar nu.
+- **Pågår (steg 5):** besvärjelserna i strid. ÖKA, MINSKA, FLAMMANDE HAND, VIRVELSKÖLD, MOTSTÅNDSKRAFT, ANTIMAGI, LJUS, MÖRKER, MAGISK SYN, OSYNLIGHET, KAMOUFLAGE, VINDPIL (1T10) och ASTRALVAPEN (1T10 eller 2T10, `ASTRAL_WEAPON` i `rules/magic.ts`) verkar nu.
+  - Skada utan kroppsdel fördelas jämnt över kroppsdelarna (Vidar, `spreadDamage` i `combat.ts`), utom blödningen.
   - Verkan står i `apply` i `magic.ts`. Det som striden behöver står i `src/engine/spelleffects.ts`: zonerna (`GameState.zones`), `attrShift`, `flamingHand`, `inVortex`, `heatColdResist`, `unseen` och `breakHiding`.
   - `changeAttribute` och `endSpellEffect` i `combat.ts` ändrar och återställer grundegenskaper.
-  - Magi-fönstret har ett val av grundegenskap för ÖKA och MINSKA.
+  - Magi-fönstret har ett val av grundegenskap för ÖKA och MINSKA och av en eller två händer för ASTRALVAPEN.
   - Testerna står i `tests/spells.test.ts`.
-- **Nästa i steg 5:** KONTROLLERA PERSON och KONTROLLERA VARELSE, SPRÅNG, LEVITATION, FLYGA, LYFT, TELEPORTERA, DIMMA och BESKYDDARE. VINDPIL och ASTRALVAPEN väntar på värden ur Bok III, och NEDKALLA ÅSKVIGG på vädret.
+- **Nästa i steg 5:** KONTROLLERA PERSON och KONTROLLERA VARELSE, SPRÅNG, LEVITATION, FLYGA, LYFT, TELEPORTERA, DIMMA och BESKYDDARE. NEDKALLA ÅSKVIGG väntar på vädret.
 - **Kvar av förmågorna:** Gott balanssinne (när SPRÅNG byggs), Absolut ögonmått och God tidskänsla (gränssnittet), Mottagligt medium och Magisk empati (väntar på kanalisering och magiska föremål), avdraget för den andra handen och Hamnbytare.
 
 Vidar vill också göra en genomgång av hela regelsystemet när det är klart, för att se att det är konsekvent.
@@ -174,7 +175,7 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 217 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 221 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
 `tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/spells.test.ts` prövar fiendernas magi och besvärjelserna i strid. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
 
@@ -186,7 +187,6 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 ## Öppna frågor till Vidar
 
 - Chanserna för vädret (tolkning i `docs/regelbeslut.md`) och vindens verkan på skott och båtar, när vädret byggs.
-- Handpåläggning mot infektioner: svårighetsgraden 10 och 10 PSY är fortfarande en tolkning.
 - Tolkningarna för besvärjelserna i strid och fiendens val av effektgrad (`docs/regelbeslut.md` under Fiendernas magi och Besvärjelser i strid).
-- Skada som bara drabbar totala KP (BLIXT, ELD och blödning utan kroppsdel) försvinner när tiden går utanför strid om alla kroppsdelar är oskadda, eftersom totala KP återställs när kroppsdelarna har läkt (`settle` i `time.ts`). Det följer Bok II, men gör att BLIXT inte lämnar skador kvar efter striden. Ska det vara så?
-- Värdena för VINDPIL (skadan) och ASTRALVAPEN (FV) ur Bok III.
+- ASTRALVAPEN: E2 för ett enhandsvapen och E4 för ett tvåhandsvapen är en tolkning av "en E per kg", och skadebonusen likaså.
+- Fördelningen av skada utan kroppsdel: resten går till de kroppsdelar som har flest KP kvar, och blödningen fördelas inte.

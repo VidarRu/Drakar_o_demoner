@@ -245,7 +245,7 @@ export class ShopUi {
 
 /** Magin: formelsamlingen, minnet och att lägga besvärjelser. */
 export class MagicUi {
-  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean; attr: AttrKey } | null = null;
+  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean; attr: AttrKey; hands: 1 | 2 } | null = null;
 
   constructor(private g: Game, private panel: Panel) {}
 
@@ -283,7 +283,7 @@ export class MagicUi {
 
   private pick(id: string) {
     const targets = spellTargets(this.g, id);
-    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false, attr: 'STY' };
+    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false, attr: 'STY', hands: 1 };
     this.panel.refresh();
   }
 
@@ -332,6 +332,17 @@ export class MagicUi {
       l.append(s);
       box.append(l);
     }
+    if (sp.effect?.kind === 'astralvapen') {
+      const s = el('select');
+      s.append(new Option('Enhandsvapen, 1T10 (E2)', '1', false, c.hands === 1), new Option('Tvåhandsvapen, 2T10 (E4)', '2', false, c.hands === 2));
+      s.onchange = () => {
+        c.hands = s.value === '2' ? 2 : 1;
+        this.panel.refresh();
+      };
+      const l = el('label', '', 'Vapen ');
+      l.append(s);
+      box.append(l);
+    }
     const suicide = el('label', '', 'Självmordsattack (CL = S, kostar mer PSY än du har, du dör) ');
     const cb = el('input');
     cb.type = 'checkbox';
@@ -342,7 +353,7 @@ export class MagicUi {
     };
     suicide.append(cb);
     const S = spellS(p, c.id);
-    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide, attr: c.attr };
+    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide, attr: c.attr, hands: c.hands };
     const problem = castProblem(g, c.id, opts);
     box.append(
       suicide,

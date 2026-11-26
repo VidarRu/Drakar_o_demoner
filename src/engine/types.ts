@@ -189,7 +189,9 @@ export interface ActiveEffect {
     /** OSYNLIGHET: osynlig tills hen anfaller, springer, lägger magi eller skadas. */
     | 'osynlig'
     /** KAMOUFLAGE: oupptäckt så länge hen står kvar på rutan `at`. */
-    | 'kamouflage';
+    | 'kamouflage'
+    /** ASTRALVAPEN: vapnet i handen gör `dice` i skada och har FV `mod`. */
+    | 'astralvapen';
   /** Kort text till rollformuläret och loggen. */
   label: string;
   mod?: number;
@@ -282,6 +284,8 @@ export interface PendingSpell {
   suicide?: boolean;
   /** Grundegenskapen för ÖKA och MINSKA. */
   attr?: AttrKey;
+  /** ASTRALVAPEN med en eller två händer. */
+  hands?: 1 | 2;
 }
 
 export type WeaponSlot = 'weapon' | 'offhand';

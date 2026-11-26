@@ -298,7 +298,7 @@ export const elementalAttacks = (a: Actor) => !!ELEMENTALS[a.elemental!.kind].at
 export function elementalTakes(g: Game, att: Actor, def: Actor, w: WeaponInfo, dmg: number): number | null {
   const info = def.elemental!;
   const d = ELEMENTALS[info.kind];
-  const magic = weaponMagic(att, w.slot) > 0 || !!att.elemental;
+  const magic = weaponMagic(att, w.slot) > 0 || !!att.elemental || !!w.magical;
   const key = w.bvKey;
   const harm = (amount: number, why: string) => {
     if (key && att.bv[key] !== undefined && amount > att.bv[key]) wearItem(g, att, key, why);

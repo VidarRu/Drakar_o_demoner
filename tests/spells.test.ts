@@ -111,7 +111,7 @@ function allRounder(): Character {
   c.skills['magiskola:animism'] = 14;
   c.skills['magiskola:elementarmagi'] = 14;
   c.skills['magiskola:mentalism'] = 14;
-  c.spells = ['oka', 'minska', 'kamouflage', 'flammande_hand', 'virvelskold', 'ljus', 'morker', 'motstandskraft', 'magisk_syn', 'osynlighet', 'antimagi', 'eld'];
+  c.spells = ['oka', 'minska', 'kamouflage', 'flammande_hand', 'virvelskold', 'ljus', 'morker', 'motstandskraft', 'magisk_syn', 'osynlighet', 'antimagi', 'eld', 'vindpil', 'astralvapen'];
   c.memorized = [...c.spells];
   c.inventory = ['trastav', 'harnesk_lader'];
   c.equipped = { weapon: 'trastav', armor: ['harnesk_lader'] };
@@ -271,6 +271,65 @@ describe('besvärjelser i strid', () => {
     p.x = chief.x - 1;
     p.y = chief.y;
     expect(castProblem(g, 'kamouflage', { grade: 1 })).toMatch(/ute i naturen/);
+  });
+});
+
+describe('skada på totala KP och de nya värdena', () => {
+  it('skada utan kroppsdel fördelas jämnt över kroppsdelarna, och resten går till dem med flest KP', () => {
+    const { g, p } = explore();
+    const before = { ...p.locKp };
+    // 10 i skada på sju kroppsdelar: 1 var, och 3 till de tre med flest KP.
+    const extra = [...combat.spreadDamage(p, 10)].filter(([, d]) => d === 2).map(([l]) => l);
+    expect(extra).toHaveLength(3);
+    const top = Object.entries(before).sort((x, y) => y[1] - x[1])[2][1];
+    for (const l of extra) expect(before[l]).toBeGreaterThanOrEqual(top);
+    combat.wound(g, p, 10, null);
+    const lost = Object.keys(before).reduce((n, l) => n + before[l as keyof typeof before] - p.locKp[l as keyof typeof before], 0);
+    expect(lost).toBe(10);
+    // Skadan står kvar när tiden går, eftersom kroppsdelarna inte är läkta.
+    g.sleep(1);
+    expect(p.kp).toBeLessThan(p.maxKp);
+  });
+
+  it('blödningen fördelas inte', () => {
+    const { g, p } = explore();
+    const before = { ...p.locKp };
+    combat.wound(g, p, 2, null, false);
+    expect(p.locKp).toEqual(before);
+  });
+
+  it('VINDPIL gör 1T10 hur hög E än är, och VIRVELSKÖLD stöter bort den', () => {
+    const { g, p, foe } = explore('svartalf', 3);
+    foe.hostile = true;
+    const kp = foe.kp;
+    // VINDPIL E3 lyckas (2), skadan 1T10 blir 7 och träffområdet slås (10). Svartalfen har ingen rustning.
+    g.rng = queue(face(2), face(7, 10), face(10));
+    expect(castSpell(g, 'vindpil', { grade: 3, target: foe.id })).toBeNull();
+    expect(foe.kp).toBe(kp - 7);
+    foe.effects.push({ kind: 'virvelsköld', label: 'VIRVELSKÖLD', rounds: 10 });
+    g.rng = queue(face(2));
+    castSpell(g, 'vindpil', { grade: 1, target: foe.id });
+    expect(foe.kp).toBe(kp - 7);
+    expect(g.state.log.join('\n')).toContain('Virvelskölden stöter bort VINDPIL');
+    expect(p.alive).toBe(true);
+  });
+
+  it('ASTRALVAPEN: 1T10 med en hand (E2) och 2T10 med två (E4), med FV lika med S', () => {
+    const { g, p } = explore();
+    expect(castProblem(g, 'astralvapen', { grade: 1, hands: 1 })).toMatch(/kräver E2/);
+    expect(castProblem(g, 'astralvapen', { grade: 3, hands: 2 })).toMatch(/kräver E4/);
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'astralvapen', { grade: 2, hands: 1 })).toBeNull();
+    const w = combat.weaponInfo(p);
+    expect(w).toMatchObject({ id: 'astralvapen', damage: '1T10', twoHanded: false, magical: true });
+    // S: Elementarmagi 14 − 10 + 3.
+    expect(g.skillFv(p, 'astralvapen')).toBe(7);
+    g.rng = queue(face(2));
+    castSpell(g, 'astralvapen', { grade: 4, hands: 2 });
+    expect(combat.weaponInfo(p).damage).toBe('2T10');
+    expect(p.effects.filter((e) => e.kind === 'astralvapen')).toHaveLength(1);
+    g.sleep(1);
+    expect(combat.weaponInfo(p).id).toBe('trastav');
   });
 });
 
