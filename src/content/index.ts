@@ -11,16 +11,19 @@ import type { MapDef } from '../engine/map';
 import type { CreatureDef, NaturalWeaponDef, NpcDef } from '../engine/types';
 import { COMMON_BOOKS } from './mellanspel';
 import { SPELTEST } from './speltest';
-import type { BookDef, MagicItemDef, ModuleDef, RecruitDef } from './types';
+import { PROVFARD } from './provfard';
+import { BATTLE_MAP_LIST, WILD_BANDS, WILD_CREATURES } from './vildmark';
+import type { BandDef, BookDef, MagicItemDef, ModuleDef, RecruitDef } from './types';
 import { NON_IRON_WEAPONS, WEAPONS } from '../data/weapons';
 import { ARMOR, SHIELDS } from '../data/armor';
 import { ITEMS } from '../data/equipment';
 
-export type { BookDef, DeedDef, Difficulty, ItemSpell, MagicItemDef, ModuleDef, QuestDef, RecruitDef } from './types';
+export type { BandDef, BookDef, DeedDef, Difficulty, ItemSpell, MagicItemDef, ModuleDef, QuestDef, RecruitDef } from './types';
 export { CITY, type CityTeacher } from './mellanspel';
+export { BATTLE_MAPS, ENCOUNTER_TABLES, type EncounterRow } from './vildmark';
 
 /** Alla äventyrsmoduler. */
-export const MODULE_LIST: ModuleDef[] = [SPELTEST];
+export const MODULE_LIST: ModuleDef[] = [SPELTEST, PROVFARD];
 
 const list = <T extends { id: string }>(items: T[], what: string): Record<string, T> => {
   const out: Record<string, T> = {};
@@ -71,10 +74,12 @@ export const PROFESSION_SPRITES: Record<string, string> = {
   bard: 'tjuv',
 };
 
-export const CREATURES = list<CreatureDef>(MODULE_LIST.flatMap((m) => m.creatures), 'Varelsen');
+export const CREATURES = list<CreatureDef>([...WILD_CREATURES, ...MODULE_LIST.flatMap((m) => m.creatures)], 'Varelsen');
 export const NPCS = list<NpcDef>(MODULE_LIST.flatMap((m) => m.npcs), 'Personen');
 export const RECRUITS = list<RecruitDef>(MODULE_LIST.flatMap((m) => m.recruits), 'Följeslagaren');
-export const MAPS = list<MapDef>(MODULE_LIST.flatMap((m) => m.maps), 'Kartan');
+export const MAPS = list<MapDef>([...BATTLE_MAP_LIST, ...MODULE_LIST.flatMap((m) => m.maps)], 'Kartan');
+/** Fiendegrupperna på världskartorna och i slumptabellerna. */
+export const BANDS = list<BandDef>([...WILD_BANDS, ...MODULE_LIST.flatMap((m) => m.bands ?? [])], 'Fiendegruppen');
 /** Böcker och magiska kodexar som går att studera (steg 8). De ligger i packningen med sitt id. */
 export const BOOKS = list<BookDef>([...COMMON_BOOKS, ...MODULE_LIST.flatMap((m) => m.books ?? [])], 'Boken');
 

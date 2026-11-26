@@ -599,6 +599,53 @@ export interface PlaceState {
   actors: Actor[];
   explored: number[];
   dropped: DroppedItem[];
+  /** Fiendegrupperna på en världskarta. */
+  bands?: BandState[];
+}
+
+/**
+ * En fiendegrupp på världskartan (Vidar): en ikon som står för flera varelser. Den vandrar, får
+ * syn på gruppen, jagar eller går åt ett annat håll. Går den ihop med gruppen blir det ett
+ * stridsmöte på en stridskarta.
+ */
+export interface BandState {
+  id: string;
+  /** Gruppens id i innehållet (BANDS), eller tabellraden för ett slumpmöte. */
+  defId: string;
+  name: string;
+  sprite: string;
+  /** Varelserna i gruppen (id i CREATURES), en per varelse. */
+  members: string[];
+  x: number;
+  y: number;
+  home: { x: number; y: number };
+  /**
+   * vandrar: rör sig runt sin plats. närmar: ett slumpmöte på väg mot gruppen. jagar: har sett
+   * gruppen och följer efter. undviker: gruppen smög förbi och gruppen går åt ett annat håll.
+   */
+  mode: 'vandrar' | 'närmar' | 'jagar' | 'undviker';
+  /** Gruppen har smugit förbi: inget nytt slag förrän gruppen har varit ur sikte. */
+  evaded?: boolean;
+  /** Målet för en grupp som närmar sig eller jagar utan att se gruppen. */
+  goal?: { x: number; y: number };
+  /** Kvartar som gruppen har till godo att röra sig med. */
+  budget: number;
+  /** Kvartar kvar att gå undan. */
+  away?: number;
+  /** Ett slumpmöte: gruppen försvinner vid den här speltiden om den inte jagar. */
+  expires?: number;
+  deathFlag?: string;
+}
+
+/** Ett pågående stridsmöte: gruppen strider på en stridskarta och kommer sedan tillbaka hit. */
+export interface EncounterState {
+  band: string;
+  /** Världskartan och rutan där mötet började. */
+  map: string;
+  x: number;
+  y: number;
+  /** Striden är slut och gruppen har fått veta hur den kommer tillbaka. */
+  over?: boolean;
 }
 
 export interface GameState {
@@ -646,6 +693,12 @@ export interface GameState {
   locks?: Record<string, LockState>;
   /** Vädret. */
   weather?: WeatherState;
+  /** Fiendegrupperna på världskartan som gruppen är på. */
+  bands?: BandState[];
+  /** Stridsmötet som pågår, när gruppen är på en stridskarta. */
+  encounter?: EncounterState;
+  /** Minuter av färd på världskartan sedan förra slaget för slumpmöten. */
+  travel?: number;
   /** Magiska föremål som gruppen har analyserat: 1 vet att det är magiskt, 2 vet vilka besvärjelser, 3 vet hur de används. */
   itemKnown?: Record<string, number>;
   /** Besvärjelser i magiska föremål som är förbrukade (index i föremålets lista). */

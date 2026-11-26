@@ -28,7 +28,7 @@ stridskonsterna eller varelsernas detaljer.
 | 5 | Tid och utveckling: spelklocka, läkning, Läkekonst, infektioner, amputation, PSY-poäng, EP och träning | Klart (`src/engine/time.ts`, `src/ui/training.ts`) |
 | 6 | Magi, avståndsstrid, örter och gifter, bärförmåga och handel | Klart (`src/engine/magic.ts`, `combat.ts`, `poison.ts`, `inventory.ts`, `trade.ts`, `src/ui/panels.ts`) |
 | 7 | Följeslagare, elementarer, smygarläge, Avväpna, Fasthållning och stridskonster | Klart (`src/engine/party.ts`, `elementals.ts`, `maneuvers.ts`, `stealth.ts`) |
-| 8 | Äventyrsmoduler och utveckling mellan äventyren, plus beslutade ändringar | **Pågår**: dödsregeln, elementarerna, modulformatet och utvecklingen mellan äventyren är klara; se nedan |
+| 8 | Äventyrsmoduler och utveckling mellan äventyren, plus beslutade ändringar | **Pågår**: dödsregeln, elementarerna, modulformatet, utvecklingen mellan äventyren och världskartan är klara; se nedan |
 
 ## Steg 8: äventyrsmoduler och utveckling mellan äventyren
 
@@ -72,14 +72,52 @@ Vidar har bestämt dödsregeln och hur modulerna byggs upp (avsnitten Strid och 
   - De andra tolkningarna i steg 6 och i utvecklingen mellan äventyren är godkända som de är.
   - **Figurval:** spelaren väljer figur i första steget när rollpersonen skapas (`Draft.sprite` och `Character.sprite`, listan `PLAYER_SPRITES` i `src/content/index.ts`). Fyra nya figurer finns: magiker, krigarinna, alv och dvärg. Utan eget val används yrkets figur (`PROFESSION_SPRITES`, där magiker nu får magikerfiguren).
 
+### Världskartan (klar, Vidar)
+
+Besluten står i `docs/regelbeslut.md` under Världskartan.
+
+- **Regelvärden:** `src/engine/rules/travel.ts`.
+  - `TERRAIN_COST`: en kvart per ruta, dubbelt i tät skog, kullar och vadställe, fyra gånger i berg.
+  - `BATTLE_TERRAIN`: stridskartan för varje terräng.
+  - `TRAVEL`: synhåll, jakttakt, vandring och slumpmöten.
+- **Kartformatet** (`src/engine/map.ts`):
+  - `MapDef.kind` är `värld`, `plats` eller `strid`.
+  - Nya rutor: `f` öppen skog, `F` tät skog, `h` kullar, `M` berg, `=` bro och `v` vadställe. `TileDef.terrain` anger terrängen.
+  - `MapDef.places` är mötesplatserna. En utgång med `to` leder till en annan karta i modulen, och `to: 'tillbaka'` tar gruppen från en stridskarta till världskartan.
+  - `MapDef.foes` är fiendernas platser på stridskartan, och `spawns` med `band` placerar ut fiendegrupper.
+  - `cheapestPath` väljer den väg som tar kortast tid.
+- **Byta karta:**
+  - `swapMap` i `modules.ts` byter karta i speltillståndet och används också av `startModule`. Stridskartor sparas inte.
+  - `Game.map` går att ändra. `Game.enterMap` byter karta, och `onMapChange` får `WorldScene` att byggas om (`scene.restart()`) och minikartan att byta storlek.
+- **Motorn** (`src/engine/worldmap.ts`):
+  - `travelStep`: ett steg, där tiden går efter terrängen.
+  - `look`: det passiva Smyga-slaget, `worstSneaker` mot `bandSpot`.
+  - `bandsAct` och `moveBand`: fiendegrupperna vandrar, jagar och går undan. `loseSight` sköter Spåra och SPÅRLÖS.
+  - `randomEncounters`: slumpmötena.
+  - `startEncounter`, `leaveBattle` och `battleOverHint`: stridsmötena.
+  - `takeExit`: utgångarna mellan kartorna. `Game.attackBand` anfaller en fiendegrupp.
+- **Speltillståndet:** `GameState.bands` (`BandState`), `GameState.encounter` och `GameState.travel`. `PlaceState.bands` sparar grupperna när gruppen går in på en mötesplats. Fälten är valfria, så sparformatet är fortfarande version 7.
+- **Innehållet:**
+  - `src/content/vildmark.ts` har de generiska varelserna (`vild_varg`, `vild_bjorn`, `stratrovare`, `vild_svartalf`), slumptabellerna (`ENCOUNTER_TABLES`) och fem stridskartor (`BATTLE_MAPS`).
+  - Registret `BANDS` samlar fiendegrupperna.
+  - Gråvads fiender har fått Finna dolda ting (6–12).
+  - **Provfärden** (`src/content/provfard/`) är en provmodul utanför kampanjen. Den har en världskarta med alla terränger, Hagby, Varggrottan och tre fiendegrupper. Man når den från skärmen "Mellan äventyren", eller med `Game.create(char, rng, 'provfard')`.
+- **Gränssnittet:**
+  - Terrängen ritas med träd, kullar, bergstoppar och stenar i vadstället (`objects.ts`), och mötesplatserna har egna ikoner (`src/game/art/places.ts`).
+  - Fiendegrupperna har en ikon med antalet. Muspekaren visar terrängen och tiden per ruta.
+  - Ett klick på en fiendegrupp anfaller den.
+  - Minikartan visar mötesplatser och fiender.
+  - "Mellan äventyren" har en enkel resekarta (`ModuleDef.travel`).
+- **Testerna** står i `tests/worldmap.test.ts`.
+- **Kvar:** se Kvar under Världskartan i `docs/regelbeslut.md`. Det gäller färdtiden med börda och skador, fiender och slumpmöten under sömnen, att fly från stridskartan och överraskning.
+
 ### Nästa i steg 8
 
-1. **Vidars första äventyr:** han laddar upp ett äldre äventyr, och det byggs om till en modul med egna ord.
-2. **Världskartan** för modulen: rutnät ovanifrån, en ruta per timme, gruppen som en figur, fiender som ikoner som vandrar och jagar, smyga förbi, stridsmöten på färdiga stridskartor efter terrängen, och mötesplatser som man går in i och ut ur. `GameState.places` är redan byggt för att spara kartor man lämnar. `Game.map` är i dag `readonly` och byggs när spelet startar; att byta karta inom en modul kräver att kartvyn (`WorldScene`) byggs om.
-3. **Resekartan** för kampanjen, med modulerna som klickbara ikoner. Restid bestäms senare.
-4. **Utvecklingen mellan äventyren:** klar (se ovan). Kvar är stadskartan i stället för menyn, att bestämma per modul vilka dåd som ger hjältepoäng och bonus-EP, en lista över vilka språk böckerna är skrivna på, och unika lärare i modulerna som kan flytta till staden (med kampanjspelet).
-5. **Slumpmöten** i vildmarken: Vidar vill ha dem, men tabellerna saknas.
-6. **Sparning på server** (till exempel Supabase), senare.
+1. **Vidars första äventyr:** han laddar upp ett äldre äventyr, och det byggs om till en modul med egna ord. Modulen får en världskarta som Provfärdens.
+2. **Resekartan** för kampanjen: platshållaren finns, och restiden bestäms senare.
+3. **Utvecklingen mellan äventyren:** klar (se ovan). Kvar är stadskartan i stället för menyn, att bestämma per modul vilka dåd som ger hjältepoäng och bonus-EP, en lista över vilka språk böckerna är skrivna på, och unika lärare i modulerna som kan flytta till staden (med kampanjspelet).
+4. **Riktiga tabeller för slumpmöten** i stället för de generiska.
+5. **Sparning på server** (till exempel Supabase), senare.
 
 ### Förmågor, besvärjelser och väder (pågår)
 
@@ -119,7 +157,7 @@ förslagets avsnitt 5.
 - **Klart (ljus):** facklor brinner en timme och oljelyktan sex timmar (`src/engine/light.ts`, `Actor.light`, `Character.lanternOil`). `burnLight` körs i `passTime` och i början av varje stridsrunda, och `ensureLight` när spelet laddas. `torchBurns` kräver ett ljus som brinner. I testerna tänder `lit` i `tests/helpers.ts` en fackla.
 - **Klart (TELEPATI och TANKEÖVERFÖRING, Vidar):** rollspel i modulernas scener, och TANKEÖVERFÖRING kan få en fiende att slå moral. Hela VIGGFÅNGARE blir PSY.
 - **Klart (ritualerna och FÖRÄNDRA):** `src/engine/rituals.ts`. En ritual tar lika många timmar som effektgraden (Vidar, `ritualHours` i `magic.ts`). LADDNING sparas i `Character.charges`, och `CastOptions.useCharge` drar PSY ur dem. FÖRYNGRA ändrar de kroppsliga grundegenskaperna efter ålderstabellen. FÖRÄNDRA byter vapnet i handen (effekten `förändrad`). Besvärjelser på figurer utanför gruppen räknas ned med `expireSpells` i `time.ts`.
-- **Alla besvärjelser verkar nu**, utom att förvandla djur med FÖRÄNDRA. Där väntar SYN på magiska föremål, SPÅRLÖS på världskartan och FINNA VATTEN på reglerna för mat och dryck.
+- **Alla besvärjelser verkar nu**, utom att förvandla djur med FÖRÄNDRA. Där väntar SYN på magiska föremål och FINNA VATTEN på reglerna för mat och dryck. SPÅRLÖS verkar på världskartan.
 - **Klart (Hamnbytare):** `src/engine/shapeshift.ts` (`shapeOf`, `shapeshift`, `shapeTime`), `Actor.shape` med den mänskliga kroppen, och knappen i panelerna. Djuren står i `HAMN`, och hök och svan har egna värden i `src/data/creatures.ts`. Testerna står i `tests/shapeshift.test.ts`.
 - **Klart (magiska föremål):** `src/engine/magicitems.ts` (`senseMagic`, `empathy`, `seekMagic`, `seeMagic`, `useItem`, `syncItemEffects`, `itemCharges`). `castFromItem` i `magic.ts` lägger en besvärjelse ur ett föremål. `MAGIC_ITEMS` i `src/content/index.ts` registrerar föremålen i regeldatan. Packningen visar analysen och knapparna. Testerna står i `tests/magicitems.test.ts`.
 - **Klart (Vidars sista beslut i sessionen):**
@@ -127,7 +165,7 @@ förslagets avsnitt 5.
   - Vänster hand ger motståndaren −2 på parering (`LEFT_HAND_PARRY`).
   - Absolut ögonmått och God tidskänsla är borttagna (`REMOVED_ABILITIES`).
   - Den nya besvärjelsen HAMNSKIFTARE (animism) ger Hamnbytares förvandling.
-- **Nästa:** världskartan (nästa session). Kvar av förmågorna är bara Gott balanssinne vid fall, som väntar på fallskador.
+- **Kvar av förmågorna** är bara Gott balanssinne vid fall, som väntar på fallskador.
 
 Vidar vill också göra en genomgång av hela regelsystemet när det är klart, för att se att det är konsekvent.
 
@@ -195,9 +233,9 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 262 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 277 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
-`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/spells.test.ts` prövar fiendernas magi och besvärjelserna i strid. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
+`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/spells.test.ts` prövar fiendernas magi och besvärjelserna i strid. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen. `tests/worldmap.test.ts` prövar världskartans tider, det passiva smygandet, jakten, Spåra och SPÅRLÖS, stridsmötena, mötesplatserna och slumpmötena.
 
 För att provköra gränssnittet: starta `npx vite` och styr sidan med Playwright. Ett snabbt sätt är
 att skapa ett spel med `Game.create(testCharacter())`, lägga `JSON.stringify(g.state)` i
@@ -212,3 +250,4 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 - Vädret (`docs/regelbeslut.md` under Vädret): chanserna, att det ändras klockan sex och arton, vindens avdrag på skott, VINDKONTROLL och VIGGFÅNGARE är tolkningar. Tolkningarna för ljuset (se Ljus).
 - Tolkningarna för låsen och besvärjelserna utanför strid (`docs/regelbeslut.md` under Lås och besvärjelser utanför strid).
 - Tolkningarna för besvärjelserna i strid och fiendens val av effektgrad (`docs/regelbeslut.md` under Fiendernas magi och Besvärjelser i strid).
+- Världskartan: tolkningarna i `docs/regelbeslut.md` under Världskartan. Det gäller synhållet (4 rutor på dagen, 2 på natten), att jagande fiender går i dubbel takt, Spåra en gång per steg, att stråtrövare och svartalfer får 9 i Finna dolda ting, och de generiska slumptabellerna.

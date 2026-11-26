@@ -90,52 +90,74 @@ export function nextModules(state: GameState): { module: ModuleDef; done: boolea
 }
 
 /**
- * Börjar en modul med gruppen från den förra. Kartan som gruppen lämnar sparas med det som finns
- * kvar där, och modulens flaggor sparas för sig. Kommer gruppen tillbaka till en karta den har
- * varit på ligger allt kvar som det var. Returnerar ett nytt speltillstånd.
+ * Byter karta i speltillståndet (världskartan, mötesplatserna och stridskartorna). Kartan som
+ * gruppen lämnar sparas med det som finns kvar där, utom en stridskarta, som bara finns för
+ * striden. Kommer gruppen tillbaka till en karta den har varit på ligger allt kvar som det var.
+ * Gruppen ställs på `at` eller kartans startruta; på världskartan står hela gruppen på samma ruta.
  */
-export function startModule(prev: GameState, moduleId: string, rng: Rng): GameState {
-  const s: GameState = JSON.parse(JSON.stringify(prev));
-  const mod = MODULES[moduleId];
+export function swapMap(s: GameState, mapId: string, rng: Rng, at?: { x: number; y: number }) {
   const party = s.party.map((id) => s.actors.find((a) => a.id === id)).filter((a): a is Actor => !!a && a.alive && !a.elemental);
   s.party = party.map((a) => a.id);
   const inParty = new Set(s.party);
-  s.places[s.mapId] = { actors: s.actors.filter((a) => !inParty.has(a.id) && !a.elemental), explored: s.explored, dropped: s.dropped };
-  s.moduleFlags[s.moduleId] = s.flags;
-
-  s.moduleId = mod.id;
-  s.flags = s.moduleFlags[mod.id] ?? {};
-  delete s.moduleFlags[mod.id];
-  const map = parseMap(MAPS[mod.start]);
+  if ((MAPS[s.mapId]?.kind ?? 'plats') !== 'strid') {
+    s.places[s.mapId] = { actors: s.actors.filter((a) => !inParty.has(a.id) && !a.elemental), explored: s.explored, dropped: s.dropped, bands: s.bands ?? [] };
+  }
+  const map = parseMap(MAPS[mapId]);
   s.mapId = map.id;
   s.actors = [...party];
-  const place = s.places[map.id];
+  s.bands = [];
+  const place = map.kind !== 'strid' ? s.places[map.id] : undefined;
   if (place) {
     s.actors.push(...place.actors);
     s.explored = place.explored;
     s.dropped = place.dropped;
+    s.bands = place.bands ?? [];
     delete s.places[map.id];
   } else {
     s.explored = new Array(map.w * map.h).fill(0);
     s.dropped = [];
     spawnActors(s, map, rng);
   }
-  placeParty(s, map, party);
+  placeParty(s, map, party, at);
   for (const m of party) {
     m.sneaking = false;
     m.hidden = false;
     m.reload = 0;
   }
-  startWeather(s, mod.weather);
-  s.mode = 'explore';
   s.combat = null;
   s.focus = s.playerId;
-  s.log.push(`${party.length > 1 ? 'Gruppen' : party[0].name} anländer till ${map.name}.`);
+}
+
+/**
+ * Börjar en modul med gruppen från den förra. Kartan som gruppen lämnar sparas med det som finns
+ * kvar där, och modulens flaggor sparas för sig. Returnerar ett nytt speltillstånd.
+ */
+export function startModule(prev: GameState, moduleId: string, rng: Rng): GameState {
+  const s: GameState = JSON.parse(JSON.stringify(prev));
+  const mod = MODULES[moduleId];
+  delete s.encounter;
+  s.moduleFlags[s.moduleId] = s.flags;
+  s.moduleId = mod.id;
+  s.flags = s.moduleFlags[mod.id] ?? {};
+  delete s.moduleFlags[mod.id];
+  swapMap(s, mod.start, rng);
+  startWeather(s, mod.weather);
+  s.mode = 'explore';
+  const party = s.party.map((id) => s.actors.find((a) => a.id === id)!);
+  s.log.push(`${party.length > 1 ? 'Gruppen' : party[0].name} anländer till ${MAPS[mod.start].name}.`);
   return s;
 }
 
-/** Ställer ledaren på kartans startruta och de andra på lediga rutor nära. */
-function placeParty(s: GameState, map: GameMap, party: Actor[]) {
+/** Ställer ledaren på rutan (eller kartans startruta) och de andra på lediga rutor nära, utom på världskartan. */
+function placeParty(s: GameState, map: GameMap, party: Actor[], at?: { x: number; y: number }) {
+  const origin = at ?? map.start;
+  if (map.kind === 'värld') {
+    for (const m of party) {
+      m.x = origin.x;
+      m.y = origin.y;
+    }
+    return;
+  }
   const taken = (x: number, y: number) => s.actors.some((a) => a.alive && a.x === x && a.y === y && !party.includes(a));
   const used = new Set<string>();
   for (const m of party) {
@@ -143,13 +165,13 @@ function placeParty(s: GameState, map: GameMap, party: Actor[]) {
     for (let r = 0; r < 8 && !spot; r++) {
       for (let dy = -r; dy <= r && !spot; dy++) {
         for (let dx = -r; dx <= r && !spot; dx++) {
-          const x = map.start.x + dx;
-          const y = map.start.y + dy;
+          const x = origin.x + dx;
+          const y = origin.y + dy;
           if (walkable(map, x, y) && !map.exits.some((e) => e.x === x && e.y === y) && !taken(x, y) && !used.has(`${x},${y}`)) spot = { x, y };
         }
       }
     }
-    spot ??= map.start;
+    spot ??= origin;
     used.add(`${spot.x},${spot.y}`);
     m.x = spot.x;
     m.y = spot.y;

@@ -17,7 +17,22 @@ const enum G {
   Forest,
 }
 
-const BASE: Record<string, G> = { '.': G.Grass, ',': G.Dirt, _: G.Wood, ':': G.Cave, '~': G.Water, T: G.Forest };
+const BASE: Record<string, G> = {
+  '.': G.Grass,
+  ',': G.Dirt,
+  _: G.Wood,
+  ':': G.Cave,
+  '~': G.Water,
+  T: G.Forest,
+  // Världskartan: gles skog och kullar på gräs, tät skog på skogsbotten, berg på jord,
+  // bron av plank och vadstället i vattnet.
+  f: G.Grass,
+  F: G.Forest,
+  h: G.Grass,
+  M: G.Dirt,
+  '=': G.Wood,
+  v: G.Water,
+};
 const UNSET = 255;
 
 /** Underlag per ruta. Väggar och berg får underlaget från närmaste gångbara ruta. */

@@ -10,6 +10,7 @@ import { joinAcademy } from '../engine/progress';
 import { HERO, TRAINING } from '../engine/rules';
 import { CITY } from '../content';
 import { $, el } from './hud';
+import { PLACE_ICONS } from '../game/art';
 
 function button(text: string, onClick: () => void, cls = ''): HTMLButtonElement {
   const b = el('button', cls, text);
@@ -120,9 +121,35 @@ export class ModuleUi {
       ...this.heroShop(),
       el('h3', '', 'Välj nästa äventyr'),
     );
+    // Resekartan (platshållare): staden och modulerna som ikoner. Ett klick visar äventyret.
+    const atlas = el('div', 'travel-map');
+    const city = el('div', 'travel-pin city', CITY.name);
+    city.style.left = '50%';
+    city.style.top = '50%';
+    atlas.append(city);
+    body.append(atlas);
     const list = el('div', 'modules');
     for (const { module: m, done: played } of nextModules(g.state)) {
       const card = el('div', 'module-card');
+      if (m.travel) {
+        const pin = el('button', 'travel-pin');
+        pin.style.left = `${m.travel.x}%`;
+        pin.style.top = `${m.travel.y}%`;
+        const icon = PLACE_ICONS[m.travel.icon];
+        if (icon) {
+          const img = el('img');
+          img.src = icon.toDataURL();
+          img.alt = '';
+          pin.append(img);
+        }
+        pin.append(el('span', '', m.name));
+        pin.onclick = () => {
+          for (const c of list.querySelectorAll('.module-card')) c.classList.remove('chosen');
+          card.classList.add('chosen');
+          card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        };
+        atlas.append(pin);
+      }
       card.append(
         el('h4', '', m.name),
         el('span', 'status', `Svårighetsgrad: ${m.difficulty}${m.campaign ? '' : ' · övningsmodul'}${played ? ' · redan spelat' : ''}`),

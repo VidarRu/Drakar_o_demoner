@@ -282,13 +282,13 @@ Reglerna följer Bok III s. 21–22 och 27. Alla åtta sorterna finns, var och e
 
 ## Äventyrsmoduler (beslutat i steg 8)
 
-Byggt: modulformatet, uppdragsloggen, epilogen, utgångarna och skärmen mellan äventyren. Inte byggt än: världskartan, stridskartorna, resekartan och slumpmötena.
+Byggt: modulformatet, uppdragsloggen, epilogen, utgångarna och skärmen mellan äventyren. Världskartan, stridskartorna, slumpmötena (med generiska tabeller) och en enkel resekarta är byggda; se Världskartan nedan.
 
 
 - **En modul per mapp:** varje äventyrsmodul ligger i en egen mapp under `src/content/` och innehåller allt om äventyret: kartor, personer, varelser, uppdrag, de som kan värvas och anteckningarna till språkmodellen.
 - **Gråvad blir speltestmodulen,** en övningsmodul som inte behöver ingå i kampanjen. Den har bara en mötesplatskarta och ingen världskarta; alla andra moduler har samma upplägg med världskarta. Vägen vid västra kanten blir modulens utgång.
 - **Kartor:** varje modul har en världskarta och flera mötesplatskartor (till exempel en by eller en grotta). Båda är rutnät ovanifrån.
-  - På världskartan rör sig gruppen mellan områden, och en ruta motsvarar normalt en timme (modulen kan ange något annat). Gruppen syns som en figur.
+  - På världskartan rör sig gruppen mellan områden, och en ruta motsvarar normalt en kvart (Vidar; modulen kan ange något annat). Gruppen syns som en figur.
   - Fiender syns där som en ikon. De vandrar runt och jagar gruppen när de ser den. Gruppen kan smyga även på världskartan för att försöka ta sig förbi.
   - Går gruppen ihop med en fiende börjar ett stridsmöte på en färdig stridskarta som väljs efter terrängen (till exempel skog, slätt eller väg). Stridskartan är tillfällig och bara för striden. När striden är slut kommer gruppen tillbaka ut på världskartan.
   - På en mötesplats går man in genom att kliva på dess ikon på världskartan och ut genom en utgång. Det man har gjort där ligger kvar: döda fiender är borta och plockade föremål är tagna.
@@ -651,3 +651,50 @@ Koden står i `src/engine/weather.ts` och värdena i `WEATHER`, `SKY` och `WIND`
 - **NEDKALLA ÅSKVIGG:** som BLIXT (1T6 per E, rustningen skyddar inte), men bara när det regnar, och både magikern och målet måste stå under bar himmel.
 - **VIGGFÅNGARE (Vidar):** under åska slår en blixt (5T6) ned i magikern, och hela blixten blir PSY utan att skada. Tolkning: PSY blir inte högre än grundvärdet.
 
+## Världskartan (Vidar, byggt)
+
+Koden står i `src/engine/worldmap.ts` och värdena i `src/engine/rules/travel.ts`. Stridskartorna och slumptabellerna står i `src/content/vildmark.ts`, och Provfärden (`src/content/provfard/`) är en liten provmodul med världskarta.
+
+- **En ruta är en kvart** i vanlig terräng (`QUARTER_MINUTES`). En modul kan ange något annat (`MapDef.stepMinutes`).
+- **Terrängen ändrar tiden per ruta** (`TERRAIN_COST`):
+
+  | Terräng | Tid per ruta |
+  | --- | --- |
+  | Grässlätt, väg och öppen skog | en kvart |
+  | Tät skog och kullar | två kvartar |
+  | Berg | fyra kvartar (en timme) |
+  | Flod över en bro | en kvart |
+  | Flod vid ett vadställe | två kvartar |
+
+- **Gruppen går som en figur.** Alla i gruppen står på samma ruta, och bara ledaren syns. Vägvalet tar den väg som tar kortast tid.
+- **Fiender är grupper med en ikon** (`BandDef`, `BandState`). Ikonen visar hur många de är och blir röd när de jagar. Antalet slås när gruppen placeras ut.
+- **Smyga är passivt på världskartan.** När en fiendegrupp får syn på gruppen slår gruppens lägsta Smyga mot fiendernas högsta Finna dolda ting på motståndstabellen (10 + Smyga − Finna dolda ting). Slaget görs en gång. Ett nytt slag görs först när fienderna har tappat gruppen ur sikte och ser den igen.
+  - Lyckas slaget går fienderna åt ett annat håll.
+  - Misslyckas det jagar de gruppen.
+  - Den som slog får EP i Smyga när slaget lyckas.
+  - Tolkning: bördan räknas, och rustning som klirrar halverar Smyga som i smygarläget.
+- **Finna dolda ting för fiender** (Vidar: 6–12 efter hur vaksamma de är): vargar 12, häxkonstnären 11, skyttar 10, svartalfer och stråtrövare 9 och björnar 8. Varelser utan värde får 9 (`TRAVEL.defaultSpot`).
+- **Andra sätt att undvika fiender:** att se dem först och gå runt, och SPÅRLÖS. Att springa ifrån används bara på de mindre kartorna (Vidar).
+- **Synhåll (tolkning, platshållare):** 4 rutor på dagen och 2 på natten. Dagen räknas från klockan sex till arton. Den som har mörkersyn ser som på dagen. Tät skog och berg skymmer sikten. Gruppen och fienderna ser lika långt.
+- **Jakt (tolkning):**
+  - En grupp som jagar skyndar sig och hinner dubbelt så långt som gruppen på samma tid. Annars skulle den aldrig hinna ikapp.
+  - När den tappar gruppen ur sikte slår den Spåra en gång per steg för att följa spåret. Misslyckas slaget ger den upp. Utan Spåra går den till platsen där den såg gruppen sist och ger upp där.
+  - **SPÅRLÖS:** är alla i gruppen spårlösa hittar förföljarna inga spår och ger upp direkt.
+- **Undvikande (tolkning):** en grupp som gruppen har smugit förbi går undan i fyra kvartar och vandrar sedan som vanligt.
+- **Stridsmöten:** hinner fienderna ikapp, eller anfaller gruppen dem (klicka på ikonen), börjar en strid på stridskartan för terrängen där gruppen står.
+  - Stridskartorna är grässlätt, gles skog, tät skog, kullar och bergspass (Vidar). Väg, bro och vadställe strider på slätten (tolkning).
+  - Gruppen ställs upp i väster och fienderna en bit österut, så att de syns från början.
+  - När striden är slut går gruppen ut genom kanten i väster och kommer tillbaka där mötet började.
+  - Är fienderna besegrade eller på flykt är gruppen borta från kartan. Det som ligger kvar på stridsplatsen blir kvar där (tolkning).
+- **Mötesplatser:** man går in genom att kliva på ikonen (`MapDef.places`) och ut genom en utgång med `to`. Man kommer ut på ikonens ruta. Det man har gjort där ligger kvar.
+- **Slumpmöten (platshållare):**
+  - Ett slag per timme färd, och 1 på 1T6 ger ett möte.
+  - Mötet slås på 1T6 i en generisk tabell för terrängen: stråtrövare, vargar, björn och svartalfer.
+  - Gruppen dyker upp strax utanför synhållet och går mot gruppen.
+  - En grupp från ett slumpmöte som inte jagar försvinner efter sex timmar.
+- **Resekartan (platshållare):** skärmen "Mellan äventyren" visar staden och modulerna som ikoner (`ModuleDef.travel`). Ett klick visar äventyret. Restiden bestäms senare.
+- **Kvar:**
+  - Bördan och skadorna påverkar inte färdtiden än.
+  - Fiendegrupperna rör sig inte medan gruppen sover, och det blir inga slumpmöten under sömnen.
+  - Gruppen kan inte fly från en stridskarta mitt i striden.
+  - Ett anfall mot en grupp som inte har sett gruppen ger ingen överraskning än.

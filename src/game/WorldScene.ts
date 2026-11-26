@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
 import type { Fx, Game } from '../engine/game';
 import { distance, idx, inBounds, type Point } from '../engine/map';
-import type { Actor } from '../engine/types';
+import type { Actor, BandState } from '../engine/types';
+import { stepMinutes, terrainAt } from '../engine/worldmap';
 import { activeZones } from '../engine/spelleffects';
 import { torchBurns } from '../engine/weather';
-import { bakeGround, bakeRows, caveMask, OVER, PADX, SPRITES, TILE } from './art';
+import { bakeGround, bakeRows, caveMask, OVER, PADX, PLACE_ICONS, SPRITES, TILE } from './art';
 
 const STEP_MS = 95;
 const ENEMY_MS = 420;
@@ -42,12 +43,19 @@ export class WorldScene extends Phaser.Scene {
   private reach: Point[] = [];
   private walking = false;
   private enemiesActing = false;
+  /** Fiendegrupperna på världskartan: ikonen och antalet. */
+  private bandSprites = new Map<string, { img: Phaser.GameObjects.Image; label: Phaser.GameObjects.Text }>();
+  /** Terrängen och tiden per ruta under muspekaren på världskartan. */
+  private terrainLabel!: Phaser.GameObjects.Text;
+  private hooked = false;
 
   constructor(
     private g: Game,
     private onTalk: (npc: Actor) => void,
   ) {
     super('world');
+    // Ny karta (mötesplats, världskarta eller stridskarta): scenen byggs om från början.
+    g.onMapChange(() => this.scene.restart());
   }
 
   get busy() {
@@ -56,7 +64,17 @@ export class WorldScene extends Phaser.Scene {
 
   create() {
     const { g } = this;
-    for (const [key, el] of Object.entries(SPRITES)) if (!this.textures.exists(key)) this.textures.addCanvas(key, el);
+    this.sprites = new Map();
+    this.steps = new Map();
+    this.glows = [];
+    this.bandSprites = new Map();
+    this.followId = '';
+    this.reach = [];
+    this.walking = false;
+    this.enemiesActing = false;
+    for (const [key, el] of Object.entries({ ...SPRITES, ...PLACE_ICONS })) if (!this.textures.exists(key)) this.textures.addCanvas(key, el);
+    // Dimman och ljuset ritas om för varje karta.
+    for (const key of [`fog-${g.map.id}`, `light-${g.map.id}`]) if (this.textures.exists(key)) this.textures.remove(key);
 
     // Marken som en enda bild, och en bild per kartrad för det som har höjd.
     const groundKey = `ground-${g.map.id}`;
@@ -108,10 +126,25 @@ export class WorldScene extends Phaser.Scene {
       cam.setZoom(this.zoom);
     });
 
+    // Mötesplatsernas ikoner på världskartan.
+    for (const p of g.map.places) this.add.image(p.x * TILE + TILE / 2, p.y * TILE + TILE / 2, p.icon).setDepth(actorDepth(p.y) - 0.5);
+    this.terrainLabel = this.add
+      .text(0, 0, '', { fontFamily: 'Georgia, serif', fontSize: '10px', color: '#f0e6c8', stroke: '#141016', strokeThickness: 3, resolution: 4 })
+      .setDepth(1003)
+      .setVisible(false);
+
     this.sync();
 
-    g.onChange(() => this.sync());
-    g.onFx((fx) => this.showFx(fx));
+    if (!this.hooked) {
+      // Lyssnarna läggs till en gång; de pekar på samma scen även när den byggs om.
+      this.hooked = true;
+      g.onChange(() => {
+        if (this.sys.isActive()) this.sync();
+      });
+      g.onFx((fx) => {
+        if (this.sys.isActive()) this.showFx(fx);
+      });
+    }
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => void this.click(this.tileOf(p)));
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => this.hover(this.tileOf(p)));
   }
@@ -211,9 +244,28 @@ export class WorldScene extends Phaser.Scene {
     this.cursor.setVisible(known);
     if (!known) return;
     const a = this.targetAt(t);
+    const band = this.bandAt(t);
     this.cursor.setPosition(t.x * TILE, t.y * TILE);
-    this.cursor.setStrokeStyle(1, a ? (a.hostile ? 0xff5a4a : 0xf0d070) : 0xffffff, 0.9);
-    this.input.setDefaultCursor(a ? 'pointer' : 'default');
+    this.cursor.setStrokeStyle(1, band || a?.hostile ? 0xff5a4a : a ? 0xf0d070 : 0xffffff, 0.9);
+    this.input.setDefaultCursor(a || band ? 'pointer' : 'default');
+    if (g.map.kind === 'värld') {
+      const place = g.map.places.find((p) => p.x === t.x && p.y === t.y);
+      const min = stepMinutes(g, t.x, t.y);
+      const text = band
+        ? `${band.name} (${band.members.length})`
+        : place
+          ? place.name
+          : g.map.tiles[idx(g.map, t.x, t.y)] === '~'
+            ? 'flod'
+            : `${terrainAt(g, t.x, t.y)}, ${min < 60 ? `${min} minuter` : `${min / 60} timme`}`;
+      this.terrainLabel.setText(text).setPosition(t.x * TILE + TILE + 2, t.y * TILE).setVisible(true);
+    } else this.terrainLabel.setVisible(false);
+  }
+
+  /** En fiendegrupp som syns på rutan. */
+  private bandAt(t: Point): BandState | undefined {
+    const b = this.g.bandAt(t.x, t.y);
+    return b && this.g.isVisible(t.x, t.y) ? b : undefined;
   }
 
   private delay(ms: number) {
@@ -225,6 +277,15 @@ export class WorldScene extends Phaser.Scene {
     if (this.busy || !inBounds(g.map, t.x, t.y) || !g.state.explored[idx(g.map, t.x, t.y)]) return;
     const target = this.targetAt(t);
 
+    const band = this.bandAt(t);
+    if (g.state.mode === 'explore' && band) {
+      // Världskartan: gå fram till fiendegruppen och anfall den.
+      const path = g.pathTo(t.x, t.y, true);
+      if (!path) return;
+      await this.walk(path, (step) => g.stepPlayer(step));
+      if (g.state.mode === 'explore' && g.state.bands?.includes(band)) g.attackBand(band.id);
+      return;
+    }
     if (g.state.mode === 'explore') {
       // Ett klick på någon i gruppen visar hen i panelerna.
       if (target?.kind === 'player') {
@@ -261,9 +322,12 @@ export class WorldScene extends Phaser.Scene {
 
   private async walk(path: Point[], step: (p: Point) => boolean) {
     this.walking = true;
+    const mapId = this.g.state.mapId;
+    // Vandringen avbryts om gruppen byter karta eller hamnar i strid på vägen.
     for (const p of path) {
-      if (!step(p)) break;
-      await this.delay(STEP_MS);
+      if (this.g.state.mapId !== mapId || !step(p)) break;
+      if (this.g.state.mapId !== mapId) return;
+      await this.delay(this.g.map.kind === 'värld' ? STEP_MS * 2 : STEP_MS);
     }
     this.walking = false;
     this.sync();
@@ -301,7 +365,9 @@ export class WorldScene extends Phaser.Scene {
         s = this.add.image(tx, ty, a.sprite).setDepth(actorDepth(a.y));
         this.sprites.set(a.id, s);
       }
-      s.setVisible(a.kind === 'player' || g.isVisible(a.x, a.y));
+      // På världskartan går gruppen som en figur: bara ledaren syns.
+      const world = g.map.kind === 'värld';
+      s.setVisible(world && a.kind === 'player' ? a.id === g.state.playerId : a.kind === 'player' || g.isVisible(a.x, a.y));
       // Medvetslösa ligger ner; utslagna sjunker ihop; den som smyger oupptäckt syns svagt.
       s.setAngle(a.unconscious ? 90 : 0);
       s.setAlpha(a.hidden ? 0.5 : a.unconscious || a.down ? 0.75 : 1);
@@ -330,6 +396,8 @@ export class WorldScene extends Phaser.Scene {
       }
     }
 
+    this.syncBands();
+
     // Kameran följer den som har turen i strid, och ledaren annars.
     const who = g.state.mode === 'combat' ? g.player : g.leader;
     const target = this.sprites.get(who.id);
@@ -339,6 +407,39 @@ export class WorldScene extends Phaser.Scene {
     }
     this.reach = g.reachableTiles();
     if (!this.enemiesActing && g.state.mode === 'combat' && !g.isPlayerTurn()) void this.runEnemies();
+  }
+
+  /** Fiendegrupperna på världskartan: en ikon med antalet, röd när gruppen jagar. */
+  private syncBands() {
+    const { g } = this;
+    const bands = g.map.kind === 'värld' ? (g.state.bands ?? []) : [];
+    for (const [id, s] of this.bandSprites) {
+      if (bands.some((b) => b.id === id)) continue;
+      s.img.destroy();
+      s.label.destroy();
+      this.bandSprites.delete(id);
+    }
+    for (const b of bands) {
+      const tx = b.x * TILE + TILE / 2;
+      const ty = b.y * TILE + TILE / 2;
+      let s = this.bandSprites.get(b.id);
+      if (!s) {
+        const img = this.add.image(tx, ty, b.sprite).setDepth(actorDepth(b.y));
+        const label = this.add
+          .text(tx + 9, ty + 6, '', { fontFamily: 'Georgia, serif', fontSize: '9px', fontStyle: 'bold', color: '#f0e6c8', stroke: '#141016', strokeThickness: 3, resolution: 4 })
+          .setDepth(1000);
+        s = { img, label };
+        this.bandSprites.set(b.id, s);
+      }
+      const seen = g.isVisible(b.x, b.y);
+      s.img.setVisible(seen).setDepth(actorDepth(b.y));
+      s.label.setVisible(seen).setText(`${b.mode === 'jagar' ? '! ' : ''}${b.members.length}`).setColor(b.mode === 'jagar' ? '#ff6a50' : '#f0e6c8');
+      if (s.img.x !== tx || s.img.y !== ty) {
+        if (tx !== s.img.x) s.img.setFlipX(tx < s.img.x);
+        this.tweens.add({ targets: s.img, x: tx, y: ty, duration: STEP_MS * 2 });
+        this.tweens.add({ targets: s.label, x: tx + 9, y: ty + 6, duration: STEP_MS * 2 });
+      }
+    }
   }
 
   /** Mörker i grottor, med en fackla runt rollpersonen. Ritas om varje bildruta så att skenet följer med och fladdrar. */

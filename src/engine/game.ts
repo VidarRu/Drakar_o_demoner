@@ -1,4 +1,4 @@
-import { CREATURES, MAPS, MODULES, PROFESSION_SPRITES, RECRUITS } from '../content';
+import { BANDS, CREATURES, MAPS, MODULES, PROFESSION_SPRITES, RECRUITS, type BandDef } from '../content';
 import { ARMOR } from '../data/armor';
 import { RACES } from '../data/races';
 import { SKILLS } from '../data/skills';
@@ -10,6 +10,8 @@ import * as party from './party';
 import * as elementals from './elementals';
 import * as hero from './hero';
 import * as talents from './talents';
+import * as worldmap from './worldmap';
+import { swapMap } from './modules';
 import { roll, type Rng } from './dice';
 import {
   computeFov,
@@ -33,7 +35,7 @@ import {
   type Check,
   type HitLocation,
 } from './rules';
-import type { Actor, Attrs, Character, CreatureDef, GameState } from './types';
+import type { Actor, Attrs, BandState, Character, CreatureDef, GameState } from './types';
 import { fogBlocks, passable } from './spelleffects';
 import { lockBlocks } from './locks';
 import { startWeather } from './weather';
@@ -178,44 +180,71 @@ export function spawnActors(state: GameState, map: GameMap, rng: Rng) {
       state.actors.push(a);
       continue;
     }
+    if (s.band) {
+      const def = BANDS[s.band];
+      if (def.deathFlag && state.flags[def.deathFlag]) continue;
+      (state.bands ??= []).push(makeBand(state, def, s.x, s.y, rng));
+      continue;
+    }
     const def = CREATURES[s.creature!];
     if (def.deathFlag && state.flags[def.deathFlag]) continue;
-    state.actors.push(
-      makeActor(
-        {
-          id: `a${state.nextId++}`,
-          defId: def.id,
-          name: def.name,
-          kind: def.npc ? 'npc' : 'monster',
-          sprite: def.sprite,
-          x: s.x,
-          y: s.y,
-          attrs: { ...def.attrs },
-          skills: { ...def.skills, ...magicSkills(def) },
-          weapon: def.weapon,
-          armor: [...(def.armor ?? [])],
-          naturalArmor: def.naturalArmor ?? 0,
-          shield: def.shield,
-          move: def.move,
-          hostile: def.hostile,
-          detailed: def.humanoid,
-          sight: def.sight ?? 6,
-          darkvision: !!def.darkvision,
-          silver: def.silver ? roll(def.silver, rng) : 0,
-        },
-        {
-          npc: def.npc,
-          deathFlag: def.deathFlag,
-          leader: def.leader,
-          noMorale: def.noMorale,
-          fear: def.fear,
-          ...(def.ranged ? { ranged: def.ranged.weapon, rangedAmmo: def.ranged.ammo } : {}),
-          ...(def.loot ? { loot: [...def.loot] } : {}),
-          ...(def.magic ? { spells: [...def.magic.spells] } : {}),
-        },
-      ),
-    );
+    state.actors.push(spawnCreature(state, def, s.x, s.y, rng));
   }
+}
+
+/** En varelse ur innehållet på en ruta. */
+export function spawnCreature(state: GameState, def: CreatureDef, x: number, y: number, rng: Rng): Actor {
+  return makeActor(
+    {
+      id: `a${state.nextId++}`,
+      defId: def.id,
+      name: def.name,
+      kind: def.npc ? 'npc' : 'monster',
+      sprite: def.sprite,
+      x,
+      y,
+      attrs: { ...def.attrs },
+      skills: { ...def.skills, ...magicSkills(def) },
+      weapon: def.weapon,
+      armor: [...(def.armor ?? [])],
+      naturalArmor: def.naturalArmor ?? 0,
+      shield: def.shield,
+      move: def.move,
+      hostile: def.hostile,
+      detailed: def.humanoid,
+      sight: def.sight ?? 6,
+      darkvision: !!def.darkvision,
+      silver: def.silver ? roll(def.silver, rng) : 0,
+    },
+    {
+      npc: def.npc,
+      deathFlag: def.deathFlag,
+      leader: def.leader,
+      noMorale: def.noMorale,
+      fear: def.fear,
+      ...(def.ranged ? { ranged: def.ranged.weapon, rangedAmmo: def.ranged.ammo } : {}),
+      ...(def.loot ? { loot: [...def.loot] } : {}),
+      ...(def.magic ? { spells: [...def.magic.spells] } : {}),
+    },
+  );
+}
+
+/** En fiendegrupp på världskartan. Antalet varelser slås när gruppen placeras ut. */
+export function makeBand(state: GameState, def: BandDef, x: number, y: number, rng: Rng): BandState {
+  const members = def.members.flatMap((m) => new Array(Math.max(1, roll(m.count, rng))).fill(m.creature) as string[]);
+  return {
+    id: `b${state.nextId++}`,
+    defId: def.id,
+    name: def.name,
+    sprite: def.sprite ?? CREATURES[members[0]].sprite,
+    members,
+    x,
+    y,
+    home: { x, y },
+    mode: 'vandrar',
+    budget: 0,
+    ...(def.deathFlag ? { deathFlag: def.deathFlag } : {}),
+  };
 }
 
 /** Magiskolorna som färdigheter (`magiskola:<skola>`). */
@@ -230,9 +259,11 @@ const slugName = (n: string) => n.toLowerCase().replace(/[^a-zåäö]+/g, '_');
  * Gränssnittet anropar metoderna och lyssnar på ändringar. Striden ligger i combat.ts.
  */
 export class Game {
-  readonly map: GameMap;
+  /** Kartan som gruppen är på. Den byts med enterMap (världskartan, mötesplatser och stridskartor). */
+  map: GameMap;
   visible = new Set<number>();
   private listeners: (() => void)[] = [];
+  private mapListeners: (() => void)[] = [];
   private fxListeners: ((fx: Fx) => void)[] = [];
 
   constructor(
@@ -293,7 +324,23 @@ export class Game {
   onFx(fn: (fx: Fx) => void) {
     this.fxListeners.push(fn);
   }
+  /** Gränssnittet bygger om kartvyn och minikartan när gruppen byter karta. */
+  onMapChange(fn: () => void) {
+    this.mapListeners.push(fn);
+  }
+
+  /**
+   * Byter karta inom modulen: in på en mötesplats, ut på världskartan, till en stridskarta och
+   * tillbaka. Kartan som lämnas sparas (utom stridskartor).
+   */
+  enterMap(mapId: string, at?: Point) {
+    swapMap(this.state, mapId, this.rng, at);
+    this.map = parseMap(MAPS[mapId]);
+    this.updateFov();
+    for (const fn of this.mapListeners) fn();
+  }
   changed() {
+    worldmap.battleOverHint(this);
     // Uppdrag och dåd som just blev klara ger bonus-EP och hjältepoäng (steg 8).
     hero.grantRewards(this);
     // Magiska föremål som verkar ständigt när de bärs.
@@ -360,7 +407,11 @@ export class Game {
     return this.visible.has(idx(this.map, x, y));
   }
   /** Står någon på rutan, eller stänger en låst dörr eller en kista vägen? */
-  private occupied = (x: number, y: number) => !!this.actorAt(x, y) || lockBlocks(this, x, y);
+  private occupied = (x: number, y: number) => !!this.actorAt(x, y) || lockBlocks(this, x, y) || !!this.bandAt(x, y);
+  /** Fiendegruppen på en ruta på världskartan. */
+  bandAt(x: number, y: number): BandState | undefined {
+    return this.state.bands?.find((b) => b.x === x && b.y === y);
+  }
   blocked(x: number, y: number): boolean {
     return this.occupied(x, y);
   }
@@ -368,6 +419,7 @@ export class Game {
   /** Väg för den som går (ledaren utanför strid) till en ruta, eller till en ruta intill om `adjacentOk`. */
   pathTo(x: number, y: number, adjacentOk = false): Point[] | null {
     const who = this.state.mode === 'combat' ? this.player : this.leader;
+    if (this.map.kind === 'värld') return worldmap.travelPath(this, { x, y }, adjacentOk);
     return findPath(this.map, who, { x, y }, this.occupied, adjacentOk, (px, py) => passable(this, who, px, py));
   }
 
@@ -382,7 +434,9 @@ export class Game {
   updateFov() {
     this.visible = new Set();
     const eyes = this.state.actors.filter((a) => a.alive && a.kind === 'player' && (!a.unconscious || a.id === this.state.playerId));
-    for (const a of eyes) for (const i of computeFov(this.map, a.x, a.y, FOV_RADIUS)) this.visible.add(i);
+    // På världskartan är en ruta en kvarts väg, och synhållet beror på dagsljuset.
+    const radius = this.map.kind === 'värld' ? worldmap.partySight(this) : FOV_RADIUS;
+    for (const a of eyes) for (const i of computeFov(this.map, a.x, a.y, radius)) this.visible.add(i);
     for (const i of this.visible) this.state.explored[i] = 1;
   }
 
@@ -399,6 +453,8 @@ export class Game {
    */
   stepPlayer(to: Point): boolean {
     if (this.state.mode !== 'explore') return false;
+    // Världskartan: en ruta är en kvart, och gruppen går som en figur.
+    if (this.map.kind === 'värld') return worldmap.travelStep(this, to);
     const p = this.leader;
     if (!combat.canAct(p) || distance(p.x, p.y, to.x, to.y) !== 1 || this.occupied(to.x, to.y)) return false;
     const members = this.partyMembers();
@@ -444,13 +500,21 @@ export class Game {
       this.checkAmbush();
     }
     this.changed();
-    // En utgång ur modulen: gränssnittet frågar om gruppen vill lämna äventyret.
-    if (this.state.mode === 'explore' && this.exitHere()) this.openUi('exit');
+    // En utgång till en annan karta i modulen tas direkt. En utgång ur modulen: gränssnittet
+    // frågar om gruppen vill lämna äventyret.
+    const exit = this.state.mode === 'explore' ? this.exitHere() : undefined;
+    if (exit?.to) worldmap.takeExit(this, exit);
+    else if (exit) this.openUi('exit');
     return true;
   }
 
+  /** Anfaller en fiendegrupp intill på världskartan: ett stridsmöte börjar. */
+  attackBand(id: string): boolean {
+    return worldmap.attackBand(this, id);
+  }
+
   /** Utgången som ledaren står på, om någon. */
-  exitHere(): { x: number; y: number; name: string } | undefined {
+  exitHere(): { x: number; y: number; name: string; to?: string } | undefined {
     const p = this.leader;
     return this.map.exits.find((e) => e.x === p.x && e.y === p.y);
   }
@@ -870,7 +934,12 @@ export class Game {
 
   /** Kan gruppen vila här? Inte med fiender i sikte. */
   canRest(): boolean {
-    return this.state.mode === 'explore' && combat.canAct(this.leader) && !this.state.actors.some((a) => a.alive && a.hostile && !a.fled && this.isVisible(a.x, a.y));
+    return (
+      this.state.mode === 'explore' &&
+      combat.canAct(this.leader) &&
+      !this.state.actors.some((a) => a.alive && a.hostile && !a.fled && this.isVisible(a.x, a.y)) &&
+      !(this.state.bands ?? []).some((b) => b.mode === 'jagar' || this.isVisible(b.x, b.y))
+    );
   }
 
   /** Vilar en vecka (sju nätter). Därefter kan EP växlas in mot FV och fobier mildras. */
