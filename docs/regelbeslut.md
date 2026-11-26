@@ -675,11 +675,16 @@ Koden står i `src/engine/worldmap.ts` och värdena i `src/engine/rules/travel.t
   - Tolkning: bördan räknas, och rustning som klirrar halverar Smyga som i smygarläget.
 - **Finna dolda ting för fiender** (Vidar: 6–12 efter hur vaksamma de är): vargar 12, häxkonstnären 11, skyttar 10, svartalfer och stråtrövare 9 och björnar 8. Varelser utan värde får 9 (`TRAVEL.defaultSpot`).
 - **Andra sätt att undvika fiender:** att se dem först och gå runt, och SPÅRLÖS. Att springa ifrån används bara på de mindre kartorna (Vidar).
-- **Synhåll (tolkning, platshållare):** 4 rutor på dagen och 2 på natten. Dagen räknas från klockan sex till arton. Den som har mörkersyn ser som på dagen. Tät skog och berg skymmer sikten. Gruppen och fienderna ser lika långt.
+- **Synhåll (tolkning, platshållare):** 4 rutor på dagen och 2 på natten. Dagen räknas från klockan sex till arton. Tät skog och berg skymmer sikten. Gruppen och fienderna ser lika långt.
+- **Mörkersyn gäller hela gruppen utanför strid (Vidar).** Har någon i gruppen mörkersyn, av sin ras eller av besvärjelsen MÖRKERSYN, ser hela gruppen som på dagen på världskartan. Det gäller också på mötesplatserna, där grottan bara blir lite skum. I strid gäller mörkersynen bara för var och en, som förut. Samma sak gäller fienderna: räcker att en av dem har mörkersyn.
+- **Fart (Vidar):** snabba fiender, som ryttare, vargar och stora djur, hinner dubbelt så långt som gruppen på samma tid. Andra går lika fort som gruppen.
+  - Tolkning: en grupp är snabb när alla i den har förflyttning 15 eller mer (`TRAVEL.fastMove`), eller när modulen säger det (`BandDef.fast`). Vargar (16) är snabba, men björnar (12), stråtrövare och svartalfer (10) är det inte.
+  - En grupp som inte är snabb hinner bara ikapp om gruppen går mot den, står still eller går i svårare terräng.
+- **Börda (Vidar):** på världskartan spelar bördan roll först när någon bär mer än STY × 5. Då går gruppen i halv fart, och varje ruta tar dubbelt så lång tid. Över STY × 6 kan man inte gå alls, som förut.
+- **Läger (Vidar):** slutar ett steg mellan klockan 22 och 6 slår gruppen läger och sover åtta timmar av sig själv (`TRAVEL.camp`; klockslagen är mitt val och lätta att ändra). Med fiender som jagar gruppen eller syns går det inte, och gruppen går vidare.
 - **Jakt (tolkning):**
-  - En grupp som jagar skyndar sig och hinner dubbelt så långt som gruppen på samma tid. Annars skulle den aldrig hinna ikapp.
   - När den tappar gruppen ur sikte slår den Spåra en gång per steg för att följa spåret. Misslyckas slaget ger den upp. Utan Spåra går den till platsen där den såg gruppen sist och ger upp där.
-  - **SPÅRLÖS:** är alla i gruppen spårlösa hittar förföljarna inga spår och ger upp direkt.
+  - **SPÅRLÖS gäller hela gruppen (Vidar):** räcker att en i gruppen är spårlös, så hittar förföljarna inga spår och ger upp direkt.
 - **Undvikande (tolkning):** en grupp som gruppen har smugit förbi går undan i fyra kvartar och vandrar sedan som vanligt.
 - **Stridsmöten:** hinner fienderna ikapp, eller anfaller gruppen dem (klicka på ikonen), börjar en strid på stridskartan för terrängen där gruppen står.
   - Stridskartorna är grässlätt, gles skog, tät skog, kullar och bergspass (Vidar). Väg, bro och vadställe strider på slätten (tolkning).
@@ -694,7 +699,7 @@ Koden står i `src/engine/worldmap.ts` och värdena i `src/engine/rules/travel.t
   - En grupp från ett slumpmöte som inte jagar försvinner efter sex timmar.
 - **Resekartan (platshållare):** skärmen "Mellan äventyren" visar staden och modulerna som ikoner (`ModuleDef.travel`). Ett klick visar äventyret. Restiden bestäms senare.
 - **Kvar:**
-  - Bördan och skadorna påverkar inte färdtiden än.
-  - Fiendegrupperna rör sig inte medan gruppen sover, och det blir inga slumpmöten under sömnen.
+  - Skadorna påverkar inte färdtiden än (med 1 KP går man i halv fart på de mindre kartorna).
+  - Fiendegrupperna rör sig inte medan gruppen sover i lägret, och det blir inga slumpmöten under natten.
   - Gruppen kan inte fly från en stridskarta mitt i striden.
   - Ett anfall mot en grupp som inte har sett gruppen ger ingen överraskning än.

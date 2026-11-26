@@ -48,10 +48,19 @@ export const TRAVEL = {
   /** Finna dolda ting för en varelse som saknar värdet (Vidar: 6–12 efter hur vaksam den är). */
   defaultSpot: 9,
   /**
-   * En grupp som jagar skyndar sig: den hinner dubbelt så långt på samma tid som gruppen, som reser
-   * i marschtakt (tolkning). Annars skulle den aldrig hinna ifatt.
+   * Snabba fiender (ryttare, vargar, stora djur) hinner dubbelt så långt som gruppen på samma tid,
+   * andra lika långt (Vidar). En grupp är snabb när alla i den har minst så här stor förflyttning,
+   * eller när modulen säger det (BandDef.fast).
    */
-  huntPace: 2,
+  fastPace: 2,
+  fastMove: 15,
+  /**
+   * Börda på världskartan (Vidar): den spelar roll först när någon bär mer än STY × 5. Då går
+   * gruppen i halv fart, och varje ruta tar dubbelt så lång tid. Över STY × 6 går det inte alls.
+   */
+  halfSpeedLoad: 5,
+  /** Läger (Vidar): gruppen sover av sig själv när ett steg slutar mellan de här klockslagen. */
+  camp: { from: 22, until: 6, hours: 8 },
   /** En grupp som gruppen har smugit förbi går åt ett annat håll så här många kvartar (tolkning). */
   evadeQuarters: 4,
   /** En vandrande grupp flyttar sig ungefär varannan kvart, inom så många rutor från sin plats. */
@@ -71,4 +80,10 @@ export const hourOfDay = (seconds: number) => Math.floor((seconds % 86400) / 360
 export const isDaylight = (seconds: number) => {
   const h = hourOfDay(seconds);
   return h >= TRAVEL.dayStart && h < TRAVEL.dayEnd;
+};
+
+/** Är det dags att slå läger? Mellan klockan 22 och 6 (Vidar: gruppen sover av sig själv). */
+export const isCampTime = (seconds: number) => {
+  const h = hourOfDay(seconds);
+  return h >= TRAVEL.camp.from || h < TRAVEL.camp.until;
 };

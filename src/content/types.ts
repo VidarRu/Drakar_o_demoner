@@ -102,6 +102,8 @@ export interface BandDef {
   members: { creature: string; count: string }[];
   /** Hur långt från sin plats gruppen vandrar (rutor). */
   wander?: number;
+  /** Snabb (ryttare, stora djur): rör sig dubbelt så fort som gruppen. Utan värdet avgör varelsernas förflyttning. */
+  fast?: boolean;
   /** Flagga som sätts när hela gruppen är besegrad. Är den satt placeras gruppen inte ut igen. */
   deathFlag?: string;
 }

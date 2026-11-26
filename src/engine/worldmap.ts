@@ -19,9 +19,11 @@ import { die } from './dice';
 import { makeBand, spawnCreature, type Game } from './game';
 import { cheapestPath, distance, lineOfSight, TILES, walkable, type Point } from './map';
 import { ARMOR } from '../data/armor';
+import { carriedWeight, loadMod } from './inventory';
 import {
   BATTLE_TERRAIN,
   HOUR,
+  isCampTime,
   isDaylight,
   resistance,
   skillCheck,
@@ -51,10 +53,22 @@ export function stepMinutes(g: Game, x: number, y: number): number {
   return stepCost(g, x, y) * g.map.stepMinutes;
 }
 
-/** Gruppens synhåll på världskartan: kortare på natten, utom för den som har mörkersyn. */
+/**
+ * Mörkersyn gäller hela gruppen utanför strid (Vidar): har någon mörkersyn, av sin ras eller av
+ * besvärjelsen MÖRKERSYN, leder hen de andra. I strid gäller den bara för var och en.
+ */
+export function partyDarkvision(g: Game): boolean {
+  return g.partyMembers().some((a) => a.darkvision || combat.hasEffect(a, 'mörkersyn'));
+}
+
+/** SPÅRLÖS gäller hela gruppen (Vidar): räcker att någon har den, så lämnar ingen spår. */
+export function partyTrackless(g: Game): boolean {
+  return g.partyMembers().some((a) => combat.hasEffect(a, 'spårlös'));
+}
+
+/** Gruppens synhåll på världskartan: kortare på natten, utom när någon har mörkersyn. */
 export function partySight(g: Game): number {
-  const dark = g.partyMembers().some((a) => a.darkvision);
-  return isDaylight(g.state.time) || dark ? TRAVEL.sight.dag : TRAVEL.sight.natt;
+  return isDaylight(g.state.time) || partyDarkvision(g) ? TRAVEL.sight.dag : TRAVEL.sight.natt;
 }
 
 function bandSight(g: Game, b: BandState): number {
@@ -99,6 +113,25 @@ export function worstSneaker(g: Game): { who: Actor; fv: number } {
 const placeAt = (g: Game, x: number, y: number) => g.map.places.find((p) => p.x === x && p.y === y);
 const exitAt = (g: Game, x: number, y: number) => g.map.exits.find((e) => e.x === x && e.y === y);
 
+/** Snabba fiender (ryttare, vargar, stora djur) rör sig dubbelt så fort som gruppen (Vidar). */
+export function bandFast(b: BandState): boolean {
+  return BANDS[b.defId]?.fast ?? b.members.every((c) => (CREATURES[c]?.move ?? 0) >= TRAVEL.fastMove);
+}
+
+/**
+ * Gruppen går i halv fart när någon bär mer än STY × 5 (Vidar). Returnerar 2 för halv fart, 1
+ * annars, och null när någon bär mer än STY × 6 och inte kan röra sig.
+ */
+export function loadFactor(g: Game): 1 | 2 | null {
+  let factor: 1 | 2 = 1;
+  for (const a of g.partyMembers()) {
+    if (!g.charOf(a)) continue;
+    if (loadMod(g, a) === null) return null;
+    if (carriedWeight(g, a) > a.attrs.STY * TRAVEL.halfSpeedLoad) factor = 2;
+  }
+  return factor;
+}
+
 /** Den billigaste vägen dit på världskartan. */
 export function travelPath(g: Game, to: Point, adjacentOk = false): Point[] | null {
   const p = g.leader;
@@ -112,7 +145,13 @@ export function travelPath(g: Game, to: Point, adjacentOk = false): Point[] | nu
 export function travelStep(g: Game, to: Point): boolean {
   const p = g.leader;
   if (!combat.canAct(p) || distance(p.x, p.y, to.x, to.y) !== 1 || !walkable(g.map, to.x, to.y) || g.bandAt(to.x, to.y)) return false;
-  const quarters = stepCost(g, to.x, to.y);
+  const load = loadFactor(g);
+  if (load === null) {
+    g.log('Någon i gruppen bär mer än STY × 6 och orkar inte gå. Lätta på packningen.');
+    g.changed();
+    return false;
+  }
+  const quarters = stepCost(g, to.x, to.y) * load;
   const minutes = quarters * g.map.stepMinutes;
   for (const m of g.partyMembers()) {
     combat.face(m, to.x, to.y);
@@ -129,8 +168,26 @@ export function travelStep(g: Game, to: Point): boolean {
       g.log(`Ni går in i ${place.name}.`);
       g.enterMap(place.map);
     } else if (exitAt(g, to.x, to.y)) g.openUi('exit');
+    else makeCamp(g);
   }
   g.changed();
+  return true;
+}
+
+/**
+ * Läger (Vidar): slutar ett steg mellan klockan 22 och 6 slår gruppen läger och sover åtta timmar.
+ * Det går inte med fiender i hälarna eller i sikte; då går gruppen vidare.
+ */
+export function makeCamp(g: Game): boolean {
+  if (!isWorld(g) || g.state.mode !== 'explore' || !isCampTime(g.state.time)) return false;
+  if (!g.canRest()) {
+    const note = 'Det är natt, men ni kan inte slå läger med fiender i närheten.';
+    if (g.state.log.at(-1) !== note) g.log(note);
+    return false;
+  }
+  g.log(`Det är natt. Ni slår läger och sover ${TRAVEL.camp.hours} timmar.`);
+  g.sleep(TRAVEL.camp.hours);
+  g.updateFov();
   return true;
 }
 
@@ -213,8 +270,7 @@ const describe = (c: Check) => `T20: ${c.roll} mot ${c.target}`;
 
 /** En grupp som jagar har tappat gruppen ur sikte: den följer spåret med Spåra, om inte alla är SPÅRLÖSA. */
 function loseSight(g: Game, b: BandState) {
-  const members = g.partyMembers();
-  if (members.every((a) => combat.hasEffect(a, 'spårlös'))) {
+  if (partyTrackless(g)) {
     giveUp(b);
     g.log('Era förföljare hittar inga spår efter er (SPÅRLÖS) och ger upp.');
     return;
@@ -248,7 +304,7 @@ function giveUp(b: BandState) {
 function moveBand(g: Game, b: BandState, quarters: number) {
   const p = g.leader;
   const others = (x: number, y: number) => (g.state.bands ?? []).some((o) => o !== b && o.x === x && o.y === y) || (x === p.x && y === p.y);
-  b.budget += quarters * (b.mode === 'jagar' ? TRAVEL.huntPace : 1);
+  b.budget += quarters * (bandFast(b) ? TRAVEL.fastPace : 1);
   if (b.mode === 'jagar' || b.mode === 'närmar') {
     const goal = b.goal ?? { x: p.x, y: p.y };
     const path = cheapestPath(g.map, b, goal, (x, y) => stepCost(g, x, y), others, true, (x, y) => bandCanPass(g, x, y)) ?? [];

@@ -79,7 +79,7 @@ Besluten står i `docs/regelbeslut.md` under Världskartan.
 - **Regelvärden:** `src/engine/rules/travel.ts`.
   - `TERRAIN_COST`: en kvart per ruta, dubbelt i tät skog, kullar och vadställe, fyra gånger i berg.
   - `BATTLE_TERRAIN`: stridskartan för varje terräng.
-  - `TRAVEL`: synhåll, jakttakt, vandring och slumpmöten.
+  - `TRAVEL`: synhåll, snabba fiender, börda, läger, vandring och slumpmöten.
 - **Kartformatet** (`src/engine/map.ts`):
   - `MapDef.kind` är `värld`, `plats` eller `strid`.
   - Nya rutor: `f` öppen skog, `F` tät skog, `h` kullar, `M` berg, `=` bro och `v` vadställe. `TileDef.terrain` anger terrängen.
@@ -92,7 +92,12 @@ Besluten står i `docs/regelbeslut.md` under Världskartan.
 - **Motorn** (`src/engine/worldmap.ts`):
   - `travelStep`: ett steg, där tiden går efter terrängen.
   - `look`: det passiva Smyga-slaget, `worstSneaker` mot `bandSpot`.
-  - `bandsAct` och `moveBand`: fiendegrupperna vandrar, jagar och går undan. `loseSight` sköter Spåra och SPÅRLÖS.
+  - `bandsAct` och `moveBand`: fiendegrupperna vandrar, jagar och går undan. Snabba grupper (`bandFast`) går dubbelt så fort. `loseSight` sköter Spåra och SPÅRLÖS.
+  - Vidars ändringar efter första versionen:
+    - `partyTrackless`: SPÅRLÖS på en räcker för hela gruppen.
+    - `partyDarkvision`: mörkersyn hos en gäller hela gruppen utanför strid, och `WorldScene` lyser upp grottan.
+    - `loadFactor`: halv fart över STY × 5.
+    - `makeCamp`: läger mellan 22 och 6.
   - `randomEncounters`: slumpmötena.
   - `startEncounter`, `leaveBattle` och `battleOverHint`: stridsmötena.
   - `takeExit`: utgångarna mellan kartorna. `Game.attackBand` anfaller en fiendegrupp.
@@ -109,7 +114,7 @@ Besluten står i `docs/regelbeslut.md` under Världskartan.
   - Minikartan visar mötesplatser och fiender.
   - "Mellan äventyren" har en enkel resekarta (`ModuleDef.travel`).
 - **Testerna** står i `tests/worldmap.test.ts`.
-- **Kvar:** se Kvar under Världskartan i `docs/regelbeslut.md`. Det gäller färdtiden med börda och skador, fiender och slumpmöten under sömnen, att fly från stridskartan och överraskning.
+- **Kvar:** se Kvar under Världskartan i `docs/regelbeslut.md`. Det gäller färdtiden med skador, fiender och slumpmöten under natten, att fly från stridskartan och överraskning.
 
 ### Nästa i steg 8
 
@@ -233,9 +238,9 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 277 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 281 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
-`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/spells.test.ts` prövar fiendernas magi och besvärjelserna i strid. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen. `tests/worldmap.test.ts` prövar världskartans tider, det passiva smygandet, jakten, Spåra och SPÅRLÖS, stridsmötena, mötesplatserna och slumpmötena.
+`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/spells.test.ts` prövar fiendernas magi och besvärjelserna i strid. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen. `tests/worldmap.test.ts` prövar världskartans tider, bördan, lägret, mörkersynen, det passiva smygandet, snabba fiender, jakten, Spåra och SPÅRLÖS, stridsmötena, mötesplatserna och slumpmötena.
 
 För att provköra gränssnittet: starta `npx vite` och styr sidan med Playwright. Ett snabbt sätt är
 att skapa ett spel med `Game.create(testCharacter())`, lägga `JSON.stringify(g.state)` i
@@ -250,4 +255,4 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 - Vädret (`docs/regelbeslut.md` under Vädret): chanserna, att det ändras klockan sex och arton, vindens avdrag på skott, VINDKONTROLL och VIGGFÅNGARE är tolkningar. Tolkningarna för ljuset (se Ljus).
 - Tolkningarna för låsen och besvärjelserna utanför strid (`docs/regelbeslut.md` under Lås och besvärjelser utanför strid).
 - Tolkningarna för besvärjelserna i strid och fiendens val av effektgrad (`docs/regelbeslut.md` under Fiendernas magi och Besvärjelser i strid).
-- Världskartan: tolkningarna i `docs/regelbeslut.md` under Världskartan. Det gäller synhållet (4 rutor på dagen, 2 på natten), att jagande fiender går i dubbel takt, Spåra en gång per steg, att stråtrövare och svartalfer får 9 i Finna dolda ting, och de generiska slumptabellerna.
+- Världskartan: tolkningarna i `docs/regelbeslut.md` under Världskartan. Det gäller synhållet (4 rutor på dagen, 2 på natten), att fiender med förflyttning 15 eller mer räknas som snabba, lägrets klockslag (22–6), Spåra en gång per steg, att stråtrövare och svartalfer får 9 i Finna dolda ting, och de generiska slumptabellerna.

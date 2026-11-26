@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { BANDS, MAPS } from '../src/content';
 import * as combat from '../src/engine/combat';
 import { seededRng, type Rng } from '../src/engine/dice';
-import { Game, makeBand } from '../src/engine/game';
+import { actorFromCharacter, Game, makeBand } from '../src/engine/game';
+import { carriedWeight } from '../src/engine/inventory';
 import { parseMap } from '../src/engine/map';
 import { startModule } from '../src/engine/modules';
 import { HOUR, TERRAIN_COST } from '../src/engine/rules';
@@ -35,6 +36,15 @@ function band(g: Game, id: string, x: number, y: number): BandState {
   const b = makeBand(g.state, BANDS[id], x, y, g.rng);
   (g.state.bands ??= []).push(b);
   return b;
+}
+
+/** En följeslagare i gruppen, på ledarens ruta. */
+function companion(g: Game) {
+  const a = actorFromCharacter(testCharacter(), `a${g.state.nextId++}`, g.leader.x, g.leader.y);
+  g.state.companions[a.id] = testCharacter();
+  g.state.actors.push(a);
+  g.state.party.push(a.id);
+  return a;
 }
 
 /** Hittar första rutan med ett visst tecken på världskartan. */
@@ -92,11 +102,54 @@ describe('världskartan: tid och terräng', () => {
     expect(minutes).toBe(path.length * 15);
   });
 
-  it('synhållet är kortare på natten', () => {
+  it('synhållet är kortare på natten, utom när någon i gruppen har mörkersyn', () => {
     const g = world();
     expect(worldmap.partySight(g)).toBe(4);
     g.state.time += 12 * HOUR;
     expect(worldmap.partySight(g)).toBe(2);
+    // Mörkersyn gäller hela gruppen utanför strid (Vidar).
+    companion(g).darkvision = true;
+    expect(worldmap.partyDarkvision(g)).toBe(true);
+    expect(worldmap.partySight(g)).toBe(4);
+  });
+
+  it('bördan: över STY × 5 tar varje ruta dubbelt så lång tid, över STY × 6 går det inte', () => {
+    const g = world();
+    at(g, 4, 14);
+    const ch = g.state.character;
+    const sty = g.leader.attrs.STY;
+    while (carriedWeight(g, g.leader) <= sty * 5) ch.inventory.push('stridsyxa');
+    expect(carriedWeight(g, g.leader)).toBeLessThanOrEqual(sty * 6);
+    let before = g.state.time;
+    expect(g.stepPlayer({ x: 5, y: 14 })).toBe(true);
+    expect(g.state.time - before).toBe(30 * 60);
+    while (carriedWeight(g, g.leader) <= sty * 6) ch.inventory.push('stridsyxa');
+    before = g.state.time;
+    expect(g.stepPlayer({ x: 6, y: 14 })).toBe(false);
+    expect(g.state.time).toBe(before);
+  });
+
+  it('mellan klockan 22 och 6 slår gruppen läger och sover åtta timmar', () => {
+    const g = world();
+    at(g, 4, 14);
+    g.state.time = Math.floor(g.state.time / (24 * HOUR)) * 24 * HOUR + 21 * HOUR + 50 * 60;
+    expect(g.stepPlayer({ x: 5, y: 14 })).toBe(true);
+    expect(g.state.time % (24 * HOUR)).toBe(6 * HOUR + 5 * 60);
+    expect(g.state.log.join('\n')).toMatch(/slår läger/);
+  });
+
+  it('inget läger med fiender i hälarna', () => {
+    const g = world();
+    at(g, 4, 14);
+    // Stråtrövarna jagar och syns; de går lika fort som gruppen och hinner inte ifatt på ett steg.
+    const b = band(g, 'provfard_rovare', 8, 14);
+    b.mode = 'jagar';
+    g.state.time = Math.floor(g.state.time / (24 * HOUR)) * 24 * HOUR + 22 * HOUR;
+    const before = g.state.time;
+    g.rng = always(0.95);
+    g.stepPlayer({ x: 5, y: 14 });
+    expect(g.state.time - before).toBe(15 * 60);
+    expect(g.state.log.join('\n')).toMatch(/kan inte slå läger/);
   });
 });
 
@@ -135,7 +188,7 @@ describe('världskartan: smyga förbi, jakt och spår', () => {
   it('misslyckas gruppen jagar fienderna, och hinner de ifatt blir det ett stridsmöte på stridskartan för terrängen', () => {
     const g = world();
     at(g, 10, 14);
-    const b = band(g, 'provfard_rovare', 13, 14);
+    const b = band(g, 'provfard_rovare', 12, 14);
     g.rng = always(0.95);
     worldmap.look(g, b);
     expect(b.mode).toBe('jagar');
@@ -177,9 +230,29 @@ describe('världskartan: smyga förbi, jakt och spår', () => {
     worldmap.look(g, b);
     expect(b.mode).toBe('jagar');
     expect(b.goal).toEqual({ x: 2, y: 14 });
-    for (const m of g.partyMembers()) m.effects.push({ kind: 'spårlös', label: 'SPÅRLÖS', rounds: 100 });
+    // Det räcker att en i gruppen är SPÅRLÖS: hela gruppen lämnar inga spår (Vidar).
+    const friend = companion(g);
+    friend.effects.push({ kind: 'spårlös', label: 'SPÅRLÖS', rounds: 100 });
+    expect(combat.hasEffect(g.leader, 'spårlös')).toBe(false);
     worldmap.look(g, b);
     expect(b.mode).toBe('vandrar');
+  });
+
+  it('snabba fiender (vargar, ryttare, stora djur) går dubbelt så fort, andra lika fort som gruppen', () => {
+    const g = world();
+    at(g, 2, 14);
+    const wolves = band(g, 'provfard_vargar', 20, 14);
+    const robbers = band(g, 'provfard_rovare', 20, 13);
+    expect(worldmap.bandFast(wolves)).toBe(true);
+    expect(worldmap.bandFast(robbers)).toBe(false);
+    for (const b of [wolves, robbers]) {
+      b.mode = 'jagar';
+      b.goal = { x: 2, y: 14 };
+    }
+    g.rng = always(0.95);
+    worldmap.bandsAct(g, 2);
+    expect(20 - wolves.x).toBe(4);
+    expect(20 - robbers.x).toBe(2);
   });
 });
 

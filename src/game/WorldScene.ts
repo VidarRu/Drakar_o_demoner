@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { Fx, Game } from '../engine/game';
 import { distance, idx, inBounds, type Point } from '../engine/map';
 import type { Actor, BandState } from '../engine/types';
-import { stepMinutes, terrainAt } from '../engine/worldmap';
+import { partyDarkvision, stepMinutes, terrainAt } from '../engine/worldmap';
 import { activeZones } from '../engine/spelleffects';
 import { torchBurns } from '../engine/weather';
 import { bakeGround, bakeRows, caveMask, OVER, PADX, PLACE_ICONS, SPRITES, TILE } from './art';
@@ -524,10 +524,12 @@ export class WorldScene extends Phaser.Scene {
     const flicker = Math.sin(time / 130) * 0.06 + Math.sin(time / 57 + 1.3) * 0.04;
     const lights = this.lightSources().map((l) => ({ cx: (l.x / TILE) * LIGHT_RES, cy: (l.y / TILE) * LIGHT_RES, radius: l.r * LIGHT_RES * (1 + flicker), r: l.r, x: l.x, y: l.y }));
     const data = this.lightImg.data;
+    // Mörkersyn leder hela gruppen utanför strid (Vidar): grottan syns, bara lite skumt.
+    const seesDark = this.g.state.mode !== 'combat' && partyDarkvision(this.g);
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const i = y * w + x;
-        const amb = this.ambient[i];
+        const amb = this.ambient[i] * (seesDark ? 0.35 : 1);
         let a = 0;
         if (amb > 0.001) {
           let lit = 0;
