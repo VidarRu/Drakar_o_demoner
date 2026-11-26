@@ -375,7 +375,8 @@ varje besvärjelse och förmåga ska göra. Besluten flyttas hit allteftersom de
 - **ÖKA och MINSKA (Vidar):** STO och FYS ändrar KP medan besvärjelsen varar. Förlorade KP står kvar när den tar slut.
 - **Turgubbe (Vidar):** högst +3 på ett och samma slag, för 1 PSY per poäng.
 - **Gudarnas gunstling (Vidar):** gäller en gång per äventyr.
-- **Den andra handen (Vidar):** ger avdrag för den som inte är dubbelhänt eller ambidextriös. Avdraget hämtas ur Bok I när det byggs.
+- **Vänster hand (Vidar, ersätter beslutet om avdrag för den andra handen):** den som anfaller i närstrid med vänster hand ger motståndaren −2 på pareringen, oavsett om det är svärdshanden eller den andra handen. Den andra handen ger inget eget avdrag (`LEFT_HAND_PARRY` i `combat.ts`).
+- **Borttagna förmågor (Vidar):** Absolut ögonmått och God tidskänsla gör för lite i spelet och är borttagna. Ett slag som hamnar på dem ger raden ovanför i tabellen (`REMOVED_ABILITIES` i `src/data/abilities.ts`).
 - **FÖRÄNDRA (Vidar):** ett järnvapen kan förvandlas till ett trävapen.
 
 ### Förmågor med regelvärden (byggt)
@@ -550,6 +551,26 @@ Bok III s. 43–44. Koden står i `src/engine/magicitems.ts`, och föremålen an
   - Grukks bredsvärd: FÖRTROLLA VAPEN E1, verkar ständigt.
   - Häxkonstnärens stav: LADDNING E2 och LJUS E1 med PERMANENS och NEXUS.
   - En läkebrygd (HELA E2) i Grukks kista.
+
+### Magisk kanalisering (Vidar, byggt)
+
+Koden står i `src/engine/channel.ts`.
+
+- **Vidars förenkling av Bok I:** magikern med färdigheten kopplar ihop sig med en villig person efter ett lyckat slag i Magisk kanalisering, och kan sedan använda personens PSY till sina besvärjelser.
+- **Mottagligt medium:** +5 på slaget när personen med förmågan är mediet.
+- **Tolkningar:**
+  - Man måste kunna röra vid mediet, och alla i gruppen är villiga.
+  - Kopplingen håller till nästa sömn, eller tills mediet faller medvetslöst.
+  - Mediets PSY går inte under 1. I strid tar slaget handlingen.
+  - Magikern väljer när hen lägger en besvärjelse om PSY ska tas från mediet. Laddade föremål används först, sedan mediet och sist magikerns egna PSY.
+
+### HAMNSKIFTARE (Vidar, byggt)
+
+- **En egen besvärjelse i animism (Vidar),** inte ur böckerna: den gör samma sak som förmågan Hamnbytare.
+- **Tolkningar:**
+  - Skolvärde 10, personlig och utan särskild varaktighet. E1 räcker.
+  - Magikern väljer ett av de sex djuren.
+  - Magikern blir människa igen när hen vill, och samma PSY-slag gäller som för Hamnbytare.
 
 ### Hamnbytare (byggt)
 

@@ -413,7 +413,9 @@ export type SpellEffect =
   /** FÖRYNGRA: kroppen blir E × 5 år yngre en tid. */
   | { kind: 'föryngra' }
   /** FÖRÄNDRA: ett vapen blir ett annat vapen av samma slag en tid. */
-  | { kind: 'förändra' };
+  | { kind: 'förändra' }
+  /** HAMNSKIFTARE (Vidar): magikern förvandlar sig till ett djur, som med Hamnbytare. */
+  | { kind: 'hamnskifte' };
 
 export interface ItemDef {
   id: string;

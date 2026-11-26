@@ -48,6 +48,9 @@ import {
 import type { ActiveEffect, Actor, AttrKey, PendingSpell } from './types';
 import { applyWorld, showScenes, worldProblem } from './worldspells';
 import { raining, underSky } from './weather';
+import { drawMedium, mediumPsy } from './channel';
+import { becomeAnimal } from './shapeshift';
+import { HAMN } from './rules';
 import { charge, chargeableItems, chargeAvailable, drawCharge, rejuvenate, transformChoices, transformGrade, transformWeapon } from './rituals';
 import { WEAPONS } from '../data/weapons';
 import { between, breakHiding, FOG_SIGHT, heatColdResist, inVortex, outdoors, unseen, zonesAt } from './spelleffects';
@@ -195,6 +198,10 @@ export interface CastOptions {
   item?: string;
   /** Dra PSY ur laddade föremål först (LADDNING). */
   useCharge?: boolean;
+  /** Dra PSY från mediet (Magisk kanalisering). */
+  useMedium?: boolean;
+  /** Djuret för HAMNSKIFTARE (index i HAMN). */
+  animal?: number;
 }
 
 /** En ritual tar lika många timmar som effektgraden (Vidar). */
@@ -315,7 +322,8 @@ export function castProblem(g: Game, id: string, o: CastOptions): string | null 
   if (o.suicide) {
     if (p.psy <= 0) return 'Du har ingen kraft kvar att offra.';
     if (total > suicideBudget(p.psy, p.attrs.PSY)) return `Du kan offra högst ${suicideBudget(p.psy, p.attrs.PSY)} PSY.`;
-  } else if (total >= p.psy + (o.useCharge ? chargeAvailable(g, p) : 0)) return `Du har bara ${p.psy} PSY kvar${o.useCharge ? ` och ${chargeAvailable(g, p)} i laddade föremål` : ''}. Når PSY 0 dör du.`;
+  } else if (total >= p.psy + (o.useCharge ? chargeAvailable(g, p) : 0) + (o.useMedium ? mediumPsy(g, p) : 0)) return `Du har bara ${p.psy} PSY kvar${o.useCharge ? ` och ${chargeAvailable(g, p)} i laddade föremål` : ''}. Når PSY 0 dör du.`;
+  if (spell.effect.kind === 'hamnskifte' && (o.animal === undefined || !HAMN[o.animal])) return 'Välj ett djur.';
   if (spell.effect.kind === 'laddning' && (!o.item || !chargeableItems(g, p).includes(o.item))) return 'Välj ett föremål som aldrig har laddats.';
   if (spell.effect.kind === 'förändra') {
     const t = o.target ? g.actor(o.target) : undefined;
@@ -396,6 +404,8 @@ export function castSpell(g: Game, id: string, o: CastOptions): string | null {
     change: o.change,
     item: o.item,
     useCharge: o.useCharge,
+    useMedium: o.useMedium,
+    animal: o.animal,
   };
   // Den som lägger magi syns igen (OSYNLIGHET och KAMOUFLAGE).
   breakHiding(g, p, 'lägger magi');
@@ -483,7 +493,9 @@ function resolve(g: Game, s: PendingSpell) {
   // LADDNING: PSY ur laddade föremål används först.
   const fromItems = s.useCharge ? drawCharge(g, a, cost) : 0;
   if (fromItems) g.log(`${a.name} drar ${fromItems} PSY ur laddade föremål.`);
-  a.psy -= cost - fromItems;
+  // Magisk kanalisering: PSY från mediet används sedan.
+  const fromMedium = s.useMedium ? drawMedium(g, a, cost - fromItems) : 0;
+  a.psy -= cost - fromItems - fromMedium;
   const head = `${spell.name} E${total} (S${S}, T20: ${check.roll} mot ${check.target}, −${cost} PSY)`;
   if (check.result === 'fummel') {
     g.log(`${head}: snedtändning!`);
@@ -885,6 +897,9 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
     }
     case 'laddning':
       charge(g, caster, s.item!, grade);
+      return;
+    case 'hamnskifte':
+      becomeAnimal(g, caster, s.animal ?? 0);
       return;
     case 'föryngra':
       rejuvenate(g, t, grade, effectFor(caster, spell, s, grade, g));

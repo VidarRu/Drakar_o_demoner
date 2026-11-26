@@ -81,6 +81,8 @@ export const TORCH_RANGE = 4;
 const MAX_ROUNDS = 500;
 
 const LEGS: HitLocation[] = ['vänster ben', 'höger ben'];
+/** Vänster hand (Vidar): motståndaren får −2 på parering. */
+export const LEFT_HAND_PARRY = -2;
 export const DIRS = [
   [0, -1],
   [1, -1],
@@ -1011,11 +1013,16 @@ function tryParry(g: Game, def: Actor, att: Actor, aw: WeaponInfo, onlyShield = 
   const penalty = PARRY_PENALTY * used.count;
   // Snabb uppfattning: +5 vid parering i närstrid.
   const quick = !how.ranged && actorHas(g, def, 'snabb_uppfattning') ? ABILITY_RULES.quickParry : 0;
+  // Vänster hand (Vidar): ett närstridsanfall med vänster hand ger −2 på pareringen, oavsett om
+  // det är svärdshanden eller den andra handen.
+  const leftArm = aw.slot === 'offhand' ? otherArm(att.swordArm) : att.swordArm;
+  const left = !how.ranged && att.detailed && (!aw.natural || aw.unarmed) && leftArm === 'vänster arm' ? LEFT_HAND_PARRY : 0;
   const sit = (p: number): [string, number][] => [
     ['mörker', light === -15 ? light : 0],
     ['fackelsken', light === -5 ? light : 0],
     ['fler pareringar', p],
     ['snabb uppfattning', quick],
+    ['vänster hand', left],
   ];
   for (const slot of ['weapon', 'offhand'] as const) {
     if (onlyShield) break;

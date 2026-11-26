@@ -35,6 +35,8 @@ import { herbProblem, herbsHere, searchHerb, useHerb } from '../engine/poison';
 import { herbChoices, lockChoices, SEEK_KINDS } from '../engine/worldspells';
 import { empathy, empathyProblem, itemDetails, itemLabel, itemUses, ITEM_S, magicDef, senseMagic, senseProblem, useItem, useProblem, type ItemUse } from '../engine/magicitems';
 import { actorHas } from '../engine/hero';
+import { mediumOf, mediumPsy } from '../engine/channel';
+import { HAMN } from '../engine/rules';
 import { chargeableItems, chargeAvailable, transformChoices, transformGrade } from '../engine/rituals';
 import { spellCl } from '../engine/rules';
 import { buy, buyPrice, canHaggle, discount, haggle, sell, sellable, wares } from '../engine/trade';
@@ -291,7 +293,7 @@ export class ShopUi {
 
 /** Magin: formelsamlingen, minnet och att lägga besvärjelser. */
 export class MagicUi {
-  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean; attr: AttrKey; hands: 1 | 2; dir: number; dist: number; seek: string; herb: string; lock: number; change: 1 | -1; item: string; useCharge: boolean } | null = null;
+  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean; attr: AttrKey; hands: 1 | 2; dir: number; dist: number; seek: string; herb: string; lock: number; change: 1 | -1; item: string; useCharge: boolean; useMedium: boolean; animal: number } | null = null;
 
   constructor(private g: Game, private panel: Panel) {}
 
@@ -329,7 +331,7 @@ export class MagicUi {
 
   private pick(id: string) {
     const targets = spellTargets(this.g, id);
-    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false, attr: 'STY', hands: 1, dir: 0, dist: 1, seek: 'fiende', herb: '', lock: 0, change: 1, item: '', useCharge: false };
+    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false, attr: 'STY', hands: 1, dir: 0, dist: 1, seek: 'fiende', herb: '', lock: 0, change: 1, item: '', useCharge: false, useMedium: false, animal: 0 };
     this.panel.refresh();
   }
 
@@ -460,6 +462,20 @@ export class MagicUi {
       l.append(cb);
       box.append(l);
     }
+    if (kind === 'hamnskifte') pick('Djur', HAMN.map((h, i) => [String(i), h.name]), String(c.animal), (v) => (c.animal = Number(v)));
+    const medium = mediumOf(g, p);
+    if (medium && mediumPsy(g, p) > 0) {
+      const l = el('label', '', `Ta PSY från ${medium.name} (${mediumPsy(g, p)} att ta) `);
+      const cb = el('input');
+      cb.type = 'checkbox';
+      cb.checked = c.useMedium;
+      cb.onchange = () => {
+        c.useMedium = cb.checked;
+        this.panel.refresh();
+      };
+      l.append(cb);
+      box.append(l);
+    }
     if (kind === 'varseblivning') c.seek = pick('Leta efter', Object.entries(SEEK_KINDS), c.seek, (v) => (c.seek = v));
     if (kind === 'växtkunskap') {
       const herbs = herbChoices(g, p);
@@ -475,7 +491,7 @@ export class MagicUi {
     };
     suicide.append(cb);
     const S = spellS(p, c.id);
-    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide, attr: c.attr, hands: c.hands, at, seek: c.seek, herb: c.herb, change: c.change, item: c.item || undefined, useCharge: c.useCharge };
+    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide, attr: c.attr, hands: c.hands, at, seek: c.seek, herb: c.herb, change: c.change, item: c.item || undefined, useCharge: c.useCharge, useMedium: c.useMedium, animal: c.animal };
     const problem = castProblem(g, c.id, opts);
     box.append(
       suicide,

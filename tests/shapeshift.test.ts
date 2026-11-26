@@ -85,3 +85,77 @@ describe('Hamnbytare', () => {
     expect(p.shape).toBeDefined();
   });
 });
+
+describe('HAMNSKIFTARE, kanalisering, vänster hand och borttagna förmågor', () => {
+  it('HAMNSKIFTARE: magikern väljer djur och kan bli människa igen utan förmågan', async () => {
+    const { castSpell } = await import('../src/engine/magic');
+    const c = testCharacter();
+    c.attrs.INT = 15;
+    c.skills['magiskola:animism'] = 14;
+    c.spells = ['hamnskiftare'];
+    c.memorized = ['hamnskiftare'];
+    c.inventory = [];
+    c.equipped = { armor: [] };
+    const g = Game.create(c, seededRng(1));
+    const p = g.player;
+    expect(castProblem(g, 'hamnskiftare', { grade: 1 })).toMatch(/Välj ett djur/);
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'hamnskiftare', { grade: 1, animal: 1 })).toBeNull();
+    expect(p.shape?.animal).toBe(1);
+    expect(p.sprite).toBe('bjorn');
+    expect(g.shapeshift()).toBeNull();
+    expect(p.shape).toBeUndefined();
+  });
+
+  it('Magisk kanalisering: ett lyckat slag ger magikern mediets PSY, och mediet behåller 1', async () => {
+    const { channel, mediumPsy } = await import('../src/engine/channel');
+    const { castSpell } = await import('../src/engine/magic');
+    const { RECRUITS } = await import('../src/content');
+    const c = testCharacter();
+    c.attrs.INT = 15;
+    c.skills['magiskola:animism'] = 14;
+    c.skills.magisk_kanalisering = 12;
+    c.spells = ['hamnskiftare'];
+    c.memorized = ['hamnskiftare'];
+    c.inventory = [];
+    c.equipped = { armor: [] };
+    const g = Game.create(c, seededRng(1));
+    const p = g.player;
+    // Linnea som medium: en villig person i gruppen bredvid.
+    const linnea = g.state.actors.find((a) => a.companion?.recruit === 'linnea')!;
+    expect(RECRUITS.linnea).toBeDefined();
+    g.state.party.push(linnea.id);
+    linnea.kind = 'player';
+    linnea.x = p.x + 1;
+    linnea.y = p.y;
+    g.rng = queue(face(2));
+    expect(channel(g, p, linnea)).toBeNull();
+    expect(mediumPsy(g, p)).toBe(linnea.psy - 1);
+    p.psy = 1;
+    const before = linnea.psy;
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'hamnskiftare', { grade: 1, animal: 0, useMedium: true })).toBeNull();
+    expect(linnea.psy).toBe(before - 1);
+    expect(p.psy).toBe(1);
+  });
+
+  it('vänster hand ger motståndaren −2 på parering, och de borttagna förmågorna ger raden ovanför', async () => {
+    const { abilityFor } = await import('../src/data/abilities');
+    expect(abilityFor(47).id).not.toBe('god_tidskansla');
+    expect(abilityFor(50).id).not.toBe('absolut_ogonmatt');
+    expect(abilityFor(47).id).toBe(abilityFor(52).id);
+    const g = Game.create(testCharacter(), seededRng(3));
+    const p = g.player;
+    const alf = g.state.actors.find((a) => a.defId === 'svartalf')!;
+    p.x = 10;
+    p.y = 12;
+    alf.x = 11;
+    alf.y = 12;
+    combat.startCombat(g, [alf]);
+    // Svartalfen får −2 på pareringen mot ett hugg med vänster hand.
+    p.swordArm = 'vänster arm';
+    g.rng = queue(face(5), face(3), face(5, 6), face(10));
+    combat.attackOnce(g, p, alf, 'weapon');
+    expect(g.state.log.join('\n')).toMatch(/−2 vänster hand|-2 vänster hand/);
+  });
+});

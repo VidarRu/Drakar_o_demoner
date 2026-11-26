@@ -205,7 +205,9 @@ export interface ActiveEffect {
     /** TANKELÄSNING: läser tankarna hos personen `by` (npc-id) i samtal. */
     | 'tankeläsning'
     /** FÖRÄNDRA: vapnet i handen var `item` innan. */
-    | 'förändrad';
+    | 'förändrad'
+    /** Magisk kanalisering: kopplad till mediet `by` och kan använda dess PSY. */
+    | 'kanal';
   /** Kort text till rollformuläret och loggen. */
   label: string;
   mod?: number;
@@ -349,6 +351,10 @@ export interface PendingSpell {
   item?: string;
   /** PSY ur laddade föremål (LADDNING) som besvärjelsen får använda. */
   useCharge?: boolean;
+  /** PSY från mediet (Magisk kanalisering). */
+  useMedium?: boolean;
+  /** Djuret för HAMNSKIFTARE (index i HAMN). */
+  animal?: number;
   /** Fast S för räckvidd och varaktighet (besvärjelser ur magiska föremål). */
   s?: number;
 }

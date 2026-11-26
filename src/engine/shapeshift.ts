@@ -48,7 +48,8 @@ export function shapeFlight(a: Actor): number | null {
 export const shapeSwims = (a: Actor) => !!a.shape && !!CREATURE_STATS[HAMN[a.shape.animal].stats].move.S;
 
 export function shapeProblem(g: Game, a: Actor): string | null {
-  if (shapeOf(g, a) === null) return 'Du är ingen hamnbytare.';
+  // Den som har blivit djur genom HAMNSKIFTARE kan bli människa igen utan förmågan.
+  if (!a.shape && shapeOf(g, a) === null) return 'Du är ingen hamnbytare.';
   if (a.shape && g.charOf(a)?.stuckInShape) return 'Du har fastnat i din djurhamn för alltid.';
   if (!canAct(a) || a.down) return 'Du kan inte förvandla dig nu.';
   if (g.state.mode === 'combat') {
@@ -70,6 +71,15 @@ export function shapeshift(g: Game, a: Actor): string | null {
   } else tick(g, a);
   g.changed();
   return null;
+}
+
+/** HAMNSKIFTARE (Vidar): samma förvandling som Hamnbytare, till det djur magikern väljer. */
+export function becomeAnimal(g: Game, a: Actor, n: number) {
+  if (a.shape) {
+    g.log(`${a.name} är redan ett djur.`);
+    return;
+  }
+  toAnimal(g, a, n);
 }
 
 function toAnimal(g: Game, a: Actor, n: number) {

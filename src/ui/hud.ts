@@ -1,6 +1,7 @@
 import { underSky, weatherOf, weatherText } from '../engine/weather';
 import { lightText } from '../engine/light';
 import { shapeOf, shapeProblem } from '../engine/shapeshift';
+import { channel, channelProblem, mediumChoices } from '../engine/channel';
 import { HAMN } from '../engine/rules';
 import { forceLock, forceProblem, isLocked, locksNear, lootChest, lootProblem, pickLock, pickProblem, sealedAt } from '../engine/locks';
 import { dialogDef, requestTurn, scriptedTurn, type DialogEntry } from '../ai/dialogClient';
@@ -411,11 +412,27 @@ export class Hud {
       b.title = `Köp +1 på CL för 1 PSY på nästa egna slag. Tryck igen för mer, högst +3. ${source === 'tjuvtur' ? 'Två gånger mellan varje sömn, fyra för alver.' : ''}`;
       out.push(b);
     }
-    const hamn = shapeOf(g, p);
+    const hamn = p.shape ? p.shape.animal : shapeOf(g, p);
     if (hamn !== null) {
       const b = button(p.shape ? 'Bli människa igen' : `Byt hamn: ${HAMN[hamn].name}`, () => g.shapeshift(), 'hero', !!shapeProblem(g, p));
       b.title = 'Hamnbytare: förvandlingen tar en stridsrunda. För varje timme över ditt PSY-värde i djurhamn slår du ett Normalt PSY-slag; misslyckas det fastnar du för alltid.';
       out.push(b);
+    }
+    // Magisk kanalisering: koppla ihop sig med en villig person i gruppen.
+    if ((p.skills.magisk_kanalisering ?? 0) > 0 && !p.shape) {
+      const media = mediumChoices(g, p);
+      if (media.length) {
+        const pick = el('select');
+        pick.title = 'Mediet';
+        for (const m of media) pick.append(new Option(m.name, m.id));
+        const b = button('Kanalisera', () => {
+          const r = channel(g, p, g.actor(pick.value)!);
+          if (r) g.log(r);
+          g.changed();
+        }, '', !!channelProblem(g, p, g.actor(pick.value)));
+        b.title = 'Magisk kanalisering: ett lyckat slag kopplar ihop dig med en villig person intill, och sedan kan du använda personens PSY till dina besvärjelser (till nästa sömn).';
+        out.push(pick, b);
+      }
     }
     if (p.effects.some((e) => e.kind === 'svävar')) {
       const b = button('Landa', () => g.land());
