@@ -90,6 +90,24 @@ export interface RecruitDef {
   character: () => Character;
 }
 
+/**
+ * En fiendegrupp på världskartan (Vidar). Ikonen står för alla varelserna, och ett stridsmöte
+ * ställer upp dem på stridskartan. Antalet slås när gruppen placeras ut.
+ */
+export interface BandDef {
+  id: string;
+  name: string;
+  /** Ikonen; utan den den första varelsens figur. */
+  sprite?: string;
+  members: { creature: string; count: string }[];
+  /** Hur långt från sin plats gruppen vandrar (rutor). */
+  wander?: number;
+  /** Snabb (ryttare, stora djur): rör sig dubbelt så fort som gruppen. Utan värdet avgör varelsernas förflyttning. */
+  fast?: boolean;
+  /** Flagga som sätts när hela gruppen är besegrad. Är den satt placeras gruppen inte ut igen. */
+  deathFlag?: string;
+}
+
 export interface ModuleDef {
   id: string;
   name: string;
@@ -121,6 +139,10 @@ export interface ModuleDef {
   weather?: { sky: number; wind: number; locked?: boolean };
   /** Magiska föremål i modulen (Bok III s. 43–44). */
   magicItems?: MagicItemDef[];
+  /** Fiendegrupper på världskartan. */
+  bands?: BandDef[];
+  /** Läget på resekartan (0–100 i båda led) och ikonen. Platshållare tills resekartan ritas. */
+  travel?: { x: number; y: number; icon: string };
 }
 
 /** En besvärjelse som är lagrad i ett magiskt föremål, med en fast effektgrad (Bok III s. 43). */

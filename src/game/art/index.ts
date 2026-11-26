@@ -7,3 +7,4 @@ export { TILE } from './grid';
 export { bakeGround, caveMask, type Glints } from './ground';
 export { bakeRows, OVER, PADX } from './objects';
 export { portraitUrl, SPRITES } from './sprites';
+export { PLACE_ICONS } from './places';

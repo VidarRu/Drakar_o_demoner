@@ -14,6 +14,7 @@ export * from './magic';
 export * from './outcomes';
 export * from './poison';
 export * from './tables';
+export * from './travel';
 
 /**
  * Tillfälligt: slumpade grundegenskaper (3T6) för startskärmen, tills rollpersoner

@@ -1,5 +1,9 @@
+import { QUARTER_MINUTES, type Terrain } from './rules/travel';
+
 export interface TileDef {
   name: string;
+  /** Terrängen på världskartan (tiden per ruta och stridskartan). */
+  terrain?: Terrain;
   walkable: boolean;
   /** Skymmer sikten. */
   opaque: boolean;
@@ -19,7 +23,37 @@ export const TILES: Record<string, TileDef> = {
   '%': { name: 'berg', walkable: false, opaque: true },
   T: { name: 'träd', walkable: false, opaque: true },
   '~': { name: 'vatten', walkable: false, opaque: false },
+  // Världskartans terräng (Vidar). En ruta är en kvart i vanlig terräng.
+  f: { name: 'öppen skog', walkable: true, opaque: false, outdoor: true, terrain: 'öppen skog' },
+  F: { name: 'tät skog', walkable: true, opaque: true, outdoor: true, terrain: 'tät skog' },
+  h: { name: 'kullar', walkable: true, opaque: false, outdoor: true, terrain: 'kullar' },
+  M: { name: 'berg', walkable: true, opaque: true, outdoor: true, terrain: 'berg' },
+  '=': { name: 'bro', walkable: true, opaque: false, outdoor: true, terrain: 'bro' },
+  v: { name: 'vadställe', walkable: true, opaque: false, outdoor: true, terrain: 'vadställe' },
 };
+TILES['.'].terrain = 'slätt';
+TILES[','].terrain = 'väg';
+
+/** Kartans slag: världskartan, en mötesplats (by, grotta) eller en tillfällig stridskarta. */
+export type MapKind = 'värld' | 'plats' | 'strid';
+
+/** En utgång. Utan `to` leder den ut ur modulen; med `to` till en annan karta i modulen. */
+export interface ExitDef {
+  tile: string;
+  name: string;
+  /** Kartan som utgången leder till, eller 'tillbaka' från en stridskarta till världskartan. */
+  to?: string;
+}
+
+/** En mötesplats på världskartan: man går in genom att kliva på ikonen. */
+export interface PlaceDef {
+  tile: string;
+  /** Mötesplatsens karta. */
+  map: string;
+  name: string;
+  /** Ikonen på världskartan, t.ex. 'ikon_by' eller 'ikon_grotta'. */
+  icon: string;
+}
 
 export interface MapDef {
   id: string;
@@ -27,13 +61,23 @@ export interface MapDef {
   rows: string[];
   /** Tecken i kartan som placerar ut varelser: tecken -> underlag och varelse-id. */
   /** Figurer på kartan: en varelse ur innehållet eller en person som kan följa med (`recruit`). */
-  spawns: Record<string, { tile: string; creature?: string; recruit?: string }>;
+  spawns: Record<string, { tile: string; creature?: string; recruit?: string; band?: string }>;
+  /** Kartans slag (standard: mötesplats). */
+  kind?: MapKind;
+  /** Världskartan: minuter per ruta i vanlig terräng (standard en kvart). */
+  stepMinutes?: number;
+  /** Världskartan: mötesplatser, tecken -> plats. */
+  places?: Record<string, PlaceDef>;
+  /** Världskartan: slumpmöten efter tabellen (standard 'vildmark'), eller false för inga. */
+  encounters?: string | false;
+  /** Stridskartan: tecknet där fienderna ställs upp, och underlaget. */
+  foes?: { char: string; tile: string };
   /** Tecknet för rollpersonens startruta och dess underlag. */
   start: { char: string; tile: string };
   /** Växtplatser i trakten (för att leta örter), t.ex. "skog" eller "ängar". */
   habitats?: string[];
   /** Utgångar ur modulen: tecken -> underlag och namn. Går gruppen dit kan den lämna äventyret. */
-  exits?: Record<string, { tile: string; name: string }>;
+  exits?: Record<string, ExitDef>;
   /** Låsta dörrar och kistor: tecken -> underlag och låset. En dörr ska ha underlaget '+'. */
   locks?: Record<string, LockDef>;
 }
@@ -57,10 +101,15 @@ export interface GameMap {
   w: number;
   h: number;
   tiles: string[];
-  spawns: { creature?: string; recruit?: string; x: number; y: number }[];
+  kind: MapKind;
+  stepMinutes: number;
+  spawns: { creature?: string; recruit?: string; band?: string; x: number; y: number }[];
   start: { x: number; y: number };
   habitats: string[];
-  exits: { x: number; y: number; name: string }[];
+  exits: { x: number; y: number; name: string; to?: string }[];
+  places: { x: number; y: number; map: string; name: string; icon: string }[];
+  foes: Point[];
+  encounters: string | false;
   locks: (LockDef & { x: number; y: number })[];
 }
 
@@ -71,6 +120,8 @@ export function parseMap(def: MapDef): GameMap {
   const spawns: GameMap['spawns'] = [];
   const exits: GameMap['exits'] = [];
   const locks: GameMap['locks'] = [];
+  const places: GameMap['places'] = [];
+  const foes: Point[] = [];
   let start = { x: 1, y: 1 };
   def.rows.forEach((row, y) => {
     if (row.length !== w) throw new Error(`Karta ${def.id}: rad ${y} har bredd ${row.length}, väntade ${w}`);
@@ -79,13 +130,21 @@ export function parseMap(def: MapDef): GameMap {
         start = { x, y };
         tiles.push(def.start.tile);
       } else if (def.spawns[ch]) {
-        spawns.push({ creature: def.spawns[ch].creature, recruit: def.spawns[ch].recruit, x, y });
-        tiles.push(def.spawns[ch].tile);
+        const sp = def.spawns[ch];
+        spawns.push({ creature: sp.creature, recruit: sp.recruit, band: sp.band, x, y });
+        tiles.push(sp.tile);
+      } else if (def.places?.[ch]) {
+        const pl = def.places[ch];
+        places.push({ x, y, map: pl.map, name: pl.name, icon: pl.icon });
+        tiles.push(pl.tile);
+      } else if (def.foes && ch === def.foes.char) {
+        foes.push({ x, y });
+        tiles.push(def.foes.tile);
       } else if (def.locks?.[ch]) {
         locks.push({ ...def.locks[ch], x, y });
         tiles.push(def.locks[ch].tile);
       } else if (def.exits?.[ch]) {
-        exits.push({ x, y, name: def.exits[ch].name });
+        exits.push({ x, y, name: def.exits[ch].name, to: def.exits[ch].to });
         tiles.push(def.exits[ch].tile);
       } else if (TILES[ch]) {
         tiles.push(ch);
@@ -94,7 +153,24 @@ export function parseMap(def: MapDef): GameMap {
       }
     });
   });
-  return { id: def.id, name: def.name, w, h, tiles, spawns, start, habitats: def.habitats ?? [], exits, locks };
+  const kind = def.kind ?? 'plats';
+  return {
+    id: def.id,
+    name: def.name,
+    kind,
+    stepMinutes: def.stepMinutes ?? QUARTER_MINUTES,
+    w,
+    h,
+    tiles,
+    spawns,
+    start,
+    habitats: def.habitats ?? [],
+    exits,
+    locks,
+    places,
+    foes,
+    encounters: def.encounters ?? (kind === 'värld' ? 'vildmark' : false),
+  };
 }
 
 export const idx = (map: GameMap, x: number, y: number) => y * map.w + x;
@@ -258,4 +334,51 @@ export function reachable(
     }
   }
   return out;
+}
+
+/**
+ * Den billigaste vägen när rutorna kostar olika mycket (världskartan: tät skog, kullar och berg
+ * tar längre tid). Returnerar stegen från start (exklusive) till målet, eller null.
+ */
+export function cheapestPath(
+  map: GameMap,
+  from: Point,
+  to: Point,
+  cost: (x: number, y: number) => number,
+  blocked: (x: number, y: number) => boolean,
+  adjacentOk = false,
+  canPass: (x: number, y: number) => boolean = (x, y) => walkable(map, x, y),
+): Point[] | null {
+  const done = (x: number, y: number) => (adjacentOk ? distance(x, y, to.x, to.y) <= 1 : x === to.x && y === to.y);
+  if (done(from.x, from.y)) return [];
+  const start = idx(map, from.x, from.y);
+  const best = new Map<number, number>([[start, 0]]);
+  const prev = new Map<number, number>([[start, -1]]);
+  // En enkel prioritetskö: kartorna är små, så en sorterad lista räcker.
+  const open: [number, number][] = [[0, start]];
+  while (open.length) {
+    let bi = 0;
+    for (let i = 1; i < open.length; i++) if (open[i][0] < open[bi][0]) bi = i;
+    const [d, cur] = open.splice(bi, 1)[0];
+    if (d > (best.get(cur) ?? Infinity)) continue;
+    const cx = cur % map.w;
+    const cy = Math.floor(cur / map.w);
+    if (cur !== start && done(cx, cy)) {
+      const path: Point[] = [];
+      for (let i = cur; i !== start; i = prev.get(i)!) path.push({ x: i % map.w, y: Math.floor(i / map.w) });
+      return path.reverse();
+    }
+    for (const [dx, dy] of DIRS) {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (!canPass(nx, ny) || blocked(nx, ny)) continue;
+      const ni = idx(map, nx, ny);
+      const nd = d + cost(nx, ny);
+      if (nd >= (best.get(ni) ?? Infinity)) continue;
+      best.set(ni, nd);
+      prev.set(ni, cur);
+      open.push([nd, ni]);
+    }
+  }
+  return null;
 }

@@ -57,7 +57,22 @@ export function bakeRows(map: GameMap): (HTMLCanvasElement | null)[] {
           drawRock(r, map, depth, x, y, ox, oy);
           break;
         case 'T':
+        case 'F':
           drawTree(r, x, y, ox, oy);
+          break;
+        case 'f':
+          // Gles skog: träd på ungefär varannan ruta.
+          if (hash(x, y, 71) < 0.5) drawTree(r, x, y, ox, oy);
+          else continue;
+          break;
+        case 'h':
+          drawHill(r, x, y, ox, oy);
+          break;
+        case 'M':
+          drawPeak(r, x, y, ox, oy);
+          break;
+        case 'v':
+          drawFord(r, x, y, ox, oy);
           break;
         default:
           continue;
@@ -389,5 +404,59 @@ function drawLeafTree(r: Raster, x: number, y: number, cx: number, base: number,
       if (dy > cr * 0.5) v -= 0.12;
       r.set(px, py, edge ? PAL.leaf[0] : shade(PAL.leaf, v, px, py, 0.5));
     }
+  }
+}
+
+// ------------------------------------------------------------------ världskartan
+
+/** En kulle: en mjuk gräsbacke, ljusast mot nordväst. */
+function drawHill(r: Raster, x: number, y: number, ox: number, oy: number) {
+  const cx = ox + 16 + Math.round((hash(x, y, 81) - 0.5) * 6);
+  const base = oy + T - 4;
+  const rx = 14 + Math.floor(hash(x, y, 82) * 3);
+  const ry = 9 + Math.floor(hash(x, y, 83) * 4);
+  for (let py = base - ry; py <= base; py++) {
+    for (let px = cx - rx; px <= cx + rx; px++) {
+      const dx = (px - cx) / rx;
+      const dy = (py - base) / ry;
+      const d = dx * dx + dy * dy;
+      if (d > 1) continue;
+      // Ljus topp mot nordväst, mörk kant nertill och mot öster så att kullen syns mot gräset.
+      const v = d > 0.82 && (dy > -0.4 || dx > 0.3) ? 0.05 : 0.95 - dx * 0.4 + dy * 0.45 + (noise(px / 4, py / 4, 84) - 0.5) * 0.15;
+      r.set(px, py, shade(PAL.grass, v, px, py));
+    }
+  }
+}
+
+/** Ett berg: en grå topp med snö, ljus sida mot väster och skuggsida mot öster. */
+function drawPeak(r: Raster, x: number, y: number, ox: number, oy: number) {
+  const cx = ox + 16 + Math.round((hash(x, y, 85) - 0.5) * 8);
+  const base = oy + T - 2;
+  const h = 30 + Math.floor(hash(x, y, 86) * 14);
+  const half = 15 + Math.floor(hash(x, y, 87) * 3);
+  const top = base - h;
+  for (let py = top; py <= base; py++) {
+    const t = (py - top) / h;
+    const w = Math.round(half * t);
+    for (let px = cx - w; px <= cx + w; px++) {
+      const east = px > cx + (noise(px / 3, py / 5, 88) - 0.5) * 3;
+      const snow = t < 0.28 + (noise(px / 3, 0, 89) - 0.5) * 0.12;
+      if (snow) r.set(px, py, east ? PAL.birch[1] : PAL.birch[3]);
+      else r.set(px, py, shade(PAL.wallFace, (east ? 0.25 : 0.7) - t * 0.2 + (noise(px / 3, py / 3, 90) - 0.5) * 0.2, px, py));
+    }
+  }
+}
+
+/** Vadstället: stenar i strömmen att gå på. */
+function drawFord(r: Raster, x: number, y: number, ox: number, oy: number) {
+  for (let i = 0; i < 4; i++) {
+    const cx = ox + 5 + Math.floor(hash(x, y, 100 + i) * 22);
+    const cy = oy + 6 + i * 6 + Math.floor(hash(x, y, 110 + i) * 3);
+    for (let py = cy - 2; py <= cy + 2; py++)
+      for (let px = cx - 3; px <= cx + 3; px++) {
+        const dx = (px - cx) / 3;
+        const dy = (py - cy) / 2;
+        if (dx * dx + dy * dy <= 1) r.set(px, py, shade(PAL.wallFace, 0.6 - dx * 0.2 - dy * 0.2, px, py));
+      }
   }
 }

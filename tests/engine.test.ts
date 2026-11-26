@@ -53,12 +53,11 @@ describe('innehåll', () => {
     }
     for (const n of Object.values(NPCS)) for (const i of n.intents) expect(INTENTS[i], i).toBeDefined();
   });
-  it('alla varelser på kartan går att nå från starten', () => {
+  it('alla varelser, mötesplatser, utgångar och fiendernas platser går att nå från starten', () => {
     for (const def of Object.values(MAPS)) {
       const map = parseMap(def);
-      expect(map.spawns.length).toBeGreaterThan(0);
-      for (const s of map.spawns) {
-        expect(findPath(map, map.start, s, () => false, true), `${s.creature} (${s.x},${s.y})`).not.toBeNull();
+      for (const s of [...map.spawns, ...map.places, ...map.exits, ...map.foes]) {
+        expect(findPath(map, map.start, s, () => false, true), `${map.id}: (${s.x},${s.y})`).not.toBeNull();
       }
     }
   });
