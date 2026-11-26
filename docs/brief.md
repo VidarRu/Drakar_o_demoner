@@ -118,7 +118,9 @@ förslagets avsnitt 5.
 - **Klart (steg 7, vädret):** `src/engine/weather.ts`. `GameState.weather` har himlen och vinden (`WeatherState`). `updateWeather` körs i `advanceTime` och i början av varje stridsrunda. `torchBurns` ersätter `!torchOut` där ljuset räknas, och `weatherRanged` ger avdragen på skott. `holdWeather` används av VINDKONTROLL och REGNKONTROLL. NEDKALLA ÅSKVIGG är BLIXT med `needsRain`. Testerna står i `tests/weather.test.ts`.
 - **Klart (ljus):** facklor brinner en timme och oljelyktan sex timmar (`src/engine/light.ts`, `Actor.light`, `Character.lanternOil`). `burnLight` körs i `passTime` och i början av varje stridsrunda, och `ensureLight` när spelet laddas. `torchBurns` kräver ett ljus som brinner. I testerna tänder `lit` i `tests/helpers.ts` en fackla.
 - **Klart (TELEPATI och TANKEÖVERFÖRING, Vidar):** rollspel i modulernas scener, och TANKEÖVERFÖRING kan få en fiende att slå moral. Hela VIGGFÅNGARE blir PSY.
-- **Nästa:** ritualerna (LADDNING, FÖRYNGRA, FÖRÄNDRA) och sedan Hamnbytare och det som väntar på magiska föremål och världskartan.
+- **Klart (ritualerna och FÖRÄNDRA):** `src/engine/rituals.ts`. Ritualer tar 1T6 timmar (`RITUAL_HOURS` i `magic.ts`). LADDNING sparas i `Character.charges`, och `CastOptions.useCharge` drar PSY ur dem. FÖRYNGRA ändrar de kroppsliga grundegenskaperna efter ålderstabellen. FÖRÄNDRA byter vapnet i handen (effekten `förändrad`). Besvärjelser på figurer utanför gruppen räknas ned med `expireSpells` i `time.ts`.
+- **Alla besvärjelser verkar nu**, utom att förvandla djur med FÖRÄNDRA. Där väntar SYN på magiska föremål, SPÅRLÖS på världskartan och FINNA VATTEN på reglerna för mat och dryck.
+- **Nästa:** Hamnbytare, magiska föremål (som SYN identifierar och Magisk empati behöver) och världskartan.
 - **Kvar av förmågorna:** Gott balanssinne (när SPRÅNG byggs), Absolut ögonmått och God tidskänsla (gränssnittet), Mottagligt medium och Magisk empati (väntar på kanalisering och magiska föremål), avdraget för den andra handen och Hamnbytare.
 
 Vidar vill också göra en genomgång av hela regelsystemet när det är klart, för att se att det är konsekvent.
@@ -187,7 +189,7 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 247 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 250 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
 `tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/spells.test.ts` prövar fiendernas magi och besvärjelserna i strid. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
 
@@ -199,6 +201,7 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 ## Öppna frågor till Vidar
 
 - Vädret (`docs/regelbeslut.md` under Vädret): chanserna, att det ändras klockan sex och arton, vindens avdrag på skott, VINDKONTROLL och VIGGFÅNGARE är tolkningar. Tolkningarna för ljuset (se Ljus).
+- Ritualerna: 1T6 timmar är en tolkning. Kontrollera i Bok III hur lång tid en ritual tar.
 - FINNA VATTEN har räckvidden S/4 rutor i regeldatan (2–4 rutor). Kontrollera i Bok III om det ska vara S/4 km.
 - Tolkningarna för låsen och besvärjelserna utanför strid (`docs/regelbeslut.md` under Lås och besvärjelser utanför strid).
 - Tolkningarna för besvärjelserna i strid och fiendens val av effektgrad (`docs/regelbeslut.md` under Fiendernas magi och Besvärjelser i strid).
