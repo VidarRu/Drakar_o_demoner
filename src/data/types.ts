@@ -406,7 +406,14 @@ export type SpellEffect =
   /** REGNKONTROLL: molnen regnar, eller regnet slutar. */
   | { kind: 'regnkontroll' }
   /** VIGGFÅNGARE: under åska drar magikern till sig en blixt och får PSY av den. */
-  | { kind: 'viggfångare' };
+  | { kind: 'viggfångare' }
+  // ---------------------------------------------------------------- ritualer och FÖRÄNDRA
+  /** LADDNING: ett föremål lagrar 5 PSY per E. */
+  | { kind: 'laddning' }
+  /** FÖRYNGRA: kroppen blir E × 5 år yngre en tid. */
+  | { kind: 'föryngra' }
+  /** FÖRÄNDRA: ett vapen blir ett annat vapen av samma slag en tid. */
+  | { kind: 'förändra' };
 
 export interface ItemDef {
   id: string;

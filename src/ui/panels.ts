@@ -33,6 +33,7 @@ import {
 } from '../engine/magic';
 import { herbProblem, herbsHere, searchHerb, useHerb } from '../engine/poison';
 import { herbChoices, lockChoices, SEEK_KINDS } from '../engine/worldspells';
+import { chargeableItems, chargeAvailable, transformChoices, transformGrade } from '../engine/rituals';
 import { spellCl } from '../engine/rules';
 import { buy, buyPrice, canHaggle, discount, haggle, sell, sellable, wares } from '../engine/trade';
 import type { Actor, AttrKey } from '../engine/types';
@@ -247,7 +248,7 @@ export class ShopUi {
 
 /** Magin: formelsamlingen, minnet och att lägga besvärjelser. */
 export class MagicUi {
-  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean; attr: AttrKey; hands: 1 | 2; dir: number; dist: number; seek: string; herb: string; lock: number; change: 1 | -1 } | null = null;
+  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean; attr: AttrKey; hands: 1 | 2; dir: number; dist: number; seek: string; herb: string; lock: number; change: 1 | -1; item: string; useCharge: boolean } | null = null;
 
   constructor(private g: Game, private panel: Panel) {}
 
@@ -285,7 +286,7 @@ export class MagicUi {
 
   private pick(id: string) {
     const targets = spellTargets(this.g, id);
-    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false, attr: 'STY', hands: 1, dir: 0, dist: 1, seek: 'fiende', herb: '', lock: 0, change: 1 };
+    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false, attr: 'STY', hands: 1, dir: 0, dist: 1, seek: 'fiende', herb: '', lock: 0, change: 1, item: '', useCharge: false };
     this.panel.refresh();
   }
 
@@ -395,6 +396,27 @@ export class MagicUi {
     }
     if (kind === 'vindkontroll') pick('Vinden', [['1', 'Öka'], ['-1', 'Minska']], String(c.change), (v) => (c.change = v === '1' ? 1 : -1));
     if (kind === 'regnkontroll') pick('Regnet', [['1', 'Få molnen att regna'], ['-1', 'Stoppa regnet']], String(c.change), (v) => (c.change = v === '1' ? 1 : -1));
+    if (kind === 'laddning') {
+      const items = chargeableItems(g, p);
+      if (items.length) c.item = pick('Föremål', items.map((id) => [id, itemInfo(id)?.name ?? id]), items.includes(c.item) ? c.item : items[0], (v) => (c.item = v));
+    }
+    if (kind === 'förändra') {
+      const t = c.target ? g.actor(c.target) : undefined;
+      const options = t ? transformChoices(t.weapon) : [];
+      if (options.length) c.item = pick('Blir', options.map((id) => [id, `${WEAPONS[id].name} (E${transformGrade(t!.weapon, id)})`]), options.includes(c.item) ? c.item : options[0], (v) => (c.item = v));
+    }
+    if (chargeAvailable(g, p) > 0) {
+      const l = el('label', '', `Ta PSY ur laddade föremål (${chargeAvailable(g, p)} kvar) `);
+      const cb = el('input');
+      cb.type = 'checkbox';
+      cb.checked = c.useCharge;
+      cb.onchange = () => {
+        c.useCharge = cb.checked;
+        this.panel.refresh();
+      };
+      l.append(cb);
+      box.append(l);
+    }
     if (kind === 'varseblivning') c.seek = pick('Leta efter', Object.entries(SEEK_KINDS), c.seek, (v) => (c.seek = v));
     if (kind === 'växtkunskap') {
       const herbs = herbChoices(g, p);
@@ -410,7 +432,7 @@ export class MagicUi {
     };
     suicide.append(cb);
     const S = spellS(p, c.id);
-    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide, attr: c.attr, hands: c.hands, at, seek: c.seek, herb: c.herb, change: c.change };
+    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide, attr: c.attr, hands: c.hands, at, seek: c.seek, herb: c.herb, change: c.change, item: c.item || undefined, useCharge: c.useCharge };
     const problem = castProblem(g, c.id, opts);
     box.append(
       suicide,

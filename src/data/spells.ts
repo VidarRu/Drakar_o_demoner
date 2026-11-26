@@ -48,8 +48,8 @@ export const SPELL_LIST: SpellDef[] = [
   spell('allmän', 6, 'SKINGRA', '', S(10, 'rutor'), 'omedelbar', 'Upphäver en annan besvärjelse om E övervinner dess E. Kan förstöra elementarer och avbryta en besvärjelse som håller på att läggas.', { effect: { kind: 'skingra' }, aim: 'valfri' }),
   spell('allmän', 6, 'VARSEBLIVNING', '', S(10, 'rutor'), 'omedelbar', 'Ger riktning och avstånd till det närmaste av något valt slag, en sak per E.', { effect: { kind: 'varseblivning' }, aim: 'själv' }),
   spell('allmän', 9, 'BESKYDDARE', '', 'beröring', 'permanent', 'Skyddande kub (3×3×3 m) som fungerar som ANTIMAGI E1 och ENERGISTRÅLE E1 mot allt som passerar.', { effect: { kind: 'beskyddare' }, aim: 'själv' }),
-  spell('allmän', 14, 'FÖRYNGRA', 'R', 'beröring', Tdiv(4, 'veckor'), 'Gör kroppen E×5 år yngre för en tid. Bara de kroppsliga grundegenskaperna påverkas.'),
-  spell('allmän', 14, 'LADDNING', 'R', 'beröring', 'permanent', 'Lagrar 5 PSY per E i ett föremål, att använda i stället för egna PSY. Ett föremål kan laddas en gång.'),
+  spell('allmän', 14, 'FÖRYNGRA', 'R', 'beröring', Tdiv(4, 'veckor'), 'Gör kroppen E×5 år yngre för en tid. Bara de kroppsliga grundegenskaperna påverkas.', { effect: { kind: 'föryngra' }, aim: 'valfri' }),
+  spell('allmän', 14, 'LADDNING', 'R', 'beröring', 'permanent', 'Lagrar 5 PSY per E i ett föremål, att använda i stället för egna PSY. Ett föremål kan laddas en gång.', { effect: { kind: 'laddning' }, aim: 'själv' }),
 
   // ---------------------------------------------------------------- animism
   spell('animism', 1, 'FINNA VATTEN', '', Sdiv(4, 'rutor'), 'omedelbar', 'Avstånd och riktning till drickbart vatten. Fungerar inte när det regnar.', { effect: { kind: 'finnaVatten' }, aim: 'själv' }),
@@ -63,7 +63,7 @@ export const SPELL_LIST: SpellDef[] = [
   spell('animism', 6, 'ÖRTRANKOR', 'F', 'särskild', T(1, 'SR'), 'Frön kastade (STY+SMI)/2 rutor snärjer offret. En E per 10 STO.', { effect: { kind: 'rankor' }, aim: 'fiende' }),
   spell('animism', 7, 'KAMOUFLAGE', '', 'personlig', Tdiv(4, 'minuter'), 'Magikern smälter in i naturen och kan inte upptäckas så länge hen står still.', { effect: { kind: 'kamouflage' }, aim: 'själv' }),
   spell('animism', 11, 'VINDKONTROLL', '', S(1, 'km'), T(1, 'timmar'), 'Ändrar vinden med E m/s och vrider den ett åttondels varv per E.', { effect: { kind: 'vindkontroll' }, aim: 'själv' }),
-  spell('animism', 12, 'FÖRÄNDRA', '', S(2, 'rutor'), T(1, 'minuter'), 'Förvandlar djur, växt eller mineral till en annan form av samma slag. En E per 3 STO.'),
+  spell('animism', 12, 'FÖRÄNDRA', '', S(2, 'rutor'), T(1, 'minuter'), 'Förvandlar djur, växt eller mineral till en annan form av samma slag. En E per 3 STO. I spelet: ett vapen i handen blir ett annat vapen, också ett järnvapen ett trävapen (Vidar).', { effect: { kind: 'förändra' }, aim: 'valfri' }),
   spell('animism', 12, 'HELA', '', 'beröring', 'omedelbar', 'Läker 1T6 KP per E på en levande varelse. Botar inte sjukdom.', { effect: { kind: 'läka', dice: '1T6' }, aim: 'valfri' }),
   spell('animism', 12, 'KÄNNA FIENDSKAP', '', S(2, 'rutor'), 'omedelbar', 'Känner om en intelligent varelse är fientligt inställd.', { effect: { kind: 'fiendskap' }, aim: 'valfri', resisted: true }),
   spell('animism', 13, 'REGNKONTROLL', '', Sdiv(4, 'km'), T(1, 'minuter'), 'Får molnen att regna, eller stoppar regnet.', { effect: { kind: 'regnkontroll' }, aim: 'själv' }),

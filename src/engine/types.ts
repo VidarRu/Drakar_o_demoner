@@ -203,7 +203,9 @@ export interface ActiveEffect {
     /** TALA MED VARELSE: kan tala med ointelligenta djur, FV `mod` i deras språk. */
     | 'talaMed'
     /** TANKELÄSNING: läser tankarna hos personen `by` (npc-id) i samtal. */
-    | 'tankeläsning';
+    | 'tankeläsning'
+    /** FÖRÄNDRA: vapnet i handen var `item` innan. */
+    | 'förändrad';
   /** Kort text till rollformuläret och loggen. */
   label: string;
   mod?: number;
@@ -246,6 +248,8 @@ export interface ActiveEffect {
   was?: { hostile: boolean };
   /** Tillkallad med TILLKALLA VARELSE: går sin väg när striden är slut. */
   summoned?: boolean;
+  /** Föremålet som effekten gäller (FÖRÄNDRA: vapnet som det var innan). */
+  item?: string;
 }
 
 /** Vädret: himlen och vinden som index i SKY och WIND (rules/tables.ts). */
@@ -341,6 +345,10 @@ export interface PendingSpell {
   scene?: boolean;
   /** VINDKONTROLL och REGNKONTROLL: mer (1) eller mindre (−1). */
   change?: 1 | -1;
+  /** Föremålet: det som LADDNING laddar, eller vapnet som FÖRÄNDRA gör. */
+  item?: string;
+  /** PSY ur laddade föremål (LADDNING) som besvärjelsen får använda. */
+  useCharge?: boolean;
 }
 
 export type WeaponSlot = 'weapon' | 'offhand';
@@ -682,6 +690,8 @@ export interface Character {
   favorUsed?: boolean;
   /** Oljan som är kvar i oljelyktan (sekunder). Utan värde är den full. */
   lanternOil?: number;
+  /** LADDNING: föremål med lagrad PSY. Ett föremål kan bara laddas en gång, så tomma står kvar. */
+  charges?: { item: string; psy: number }[];
 }
 
 /** Valet till en särskild förmåga, som när rollpersonen skapas (engine/creation.ts). */

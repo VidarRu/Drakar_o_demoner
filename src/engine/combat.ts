@@ -7,6 +7,7 @@ import { itemInfo, loadMod, loadPenalty, smiBlocked } from './inventory';
 import { breakConcentration, enemyCast, forgetOnKnockout, resolvePending, wardCheck } from './magic';
 import { torchBurns, updateWeather, weatherRanged } from './weather';
 import { burnLight } from './light';
+import { revertWeapon } from './rituals';
 import { airborne, attrShift, breakHiding, checkCamouflage, controller, flamingHand, flightSpeed, fogBlocks, heatColdResist, inDarkness, inVortex, magicallyHidden, unseen } from './spelleffects';
 import { poisonOnHit, updatePoisons } from './poison';
 import { die, maxRoll, roll } from './dice';
@@ -2513,6 +2514,7 @@ export function takeCover(g: Game, a: Actor) {
 export function onExpire(g: Game, a: Actor, e: ActiveEffect) {
   if (e.kind === 'egenskap' && e.attr && e.mod) changeAttribute(g, a, e.attr, -e.mod);
   if (e.kind === 'kontrollerad' || e.kind === 'svävar' || e.kind === 'vattenandning') revertSpell(g, a, e);
+  if (e.kind === 'förändrad') revertWeapon(g, a, e);
   if ((e.kind === 'osynlig' || e.kind === 'kamouflage') && !a.sneaking && !a.effects.some((x) => x !== e && (x.kind === 'osynlig' || x.kind === 'kamouflage'))) a.hidden = false;
   if (e.kind === 'läkning' && a.alive && e.mod) {
     if (a.detailed) g.heal(e.mod, a);
@@ -2526,6 +2528,7 @@ export function endSpellEffect(g: Game, a: Actor, e: ActiveEffect) {
   a.effects = a.effects.filter((x) => x !== e);
   if (e.kind === 'egenskap' && e.attr && e.mod) changeAttribute(g, a, e.attr, -e.mod);
   if (e.kind === 'kontrollerad' || e.kind === 'svävar' || e.kind === 'vattenandning') revertSpell(g, a, e);
+  if (e.kind === 'förändrad') revertWeapon(g, a, e);
   if ((e.kind === 'osynlig' || e.kind === 'kamouflage') && !a.sneaking && !magicallyHidden(a)) a.hidden = false;
 }
 

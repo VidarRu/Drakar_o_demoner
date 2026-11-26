@@ -523,6 +523,24 @@ Koden står i `src/engine/locks.ts` och `src/engine/worldspells.ts`.
   - Ointelligenta djur på kartan kommer, närmast först och högst 20 STO per E. Det tar 1T10 minuter, och det går inte mitt i en strid.
   - Djuren slåss för gruppen och går efter den. De ger sig av när besvärjelsen tar slut eller när nästa strid är slut, och blir inte fientliga igen.
 
+### Ritualer och FÖRÄNDRA (byggt)
+
+Koden står i `src/engine/rituals.ts`.
+
+- **Ritualer (tolkning):** LADDNING och FÖRYNGRA tar 1T6 timmar att genomföra, i samma mönster som bokens 1T6 SR och 1T6 minuter. De går bara utanför strid och kräver lugn och ro. Läses ritualen ur formelsamlingen tar det 1T6 minuter till.
+- **LADDNING:**
+  - Magikern laddar ett föremål i packningen med 5 PSY per E. Ett föremål kan bara laddas en gång, också när det är tomt.
+  - När magikern lägger en besvärjelse kan hen välja att dra PSY ur laddade föremål som hen bär. De används före hens egna PSY.
+  - Tolkning: alla föremål av samma slag räknas som samma föremål.
+- **FÖRYNGRA (tolkning):** kroppen blir E × 5 år yngre i S/4 veckor. Hamnar personen i en yngre åldersgrupp ändras STY, FYS, SMI och STO efter ålderstabellen så länge besvärjelsen varar. Ankor saknar åldrar och påverkas inte.
+- **FÖRÄNDRA:**
+  - Ett vapen i handen blir ett annat vapen av samma slag (närstrid eller avstånd) i S minuter. Det gäller också ett järnvapen som blir ett trävapen (Vidar), så magikern kan lägga besvärjelser eller en fiende få ett sämre vapen.
+  - Tolkning: det krävs en E per påbörjade 3 kg av det tyngsta av de två vapnen.
+  - Att förvandla djur väntar på figurer och värden för fler djur.
+- **Rättat på vägen:**
+  - Effekter som räknas i dygn återställde inte det de ändrade när de tog slut. Nu gör de det (`onExpire`).
+  - Besvärjelser på figurer utanför gruppen räknades inte ned när tiden gick utanför strid (`expireSpells` i `time.ts`).
+
 ### Ljus (Vidar, byggt)
 
 Koden står i `src/engine/light.ts` och brinntiderna i `LIGHT_SECONDS` i `src/engine/rules/tables.ts`.

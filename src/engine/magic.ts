@@ -48,6 +48,8 @@ import {
 import type { ActiveEffect, Actor, AttrKey, PendingSpell } from './types';
 import { applyWorld, showScenes, worldProblem } from './worldspells';
 import { raining, underSky } from './weather';
+import { charge, chargeableItems, chargeAvailable, drawCharge, rejuvenate, transformChoices, transformGrade, transformWeapon } from './rituals';
+import { WEAPONS } from '../data/weapons';
 import { between, breakHiding, FOG_SIGHT, heatColdResist, inVortex, outdoors, unseen, zonesAt } from './spelleffects';
 import { advanceTime } from './time';
 import { dissolve, spellVersusElemental, summonOrBanish, summonProblem } from './elementals';
@@ -189,7 +191,14 @@ export interface CastOptions {
   herb?: string;
   /** VINDKONTROLL och REGNKONTROLL: mer (1) eller mindre (−1). */
   change?: 1 | -1;
+  /** Föremålet: det som LADDNING laddar, eller vapnet som FÖRÄNDRA gör. */
+  item?: string;
+  /** Dra PSY ur laddade föremål först (LADDNING). */
+  useCharge?: boolean;
 }
+
+/** Ritualer tar timmar (tolkning, i samma mönster som 1T6 SR och 1T6 minuter i boken). */
+export const RITUAL_HOURS = '1T6';
 
 /** Hur långt målet kan flyttas (rutor) med SPRÅNG, LYFT och TELEPORTERA, eller null. */
 export function moveReach(g: Game, id: string, grade: number, t: Actor): number | null {
@@ -287,7 +296,7 @@ export function castProblem(g: Game, id: string, o: CastOptions): string | null 
   if (p.elemental) return 'En elementar lägger inga besvärjelser.';
   if (!spell || !book.spells.includes(id)) return 'Du kan inte den besvärjelsen.';
   if (!spell.effect) return `${spell.name} verkar inte i spelet än.`;
-  if (spell.ritual) return 'Ritualer tar timmar och kan inte läggas här.';
+  if (spell.ritual && (g.state.mode !== 'explore' || !g.canRest())) return 'En ritual tar timmar och kräver lugn och ro.';
   if (!canAct(p) || p.down || p.kp <= 1 || hasEffect(p, 'håller')) return 'Du kan inte lägga besvärjelser nu.';
   if (hasEffect(p, 'stum')) return 'Du kan inte använda magi just nu.';
   const iron = ironProblem(g, p);
@@ -305,7 +314,14 @@ export function castProblem(g: Game, id: string, o: CastOptions): string | null 
   if (o.suicide) {
     if (p.psy <= 0) return 'Du har ingen kraft kvar att offra.';
     if (total > suicideBudget(p.psy, p.attrs.PSY)) return `Du kan offra högst ${suicideBudget(p.psy, p.attrs.PSY)} PSY.`;
-  } else if (total >= p.psy) return `Du har bara ${p.psy} PSY kvar. Når PSY 0 dör du.`;
+  } else if (total >= p.psy + (o.useCharge ? chargeAvailable(g, p) : 0)) return `Du har bara ${p.psy} PSY kvar${o.useCharge ? ` och ${chargeAvailable(g, p)} i laddade föremål` : ''}. Når PSY 0 dör du.`;
+  if (spell.effect.kind === 'laddning' && (!o.item || !chargeableItems(g, p).includes(o.item))) return 'Välj ett föremål som aldrig har laddats.';
+  if (spell.effect.kind === 'förändra') {
+    const t = o.target ? g.actor(o.target) : undefined;
+    if (t && !WEAPONS[t.weapon]) return `${t.name} håller inget vapen att förändra.`;
+    if (t && (!o.item || !transformChoices(t.weapon).includes(o.item))) return 'Välj ett vapen av samma slag.';
+    if (t && o.item && o.grade < transformGrade(t.weapon, o.item)) return `Det krävs E${transformGrade(t.weapon, o.item)} (en E per 3 kg).`;
+  }
   if (spell.effect.kind === 'egenskap' && (!o.attr || !BODY_ATTRS.includes(o.attr))) return 'Välj grundegenskap: STY, FYS, STO, KAR eller SMI.';
   if (spell.effect.kind === 'kamouflage' && !outdoors(g, p)) return 'KAMOUFLAGE verkar bara ute i naturen.';
   if (spell.effect.kind === 'astralvapen') {
@@ -377,6 +393,8 @@ export function castSpell(g: Game, id: string, o: CastOptions): string | null {
     seek: o.seek,
     herb: o.herb,
     change: o.change,
+    item: o.item,
+    useCharge: o.useCharge,
   };
   // Den som lägger magi syns igen (OSYNLIGHET och KAMOUFLAGE).
   breakHiding(g, p, 'lägger magi');
@@ -407,7 +425,12 @@ export function castSpell(g: Game, id: string, o: CastOptions): string | null {
       const secs = spell.quick ? roll(BOOK_CAST.quickRounds, g.rng) * ROUND_SECONDS : roll(BOOK_CAST.normalMinutes, g.rng) * 60;
       advanceTime(g, secs, 'aktiv');
       g.log(`${p.name} läser ${spell.name} ur formelsamlingen.`);
-    } else if (!spell.quick) advanceTime(g, ROUND_SECONDS, 'aktiv');
+    }
+    if (spell.ritual) {
+      const hours = roll(RITUAL_HOURS, g.rng);
+      advanceTime(g, hours * 3600, 'vila');
+      g.log(`${p.name} genomför ritualen ${spell.name} (${hours} timmar).`);
+    } else if (memorized && !spell.quick) advanceTime(g, ROUND_SECONDS, 'aktiv');
     resolve(g, pending);
   }
   g.changed();
@@ -456,7 +479,10 @@ function resolve(g: Game, s: PendingSpell) {
     cost = Math.max(1, Math.floor(cost / 2));
     a.effects = a.effects.filter((e) => e !== half);
   }
-  a.psy -= cost;
+  // LADDNING: PSY ur laddade föremål används först.
+  const fromItems = s.useCharge ? drawCharge(g, a, cost) : 0;
+  if (fromItems) g.log(`${a.name} drar ${fromItems} PSY ur laddade föremål.`);
+  a.psy -= cost - fromItems;
   const head = `${spell.name} E${total} (S${S}, T20: ${check.roll} mot ${check.target}, −${cost} PSY)`;
   if (check.result === 'fummel') {
     g.log(`${head}: snedtändning!`);
@@ -853,6 +879,16 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       if (!applyWorld(g, caster, t, s, spell, grade, effectFor(caster, spell, s, grade, g), seconds, rangeSquares(g, caster, spell, s.extraRange))) g.log(`${spell.name} verkar inte i spelet än.`);
       return;
     }
+    case 'laddning':
+      charge(g, caster, s.item!, grade);
+      return;
+    case 'föryngra':
+      rejuvenate(g, t, grade, effectFor(caster, spell, s, grade, g));
+      return;
+    case 'förändra':
+      if (s.item) transformWeapon(g, t, s.item, effectFor(caster, spell, s, grade, g));
+      if (t !== caster && foeOf(caster, t)) provoke(g, t, caster);
+      return;
     case 'rankor': {
       const need = Math.ceil(t.attrs.STO / 10);
       if (grade < need) {

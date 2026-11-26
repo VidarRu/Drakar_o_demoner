@@ -7,6 +7,7 @@ import { castProblem, castSpell, enemyCast, resolvePending, spellS, spellTargets
 import { maxKp } from '../src/engine/rules';
 import { isLocked, lockAt, lootChest, lootProblem, pickLock, pickProblem } from '../src/engine/locks';
 import { herbChoices } from '../src/engine/worldspells';
+import { chargeAvailable } from '../src/engine/rituals';
 import { distance } from '../src/engine/map';
 import { dialogDef } from '../src/ai/dialogClient';
 import type { Actor, Character } from '../src/engine/types';
@@ -650,6 +651,69 @@ describe('lås och besvärjelser utanför strid', () => {
     g2.rng = queue(face(2));
     expect(castSpell(g2, 'telepati', { grade: 1 })).toBeNull();
     expect(g2.state.log.join('\n')).toMatch(/Ingen svarar i tanken/);
+  });
+});
+
+describe('ritualer och FÖRÄNDRA', () => {
+  function ritualist() {
+    const r = explore();
+    const { g, p } = r;
+    for (const a of g.state.actors) if (a !== p && a.hostile) a.alive = false;
+    g.char.spells.push('laddning', 'foryngra', 'forandra');
+    g.char.memorized.push('laddning', 'foryngra', 'forandra');
+    p.skills['magiskola:animism'] = 18;
+    p.skills['magiskola:elementarmagi'] = 18;
+    return r;
+  }
+
+  it('LADDNING tar timmar, lagrar 5 PSY per E och ger PSY till nästa besvärjelse', () => {
+    const { g, p } = ritualist();
+    const t = g.state.time;
+    // Ritualen tar 1T6 timmar (3), och slaget (S 7: T20 2) lyckas.
+    g.rng = queue(face(3, 6), face(2));
+    expect(castSpell(g, 'laddning', { grade: 2, item: 'trastav' })).toBeNull();
+    expect(g.state.time - t).toBeGreaterThanOrEqual(3 * 3600);
+    expect(chargeAvailable(g, p)).toBe(10);
+    expect(castProblem(g, 'laddning', { grade: 1, item: 'trastav' })).toMatch(/aldrig har laddats/);
+    p.psy = 5;
+    // ELD E4 skulle ta PSY till 1; med laddningen räcker det.
+    const alf = g.state.actors.find((a) => a.defId === 'svartalf')!;
+    alf.alive = true;
+    alf.hostile = true;
+    alf.x = 13;
+    alf.y = 12;
+    g.updateFov();
+    expect(castProblem(g, 'eld', { grade: 5, target: alf.id })).toMatch(/PSY kvar/);
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'eld', { grade: 4, target: alf.id, useCharge: true })).toBeNull();
+    expect(p.psy).toBe(5);
+    expect(chargeAvailable(g, p)).toBe(6);
+  });
+
+  it('FÖRYNGRA gör en gammal kropp yngre en tid', () => {
+    const { g, p } = ritualist();
+    g.char.age = { group: 'gammal', years: 65 };
+    const sty = p.attrs.STY;
+    g.rng = queue(face(2), face(1, 6));
+    expect(castSpell(g, 'foryngra', { grade: 2, target: p.id })).toBeNull();
+    // 65 − 10 = 55 år: medelålders i stället för gammal, STY −2 i stället för −5.
+    expect(p.attrs.STY).toBe(sty + 3);
+    g.sleep(24 * 30);
+    expect(p.attrs.STY).toBe(sty);
+  });
+
+  it('FÖRÄNDRA gör en fiendes järnsvärd till en trästav en stund', () => {
+    const { g, p, foe } = ritualist();
+    foe.hostile = true;
+    g.updateFov();
+    expect(foe.weapon).toBe('kortsvard');
+    expect(castProblem(g, 'forandra', { grade: 1, target: foe.id, item: 'trastav' })).toBeNull();
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'forandra', { grade: 1, target: foe.id, item: 'trastav' })).toBeNull();
+    expect(foe.weapon).toBe('trastav');
+    g.sleep(1);
+    expect(foe.weapon).toBe('kortsvard');
+    expect(p.alive).toBe(true);
   });
 });
 
