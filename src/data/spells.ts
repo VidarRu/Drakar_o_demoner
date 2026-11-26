@@ -52,7 +52,7 @@ export const SPELL_LIST: SpellDef[] = [
   spell('allmän', 14, 'LADDNING', 'R', 'beröring', 'permanent', 'Lagrar 5 PSY per E i ett föremål, att använda i stället för egna PSY. Ett föremål kan laddas en gång.', { effect: { kind: 'laddning' }, aim: 'själv' }),
 
   // ---------------------------------------------------------------- animism
-  spell('animism', 1, 'FINNA VATTEN', '', Sdiv(4, 'rutor'), 'omedelbar', 'Avstånd och riktning till drickbart vatten. Fungerar inte när det regnar.', { effect: { kind: 'finnaVatten' }, aim: 'själv' }),
+  spell('animism', 1, 'FINNA VATTEN', '', Sdiv(4, 'rutor'), 'omedelbar', 'Avstånd och riktning till drickbart vatten. Fungerar inte när det regnar. I spelet (Vidar): hittar alltid vatten, hur långt bort det än är.', { effect: { kind: 'finnaVatten' }, aim: 'själv' }),
   spell('animism', 2, 'TRÄELD', 'FK', 'beröring', 'omedelbar', 'Tänder ett stycke torrt trä, ett till per extra E. I spelet (Vidar): en kvist blir en fackla som brinner lika länge som en vanlig.', { effect: { kind: 'tända' }, aim: 'valfri' }),
   spell('animism', 4, 'SPÅRLÖS', '', 'beröring', Tdiv(4, 'minuter'), 'Lämnar varken spår eller lukt, en varelse till per extra E.', { effect: { kind: 'spårlös' }, aim: 'valfri' }),
   spell('animism', 5, 'VÄXTKUNSKAP', '', 'beröring', 'omedelbar', 'All kunskap om växter. I spelet (Vidar): hittar en ört som växer i närheten, 1T4 doser på en timme, som bereds med Drogkunskap eller Giftkunskap.', { effect: { kind: 'växtkunskap' }, aim: 'själv' }),

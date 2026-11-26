@@ -114,9 +114,10 @@ export function applyWorld(g: Game, caster: Actor, t: Actor, s: PendingSpell, sp
       return true;
     }
     case 'finnaVatten': {
-      // Räckvidden är den som står i regeldatan (S/4 rutor).
-      const w = nearestTile(g, caster, range, (x, y) => tileAt(g.map, x, y).name === 'vatten');
-      g.log(w ? `${caster.name} känner vatten ${meters(caster, w)} meter åt ${compass(caster, w)}.` : `${caster.name} känner inget vatten inom ${Math.round(range * 1.5)} meter.`);
+      // Vidar: räckvidden spelar ingen roll, magikern hittar alltid vatten. Finns det vatten på
+      // kartan pekar magin ut det närmaste; annars en källa i närheten.
+      const w = nearestTile(g, caster, Math.max(g.map.w, g.map.h), (x, y) => tileAt(g.map, x, y).name === 'vatten');
+      g.log(w ? `${caster.name} känner vatten ${meters(caster, w)} meter åt ${compass(caster, w)}.` : `${caster.name} hittar en liten källa med drickbart vatten i närheten.`);
       return true;
     }
     case 'varseblivning': {

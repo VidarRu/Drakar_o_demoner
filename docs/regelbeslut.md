@@ -508,7 +508,7 @@ Koden står i `src/engine/locks.ts` och `src/engine/worldspells.ts`.
 - **Bryta upp (tolkning):** STY mot låsets svårighetsgrad på motståndstabellen, 20 mer om den är förseglad (FÖRSEGLA ger 20 KP). Varje försök tar en minut.
 - **ÖPPNA:** öppnar ett lås som magikern rör vid. En försegling bryts om E övervinner förseglingens E på motståndstabellen.
 - **FÖRSEGLA:** en dörr eller kista som magikern rör vid sitter ihop så länge besvärjelsen varar. Ingen kan gå igenom den. Tolkning: fienderna slår inte sönder dörrar än.
-- **FINNA VATTEN:** riktning och avstånd till närmaste vatten inom räckvidden i regeldatan (S/4 rutor). Regnet stoppar den när vädret finns. **Vidar:** när spelet får regler för att äta och dricka ersätter besvärjelsen en dagsranson vatten.
+- **FINNA VATTEN (Vidar):** räckvidden spelar ingen roll, magikern hittar alltid vatten. Finns det vatten på kartan får hen riktning och avstånd till det närmaste, annars hittar hen en källa i närheten. Den fungerar inte när det regnar. **Vidar:** när spelet får regler för att äta och dricka ersätter besvärjelsen en dagsranson vatten.
 - **VARSEBLIVNING:** magikern väljer fientliga varelser, personer, djur, utgångar, kistor eller föremål på marken. Hen får riktning och avstånd till de E närmaste inom räckvidden.
 - **VÄXTKUNSKAP (Vidar och tolkning):** magikern hittar en ört som växer i närheten, utan slag (Vidar). Tolkning: det tar en timme och ger 1T4 doser, som bereds som vanligt med Drogkunskap eller Giftkunskap.
 - **TRÄELD och LÅGA (Vidar):** magikern plockar upp en kvist och tänder den med magisk eld. Den blir en fackla i packningen och brinner lika länge som en vanlig. LÅGA lyser också själv en ruta runt magikern i 1T3 SR.
@@ -527,7 +527,7 @@ Koden står i `src/engine/locks.ts` och `src/engine/worldspells.ts`.
 
 Koden står i `src/engine/rituals.ts`.
 
-- **Ritualer (tolkning):** LADDNING och FÖRYNGRA tar 1T6 timmar att genomföra, i samma mönster som bokens 1T6 SR och 1T6 minuter. De går bara utanför strid och kräver lugn och ro. Läses ritualen ur formelsamlingen tar det 1T6 minuter till.
+- **Ritualer (Vidar):** en ritual tar lika många timmar som effektgraden. LADDNING och FÖRYNGRA går bara utanför strid och kräver lugn och ro. Läses ritualen ur formelsamlingen tar det 1T6 minuter till (tolkning).
 - **LADDNING:**
   - Magikern laddar ett föremål i packningen med 5 PSY per E. Ett föremål kan bara laddas en gång, också när det är tomt.
   - När magikern lägger en besvärjelse kan hen välja att dra PSY ur laddade föremål som hen bär. De används före hens egna PSY.

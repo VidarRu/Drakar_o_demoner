@@ -197,8 +197,8 @@ export interface CastOptions {
   useCharge?: boolean;
 }
 
-/** Ritualer tar timmar (tolkning, i samma mönster som 1T6 SR och 1T6 minuter i boken). */
-export const RITUAL_HOURS = '1T6';
+/** En ritual tar lika många timmar som effektgraden (Vidar). */
+export const ritualHours = (totalGrade: number) => Math.max(1, totalGrade);
 
 /** Hur långt målet kan flyttas (rutor) med SPRÅNG, LYFT och TELEPORTERA, eller null. */
 export function moveReach(g: Game, id: string, grade: number, t: Actor): number | null {
@@ -427,7 +427,7 @@ export function castSpell(g: Game, id: string, o: CastOptions): string | null {
       g.log(`${p.name} läser ${spell.name} ur formelsamlingen.`);
     }
     if (spell.ritual) {
-      const hours = roll(RITUAL_HOURS, g.rng);
+      const hours = ritualHours(totalGrade(pending));
       advanceTime(g, hours * 3600, 'vila');
       g.log(`${p.name} genomför ritualen ${spell.name} (${hours} timmar).`);
     } else if (memorized && !spell.quick) advanceTime(g, ROUND_SECONDS, 'aktiv');

@@ -555,6 +555,12 @@ describe('lås och besvärjelser utanför strid', () => {
     g.rng = queue(face(2));
     expect(castSpell(g, 'finna_vatten', { grade: 1 })).toBeNull();
     expect(g.state.log.join('\n')).toMatch(/känner vatten 3 meter åt söder/);
+    // Räckvidden spelar ingen roll: långt från dammen hittar magin den ändå.
+    p.x = 38;
+    p.y = 12;
+    g.rng = queue(face(2));
+    castSpell(g, 'finna_vatten', { grade: 1 });
+    expect(g.state.log.join('\n')).toMatch(/känner vatten \d+ meter åt (sydväst|väster)/);
     g.rng = queue(face(2));
     expect(castSpell(g, 'varseblivning', { grade: 2, seek: 'utgång' })).toBeNull();
     expect(g.state.log.join('\n')).toMatch(/förnimmer utgångar: Vägen västerut \d+ m åt väster/);
@@ -669,10 +675,10 @@ describe('ritualer och FÖRÄNDRA', () => {
   it('LADDNING tar timmar, lagrar 5 PSY per E och ger PSY till nästa besvärjelse', () => {
     const { g, p } = ritualist();
     const t = g.state.time;
-    // Ritualen tar 1T6 timmar (3), och slaget (S 7: T20 2) lyckas.
-    g.rng = queue(face(3, 6), face(2));
+    // Ritualen tar lika många timmar som E (2), och slaget (S 7: T20 2) lyckas.
+    g.rng = queue(face(2));
     expect(castSpell(g, 'laddning', { grade: 2, item: 'trastav' })).toBeNull();
-    expect(g.state.time - t).toBeGreaterThanOrEqual(3 * 3600);
+    expect(g.state.time - t).toBeGreaterThanOrEqual(2 * 3600);
     expect(chargeAvailable(g, p)).toBe(10);
     expect(castProblem(g, 'laddning', { grade: 1, item: 'trastav' })).toMatch(/aldrig har laddats/);
     p.psy = 5;
@@ -694,7 +700,7 @@ describe('ritualer och FÖRÄNDRA', () => {
     const { g, p } = ritualist();
     g.char.age = { group: 'gammal', years: 65 };
     const sty = p.attrs.STY;
-    g.rng = queue(face(2), face(1, 6));
+    g.rng = queue(face(2));
     expect(castSpell(g, 'foryngra', { grade: 2, target: p.id })).toBeNull();
     // 65 − 10 = 55 år: medelålders i stället för gammal, STY −2 i stället för −5.
     expect(p.attrs.STY).toBe(sty + 3);

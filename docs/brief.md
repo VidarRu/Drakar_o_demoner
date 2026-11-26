@@ -118,7 +118,7 @@ förslagets avsnitt 5.
 - **Klart (steg 7, vädret):** `src/engine/weather.ts`. `GameState.weather` har himlen och vinden (`WeatherState`). `updateWeather` körs i `advanceTime` och i början av varje stridsrunda. `torchBurns` ersätter `!torchOut` där ljuset räknas, och `weatherRanged` ger avdragen på skott. `holdWeather` används av VINDKONTROLL och REGNKONTROLL. NEDKALLA ÅSKVIGG är BLIXT med `needsRain`. Testerna står i `tests/weather.test.ts`.
 - **Klart (ljus):** facklor brinner en timme och oljelyktan sex timmar (`src/engine/light.ts`, `Actor.light`, `Character.lanternOil`). `burnLight` körs i `passTime` och i början av varje stridsrunda, och `ensureLight` när spelet laddas. `torchBurns` kräver ett ljus som brinner. I testerna tänder `lit` i `tests/helpers.ts` en fackla.
 - **Klart (TELEPATI och TANKEÖVERFÖRING, Vidar):** rollspel i modulernas scener, och TANKEÖVERFÖRING kan få en fiende att slå moral. Hela VIGGFÅNGARE blir PSY.
-- **Klart (ritualerna och FÖRÄNDRA):** `src/engine/rituals.ts`. Ritualer tar 1T6 timmar (`RITUAL_HOURS` i `magic.ts`). LADDNING sparas i `Character.charges`, och `CastOptions.useCharge` drar PSY ur dem. FÖRYNGRA ändrar de kroppsliga grundegenskaperna efter ålderstabellen. FÖRÄNDRA byter vapnet i handen (effekten `förändrad`). Besvärjelser på figurer utanför gruppen räknas ned med `expireSpells` i `time.ts`.
+- **Klart (ritualerna och FÖRÄNDRA):** `src/engine/rituals.ts`. En ritual tar lika många timmar som effektgraden (Vidar, `ritualHours` i `magic.ts`). LADDNING sparas i `Character.charges`, och `CastOptions.useCharge` drar PSY ur dem. FÖRYNGRA ändrar de kroppsliga grundegenskaperna efter ålderstabellen. FÖRÄNDRA byter vapnet i handen (effekten `förändrad`). Besvärjelser på figurer utanför gruppen räknas ned med `expireSpells` i `time.ts`.
 - **Alla besvärjelser verkar nu**, utom att förvandla djur med FÖRÄNDRA. Där väntar SYN på magiska föremål, SPÅRLÖS på världskartan och FINNA VATTEN på reglerna för mat och dryck.
 - **Nästa:** Hamnbytare, magiska föremål (som SYN identifierar och Magisk empati behöver) och världskartan.
 - **Kvar av förmågorna:** Gott balanssinne (när SPRÅNG byggs), Absolut ögonmått och God tidskänsla (gränssnittet), Mottagligt medium och Magisk empati (väntar på kanalisering och magiska föremål), avdraget för den andra handen och Hamnbytare.
@@ -201,7 +201,5 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 ## Öppna frågor till Vidar
 
 - Vädret (`docs/regelbeslut.md` under Vädret): chanserna, att det ändras klockan sex och arton, vindens avdrag på skott, VINDKONTROLL och VIGGFÅNGARE är tolkningar. Tolkningarna för ljuset (se Ljus).
-- Ritualerna: 1T6 timmar är en tolkning. Kontrollera i Bok III hur lång tid en ritual tar.
-- FINNA VATTEN har räckvidden S/4 rutor i regeldatan (2–4 rutor). Kontrollera i Bok III om det ska vara S/4 km.
 - Tolkningarna för låsen och besvärjelserna utanför strid (`docs/regelbeslut.md` under Lås och besvärjelser utanför strid).
 - Tolkningarna för besvärjelserna i strid och fiendens val av effektgrad (`docs/regelbeslut.md` under Fiendernas magi och Besvärjelser i strid).
