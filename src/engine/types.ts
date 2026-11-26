@@ -486,6 +486,21 @@ export interface Actor {
   loot?: string[];
   /** Besvärjelser som en varelse utan rollformulär kan (alltid i minnet). */
   spells?: string[];
+  /** Hamnbytare: figuren är ett djur just nu (se engine/shapeshift.ts). */
+  shape?: ShapeState;
+}
+
+/** Hamnbytarens djurhamn och den mänskliga kroppen som väntar. */
+export interface ShapeState {
+  /** Index i HAMN. */
+  animal: number;
+  /** Speltiden när förvandlingen skedde, och hur många PSY-slag som har slagits. */
+  since: number;
+  checks: number;
+  /** KP som var förlorade när förvandlingen skedde. */
+  lost: number;
+  /** Den mänskliga kroppen, som den var. */
+  human: Pick<Actor, 'attrs' | 'skills' | 'maxKp' | 'kp' | 'locKp' | 'locMax' | 'move' | 'detailed' | 'weapon' | 'offhand' | 'armor' | 'shield' | 'naturalArmor' | 'sprite' | 'sight' | 'darkvision' | 'bv' | 'torchOut'>;
 }
 
 /** Hur en följeslagare följer med: dagslön, en del av bytet eller gratis (husregel). */
@@ -692,6 +707,8 @@ export interface Character {
   lanternOil?: number;
   /** LADDNING: föremål med lagrad PSY. Ett föremål kan bara laddas en gång, så tomma står kvar. */
   charges?: { item: string; psy: number }[];
+  /** Hamnbytare som har fastnat i sin djurhamn för alltid. */
+  stuckInShape?: boolean;
 }
 
 /** Valet till en särskild förmåga, som när rollpersonen skapas (engine/creation.ts). */
@@ -706,6 +723,8 @@ export interface AbilityChoice {
   profession?: string;
   /** Folkslaget eller rasen (Baneman). */
   foe?: string;
+  /** Djuret för Hamnbytare (1–6 i HAMN), slaget första gången förmågan används. */
+  animal?: number;
   /** Höjd grundegenskap: +2 på en eller +1 på tre (inte STO). */
   attrs?: Partial<Record<AttrKey, number>>;
 }

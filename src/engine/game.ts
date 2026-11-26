@@ -38,6 +38,7 @@ import { fogBlocks, passable } from './spelleffects';
 import { lockBlocks } from './locks';
 import { startWeather } from './weather';
 import { ensureLight, toggleLight } from './light';
+import { shapeAttack, shapeshift as shapeshiftActor } from './shapeshift';
 import { wardCheck } from './magic';
 
 export const FOV_RADIUS = 8;
@@ -728,6 +729,8 @@ export class Game {
    * av samma slag (husregel, se docs/regelbeslut.md).
    */
   skillFv(a: Actor, skill: string): number {
+    // Hamnbytare: djurets anfall har djurets FV.
+    if (skill === 'hamn') return shapeAttack(a)?.fv ?? 0;
     // ASTRALVAPEN: FV är magikerns S när besvärjelsen lades.
     if (skill === 'astralvapen') return a.effects.find((e) => e.kind === 'astralvapen')?.mod ?? 0;
     const own = a.skills[skill];
@@ -824,6 +827,8 @@ export class Game {
 
   /** Kan ledaren tala med figuren? Personer, och djur som inte är fientliga med TALA MED VARELSE. */
   canTalk(a: Actor): boolean {
+    // Ett djur kan inte tala med människor.
+    if (this.leader.shape) return false;
     if (a.kind === 'npc') return true;
     return !a.hostile && hero.isCommonAnimal(this, a) && this.leader.effects.some((e) => e.kind === 'talaMed');
   }
@@ -837,6 +842,14 @@ export class Game {
     this.log(`${p.name} landar.`);
     this.changed();
     return null;
+  }
+
+  /** Hamnbytare: förvandlas till djuret, eller tillbaka till människa. */
+  shapeshift(): string | null {
+    const r = shapeshiftActor(this, this.player);
+    if (r) this.log(r);
+    this.changed();
+    return r;
   }
 
   /** Laddar (eller avbryter) en hjältepoäng för nästa egna slag hos den som styrs. */

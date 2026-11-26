@@ -52,6 +52,7 @@ export function lightUp(g: Game, a: Actor): boolean {
 
 /** Tänder eller släcker ljuset. Returnerar ett meddelande om det inte gick. */
 export function toggleLight(g: Game, a: Actor): string | null {
+  if (a.shape) return 'Ett djur kan inte bära en fackla.';
   if (!a.torchOut) {
     a.torchOut = true;
     g.log(`${a.name} släcker ${a.light?.kind === 'oljelykta' ? 'oljelyktan' : 'facklan'}.`);

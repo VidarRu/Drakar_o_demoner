@@ -7,6 +7,7 @@ import { SKILLS } from '../data/skills';
 import type { Game } from './game';
 import { distance, inBounds, tileAt, walkable } from './map';
 import { baseChance } from './rules';
+import { shapeFlight, shapeSwims } from './shapeshift';
 import type { Actor, SpellZone } from './types';
 
 // ------------------------------------------------------------------ zoner
@@ -121,7 +122,9 @@ export function airborne(a: Actor): boolean {
 /** Flygfarten med FLYGA, eller null för den som inte svävar. LEVITATION ger 0. */
 export function flightSpeed(a: Actor): number | null {
   const e = a.effects.filter((x) => x.kind === 'svävar');
-  return e.length ? Math.max(...e.map((x) => x.mod ?? 0)) : null;
+  if (e.length) return Math.max(...e.map((x) => x.mod ?? 0));
+  // Hamnbytare som hök eller svan flyger (men svävar inte: de slåss nere vid marken).
+  return shapeFlight(a);
 }
 
 /** Kan figuren gå in på rutan? Den som flyger tar sig över vatten och träd. */
@@ -129,8 +132,8 @@ export function passable(g: Game, a: Actor, x: number, y: number): boolean {
   if (walkable(g.map, x, y)) return true;
   if (!inBounds(g.map, x, y)) return false;
   const name = tileAt(g.map, x, y)?.name;
-  // VATTENANDNING: man kan gå ut i vattnet.
-  if (name === 'vatten' && a.effects.some((e) => e.kind === 'vattenandning')) return true;
+  // VATTENANDNING: man kan gå ut i vattnet, och en svan simmar.
+  if (name === 'vatten' && (a.effects.some((e) => e.kind === 'vattenandning') || shapeSwims(a))) return true;
   if (!(flightSpeed(a) ?? 0)) return false;
   return name === 'vatten' || name === 'träd';
 }

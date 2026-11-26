@@ -294,6 +294,7 @@ export function castProblem(g: Game, id: string, o: CastOptions): string | null 
   const book = spellbook(g, p);
   const spell = SPELLS[id];
   if (p.elemental) return 'En elementar lägger inga besvärjelser.';
+  if (p.shape) return 'I djurhamn kan du inte lägga besvärjelser.';
   if (!spell || !book.spells.includes(id)) return 'Du kan inte den besvärjelsen.';
   if (!spell.effect) return `${spell.name} verkar inte i spelet än.`;
   if (spell.ritual && (g.state.mode !== 'explore' || !g.canRest())) return 'En ritual tar timmar och kräver lugn och ro.';

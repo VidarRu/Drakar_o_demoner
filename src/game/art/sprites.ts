@@ -328,44 +328,106 @@ function drawShield(f: Fig, s: NonNullable<Look['shield']>, ax: number, cy: numb
   f.ellipse(cx, cy, 1.2, 1.2, s.emblem ?? BRASS, 0.2);
 }
 
-// ------------------------------------------------------------------ varg
+// ------------------------------------------------------------------ djur (varg och Hamnbytarens hamnar)
 
-function wolf(f: Fig, frame: number) {
-  const fur = '#7a7680';
-  const dark = '#55515c';
+interface Beast {
+  fur: string;
+  dark: string;
+  belly: string;
+  eye: string;
+  /** Kroppens halva bredd och höjd, och benens längd (lägsta y för fötterna är 28). */
+  rx: number;
+  ry: number;
+  /** Kroppens mitt i höjdled. */
+  cy: number;
+  ears: 'spetsiga' | 'runda' | 'horn';
+  tail: 'yvig' | 'kort' | 'lång';
+  /** Huvudets storlek och nosens längd. */
+  head: number;
+  snout: number;
+}
+
+const BEASTS: Record<string, Beast> = {
+  varg: { fur: '#7a7680', dark: '#55515c', belly: '#9a96a0', eye: '#f0c020', rx: 9, ry: 4.6, cy: 18, ears: 'spetsiga', tail: 'yvig', head: 3.6, snout: 4 },
+  bjorn: { fur: '#6a4a30', dark: '#4a3222', belly: '#7e5a3c', eye: '#20140c', rx: 10.5, ry: 6, cy: 17, ears: 'runda', tail: 'kort', head: 4.4, snout: 3 },
+  hjort: { fur: '#a06a3c', dark: '#7a4e2a', belly: '#e0c8a0', eye: '#20140c', rx: 8.5, ry: 4, cy: 16, ears: 'horn', tail: 'kort', head: 3.2, snout: 4 },
+  katt: { fur: '#8a7a68', dark: '#5e5246', belly: '#b8a890', eye: '#7ad040', rx: 5.5, ry: 3, cy: 23, ears: 'spetsiga', tail: 'lång', head: 2.8, snout: 1 },
+};
+
+function beast(f: Fig, b: Beast, frame: number) {
+  const { fur, dark } = b;
   const bob = frame === 0 ? 0 : -1;
+  const x0 = 14.5 - b.rx;
+  const x1 = 14.5 + b.rx;
+  const top = b.cy + bob;
   // Svans
-  f.part(2, 15 + bob, 6, 18 + bob, dark, (x, y) => y - (15 + bob) >= Math.floor((6 - x) / 2) - 1);
-  // Bakre ben (det bortre mörkare)
+  if (b.tail === 'yvig') f.part(Math.floor(x0) - 2, top - 3, Math.floor(x0) + 2, top, dark, (x, y) => y - (top - 3) >= Math.floor((Math.floor(x0) + 2 - x) / 2) - 1);
+  else if (b.tail === 'lång') for (let i = 0; i < 5; i++) f.px(Math.floor(x0) - i, top - 1 - Math.floor(i / 2), dark);
+  else f.part(Math.floor(x0) - 1, top - 2, Math.floor(x0), top - 1, dark);
+  // Ben: de bortre mörkare
+  const legX = [Math.floor(x0) + 2, Math.ceil(x1) - 3];
   const legs: [number, number, string][] = [
-    [8, frame === 1 ? 2 : 0, dark],
-    [19, frame === 2 ? 2 : 0, dark],
-    [11, frame === 2 ? 2 : 0, fur],
-    [22, frame === 1 ? 2 : 0, fur],
+    [legX[0], frame === 1 ? 2 : 0, dark],
+    [legX[1], frame === 2 ? 2 : 0, dark],
+    [legX[0] + 3, frame === 2 ? 2 : 0, fur],
+    [legX[1] + 3, frame === 1 ? 2 : 0, fur],
   ];
-  for (const [x, lift, c] of legs.slice(0, 2)) f.part(x, 21 + bob, x + 1, 28 - lift, c);
-  // Kropp
-  f.ellipse(14.5, 18 + bob, 9, 4.6, fur);
-  f.part(9, 19 + bob, 21, 21 + bob, '#9a96a0', (x, y) => y > 19 + bob || (x > 11 && x < 19), -0.1); // ljus buk
-  f.ellipse(20, 16 + bob, 4, 4.2, fur, 0.1); // bröst och nacke
+  const legTop = Math.round(top + b.ry * 0.6);
+  for (const [x, lift, c] of legs.slice(0, 2)) f.part(x, legTop, x + 1, 28 - lift, c);
+  // Kropp och buk
+  f.ellipse(14.5, top, b.rx, b.ry, fur);
+  f.part(Math.floor(x0) + 2, Math.round(top + b.ry * 0.3), Math.ceil(x1) - 2, Math.round(top + b.ry * 0.7), b.belly, undefined, -0.1);
   for (const [x, lift, c] of legs.slice(2)) {
-    f.part(x, 21 + bob, x + 1, 28 - lift, c);
+    f.part(x, legTop, x + 1, 28 - lift, c);
     f.px(x + 1, 28 - lift, tones(c)[0]);
   }
-  // Huvud
-  f.ellipse(24, 12 + bob, 3.6, 3.2, fur, 0.15);
-  f.part(26, 12 + bob, 30, 14 + bob, '#8d8993', (x, y) => !(x === 30 && y === 12 + bob));
-  f.px(30, 12 + bob, '#141016'); // nos
-  f.px(25, 11 + bob, '#f0c020'); // öga
-  f.px(28, 14 + bob, '#3a2a2a'); // mun
-  // Öron
-  for (const ex of [21, 24]) {
-    f.px(ex, 8 + bob, tones(dark)[2]);
-    f.px(ex, 9 + bob, tones(fur)[2]);
-    f.px(ex + 1, 9 + bob, tones(fur)[1]);
+  // Huvud och nos
+  const hx = Math.ceil(x1) + 1;
+  const hy = Math.round(top - b.ry) + 1;
+  f.ellipse(hx, hy, b.head, b.head * 0.9, fur, 0.15);
+  if (b.snout > 1) f.part(hx + 1, hy, hx + b.snout, hy + 2, b.belly, (x, y) => !(x === hx + b.snout && y === hy));
+  f.px(hx + Math.max(1, b.snout), hy, '#141016');
+  f.px(hx, hy - 1, b.eye);
+  // Öron eller horn
+  if (b.ears === 'horn') {
+    for (let i = 0; i < 5; i++) f.px(hx - 1 - (i % 2), hy - 3 - i, '#d8c8a0');
+    for (let i = 0; i < 3; i++) f.px(hx + 1 + i, hy - 5 - i, '#d8c8a0');
+  } else {
+    const ey = hy - Math.round(b.head);
+    for (const ex of [hx - 2, hx + 1]) {
+      f.px(ex, ey, tones(dark)[2]);
+      if (b.ears === 'spetsiga') f.px(ex, ey - 1, tones(dark)[2]);
+    }
   }
-  // Ragg längs ryggen
-  for (let x = 9; x <= 19; x += 2) f.px(x, 13 + bob + (x > 15 ? -1 : 0), tones(fur)[3]);
+}
+
+/** Hök och svan: en fågel i profil, med vingarna uppe i gåramarna. */
+const BIRDS: Record<string, { body: string; wing: string; beak: string; eye: string; size: number; neck: number }> = {
+  hok: { body: '#8a6440', wing: '#5e4228', beak: '#e0b030', eye: '#f0c020', size: 1, neck: 0 },
+  svan: { body: '#eeeae4', wing: '#d0ccc6', beak: '#e07028', eye: '#141016', size: 1.2, neck: 8 },
+};
+
+function bird(f: Fig, name: string, frame: number) {
+  const b = BIRDS[name];
+  const k = b.size;
+  const cy = 20;
+  // Stjärt
+  f.part(Math.round(15 - 7 * k), cy - 1, Math.round(15 - 4 * k), cy + 1, b.wing);
+  // Kropp
+  f.ellipse(15, cy, 5 * k, 3.2 * k, b.body);
+  // Vingen: nere när den står still, uppe i gåramarna (flaxar)
+  if (frame === 0) f.ellipse(14, cy - 0.5, 4 * k, 2 * k, b.wing, -0.1);
+  else f.part(Math.round(12 - 2 * k), Math.round(cy - 9 * k), 16, cy - 2, b.wing, (x, y) => y >= cy - 2 - (x - (12 - 2 * k)) * (frame === 1 ? 1.6 : 1.2));
+  // Hals och huvud
+  const hx = Math.round(15 + 4 * k);
+  const hy = cy - 3 - b.neck;
+  if (b.neck) f.part(hx - 1, hy + 1, hx, cy - 2, b.body);
+  f.ellipse(hx, hy, 2 * k, 1.8 * k, b.body, 0.1);
+  f.part(hx + 2, hy, hx + 3, hy + 1, b.beak);
+  f.px(hx, hy - 1, b.eye);
+  // Fötter
+  f.px(14, cy + Math.round(3 * k) + 1, '#3a2a1a');
+  f.px(16, cy + Math.round(3 * k) + 1, '#3a2a1a');
 }
 
 // ------------------------------------------------------------------ rollfigurer
@@ -617,10 +679,14 @@ const FRAMES = 3;
 
 function build(name: string, frame: number): HTMLCanvasElement {
   const f = new Fig();
-  if (name === 'varg') {
-    wolf(f, frame);
+  if (BEASTS[name]) {
+    beast(f, BEASTS[name], frame);
     f.outline();
-    f.shadow(16, 29, 11, 2.2);
+    f.shadow(16, 29, BEASTS[name].rx + 2, 2.2);
+  } else if (BIRDS[name]) {
+    bird(f, name, frame);
+    f.outline();
+    f.shadow(16, 29, 6, 1.8);
   } else if (SPIRITS.includes(name)) {
     spirit(f, name, frame);
     f.shadow(16, 29.5, 7, 2);
@@ -637,7 +703,7 @@ function build(name: string, frame: number): HTMLCanvasElement {
  * gåsteg med vänster respektive höger fot lyft.
  */
 export const SPRITES: Record<string, HTMLCanvasElement> = {};
-for (const name of [...Object.keys(LOOKS), 'varg', ...SPIRITS]) {
+for (const name of [...Object.keys(LOOKS), ...Object.keys(BEASTS), ...Object.keys(BIRDS), ...SPIRITS]) {
   SPRITES[name] = build(name, 0);
   for (let i = 1; i < FRAMES; i++) SPRITES[`${name}_g${i}`] = build(name, i);
 }
@@ -654,7 +720,7 @@ export function portraitUrl(sprite: string): string {
   c.fillStyle = bg;
   c.fillRect(0, 0, 96, 96);
   c.imageSmoothingEnabled = false;
-  const [sx, sy] = sprite === 'varg' ? [14, 3] : SPIRITS.includes(sprite) ? [4, 4] : [4, 1];
+  const [sx, sy] = BEASTS[sprite] ? [14, 3] : BIRDS[sprite] ? [8, 6] : SPIRITS.includes(sprite) ? [4, 4] : [4, 1];
   c.drawImage(SPRITES[sprite], sx, sy, 24, 24, 0, 0, 96, 96);
   return el.toDataURL();
 }

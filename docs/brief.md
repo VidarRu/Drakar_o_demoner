@@ -120,7 +120,8 @@ förslagets avsnitt 5.
 - **Klart (TELEPATI och TANKEÖVERFÖRING, Vidar):** rollspel i modulernas scener, och TANKEÖVERFÖRING kan få en fiende att slå moral. Hela VIGGFÅNGARE blir PSY.
 - **Klart (ritualerna och FÖRÄNDRA):** `src/engine/rituals.ts`. En ritual tar lika många timmar som effektgraden (Vidar, `ritualHours` i `magic.ts`). LADDNING sparas i `Character.charges`, och `CastOptions.useCharge` drar PSY ur dem. FÖRYNGRA ändrar de kroppsliga grundegenskaperna efter ålderstabellen. FÖRÄNDRA byter vapnet i handen (effekten `förändrad`). Besvärjelser på figurer utanför gruppen räknas ned med `expireSpells` i `time.ts`.
 - **Alla besvärjelser verkar nu**, utom att förvandla djur med FÖRÄNDRA. Där väntar SYN på magiska föremål, SPÅRLÖS på världskartan och FINNA VATTEN på reglerna för mat och dryck.
-- **Nästa:** Hamnbytare, magiska föremål (som SYN identifierar och Magisk empati behöver) och världskartan.
+- **Klart (Hamnbytare):** `src/engine/shapeshift.ts` (`shapeOf`, `shapeshift`, `shapeTime`), `Actor.shape` med den mänskliga kroppen, och knappen i panelerna. Djuren står i `HAMN`, och hök och svan har egna värden i `src/data/creatures.ts`. Testerna står i `tests/shapeshift.test.ts`.
+- **Nästa:** magiska föremål (Bok III s. 43–44, som SYN identifierar och Magisk empati behöver), och världskartan i nästa session.
 - **Kvar av förmågorna:** Gott balanssinne (när SPRÅNG byggs), Absolut ögonmått och God tidskänsla (gränssnittet), Mottagligt medium och Magisk empati (väntar på kanalisering och magiska föremål), avdraget för den andra handen och Hamnbytare.
 
 Vidar vill också göra en genomgång av hela regelsystemet när det är klart, för att se att det är konsekvent.
@@ -189,7 +190,7 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 250 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 254 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
 `tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/spells.test.ts` prövar fiendernas magi och besvärjelserna i strid. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
 
@@ -200,6 +201,7 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 
 ## Öppna frågor till Vidar
 
+- Hamnbytare: värdena för hök och svan, och storleken på björnen, katten och hjorten (`docs/regelbeslut.md` under Hamnbytare).
 - Vädret (`docs/regelbeslut.md` under Vädret): chanserna, att det ändras klockan sex och arton, vindens avdrag på skott, VINDKONTROLL och VIGGFÅNGARE är tolkningar. Tolkningarna för ljuset (se Ljus).
 - Tolkningarna för låsen och besvärjelserna utanför strid (`docs/regelbeslut.md` under Lås och besvärjelser utanför strid).
 - Tolkningarna för besvärjelserna i strid och fiendens val av effektgrad (`docs/regelbeslut.md` under Fiendernas magi och Besvärjelser i strid).

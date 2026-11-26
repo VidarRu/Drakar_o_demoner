@@ -523,6 +523,32 @@ Koden står i `src/engine/locks.ts` och `src/engine/worldspells.ts`.
   - Ointelligenta djur på kartan kommer, närmast först och högst 20 STO per E. Det tar 1T10 minuter, och det går inte mitt i en strid.
   - Djuren slåss för gruppen och går efter den. De ger sig av när besvärjelsen tar slut eller när nästa strid är slut, och blir inte fientliga igen.
 
+### Hamnbytare (byggt)
+
+Bok I, särskild förmåga 78. Koden står i `src/engine/shapeshift.ts` och djuren i `HAMN` i `src/engine/rules/tables.ts`.
+
+- **Djuret** slås med 1T6 första gången: varg, björn, hök, hjort, svan eller katt. Det sparas i förmågans val.
+- **Storleken (tolkning):**
+  - Varg ur regeldatan.
+  - Björnen är medelstor.
+  - Katten är en vanlig katt (Bok II:s "liten katt").
+  - Hjorten är ett litet klövdjur (Bok II räknar hjort som liten eller medelstor).
+- **Hök och svan** har inga värden i böckerna. Egna värden, som väntar på Vidars godkännande:
+  - Hök: STY 4, STO 2, FYS 8, SMI 18, flyger 30, klor 1T4 med FV 12, Upptäcka fara 18.
+  - Svan: STY 7, STO 6, FYS 10, SMI 12, flyger 24 och simmar, vingslag 1T4 med FV 9, Upptäcka fara 12.
+- **Förvandlingen (Bok I):** tar en stridsrunda och varar så länge personen vill.
+  - Personen får djurets STY, STO, FYS och SMI, förflyttning, naturliga skydd och anfall.
+  - INT, PSY, KAR och de INT-baserade färdigheterna är kvar. Besvärjelser går inte.
+  - Tolkning: djurets bästa anfall används (högst FV), ett per runda.
+- **Tolkningar för spelet:**
+  - I djurhamn strider personen vanligt, med totala KP.
+  - KP som var förlorade följer med in i hamnen. Skada som djuret får följer med tillbaka och fördelas över kroppsdelarna.
+  - Hök och svan flyger över vatten och träd, men slåss nere vid marken (de svävar inte). Svanen simmar.
+  - Ett djur kan inte tala med människor eller bära en fackla.
+- **Utrustningen (Vidar):** följer med magiskt men kan inte användas i djurhamn.
+- **PSY-slaget (Bok I):** för varje hel timme i hamnen utöver personens PSY slås ett Normalt PSY-slag. Misslyckas det är personen för alltid fast i hamnen (`Character.stuckInShape`).
+- **Figurer:** björn, hjort, katt, hök och svan (`src/game/art/sprites.ts`).
+
 ### Ritualer och FÖRÄNDRA (byggt)
 
 Koden står i `src/engine/rituals.ts`.

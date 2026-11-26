@@ -589,6 +589,22 @@ export const PSY_RAISE = {
   potential: -5,
 };
 
+// ------------------------------------------------------------------ Hamnbytare (Bok I)
+
+/**
+ * Djuren som Hamnbytare kan förvandla sig till (1T6). Värdena tas ur regeldatan (`stats`).
+ * Tolkning av storleken: medelstor björn, en vanlig katt (bokens "liten katt") och en hjort som
+ * litet klövdjur. Hök och svan har egna värden.
+ */
+export const HAMN: { name: string; stats: string; sprite: string }[] = [
+  { name: 'varg', stats: 'varg', sprite: 'varg' },
+  { name: 'björn', stats: 'bjorn_medel', sprite: 'bjorn' },
+  { name: 'hök', stats: 'hok', sprite: 'hok' },
+  { name: 'hjort', stats: 'klovdjur_litet', sprite: 'hjort' },
+  { name: 'svan', stats: 'svan', sprite: 'svan' },
+  { name: 'katt', stats: 'katt_liten', sprite: 'katt' },
+];
+
 // ------------------------------------------------------------------ ljus (Bok III:s utrustningslista)
 
 /** Brinntid i sekunder: en fackla, en full oljelykta och en flaska lampolja. */

@@ -124,6 +124,7 @@ function ownedFree(g: Game, id: string): boolean {
 export function equipProblem(g: Game, id: string, slot: EquipSlot | 'armor'): string | null {
   const p = g.player;
   const sty = p.attrs.STY;
+  if (p.shape) return 'I djurhamn kan du inte använda utrustning.';
   if (!ownedFree(g, id)) return 'Du har inget ledigt exemplar.';
   if (g.state.mode === 'combat') {
     if (slot === 'armor') return 'Rustning kan inte bytas mitt i en strid.';

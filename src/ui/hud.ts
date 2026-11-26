@@ -1,5 +1,7 @@
 import { underSky, weatherOf, weatherText } from '../engine/weather';
 import { lightText } from '../engine/light';
+import { shapeOf, shapeProblem } from '../engine/shapeshift';
+import { HAMN } from '../engine/rules';
 import { forceLock, forceProblem, isLocked, locksNear, lootChest, lootProblem, pickLock, pickProblem, sealedAt } from '../engine/locks';
 import { dialogDef, requestTurn, scriptedTurn, type DialogEntry } from '../ai/dialogClient';
 import { actorHas, canArmHero, meet } from '../engine/hero';
@@ -407,6 +409,12 @@ export class Hud {
       const left = source === 'tjuvtur' ? ` · ${thiefLuckLeft(g, p)} kvar` : '';
       const b = button(armed ? `${name} +${armed} (${armed} PSY)` : `${name}${left}`, () => g.cycleLuck(source), armed ? 'primary hero' : 'hero', !armed && !!luckProblem(g, p, source, 1));
       b.title = `Köp +1 på CL för 1 PSY på nästa egna slag. Tryck igen för mer, högst +3. ${source === 'tjuvtur' ? 'Två gånger mellan varje sömn, fyra för alver.' : ''}`;
+      out.push(b);
+    }
+    const hamn = shapeOf(g, p);
+    if (hamn !== null) {
+      const b = button(p.shape ? 'Bli människa igen' : `Byt hamn: ${HAMN[hamn].name}`, () => g.shapeshift(), 'hero', !!shapeProblem(g, p));
+      b.title = 'Hamnbytare: förvandlingen tar en stridsrunda. För varje timme över ditt PSY-värde i djurhamn slår du ett Normalt PSY-slag; misslyckas det fastnar du för alltid.';
       out.push(b);
     }
     if (p.effects.some((e) => e.kind === 'svävar')) {

@@ -103,6 +103,18 @@ export const CREATURE_LIST: CreatureStats[] = [
     attrs: { STY: 15, STO: 11, FYS: 14, SMI: 16, INT: 3, PSY: 11 }, armor: 2, move: { L: 16 },
     attacks: [a('Bett', 1, '1T8', 11)], skills: { upptacka_fara: 17, spara: 15, smyga: 7, gomma_sig: 8 }, traits: ['Svartalfer rider ofta på vargar och ulvar.'],
   },
+  // Hök och svan saknar värden i böckerna. De här är egna värden för Hamnbytare (Bok I), som
+  // Vidar godkänner.
+  {
+    id: 'hok', name: 'Hök', group: 'djur',
+    attrs: { STY: 4, STO: 2, FYS: 8, SMI: 18, ...ANIMAL }, armor: 0, move: { L: 2, F: 30 },
+    attacks: [a('Klor', 1, '1T4', 12, 'ingen'), a('Näbb', 1, '1T3', 10, 'ingen')], skills: { upptacka_fara: 18 }, traits: ['Egna värden (inte ur böckerna).'],
+  },
+  {
+    id: 'svan', name: 'Svan', group: 'djur',
+    attrs: { STY: 7, STO: 6, FYS: 10, SMI: 12, ...ANIMAL }, armor: 0, move: { L: 6, S: 8, F: 24 },
+    attacks: [a('Vingslag', 1, '1T4', 9), a('Näbb', 1, '1T3', 8, 'ingen')], skills: { upptacka_fara: 12, simma: 15 }, traits: ['Egna värden (inte ur böckerna).'],
+  },
   {
     id: 'blackfisk', name: 'Jättebläckfisk', group: 'djur', habitat: '13', frequency: 'mycket sällsynt', number: '1',
     attrs: { STY: 35, STO: 125, FYS: 42, SMI: 35, INT: 0, PSY: 11 }, armor: 4, move: { S: 12 },

@@ -8,6 +8,7 @@ import { breakConcentration, enemyCast, forgetOnKnockout, resolvePending, wardCh
 import { torchBurns, updateWeather, weatherRanged } from './weather';
 import { burnLight } from './light';
 import { revertWeapon } from './rituals';
+import { shapeAttack, shapeTime } from './shapeshift';
 import { airborne, attrShift, breakHiding, checkCamouflage, controller, flamingHand, flightSpeed, fogBlocks, heatColdResist, inDarkness, inVortex, magicallyHidden, unseen } from './spelleffects';
 import { poisonOnHit, updatePoisons } from './poison';
 import { die, maxRoll, roll } from './dice';
@@ -285,6 +286,26 @@ export interface WeaponInfo {
 
 export function weaponInfo(a: Actor, slot: WeaponSlot = 'weapon'): WeaponInfo {
   if (a.elemental) return elementalWeapon(a);
+  // Hamnbytare i djurhamn: djurets bästa anfall.
+  const hamn = shapeAttack(a);
+  if (hamn) {
+    return {
+      slot,
+      id: 'hamn',
+      name: hamn.name,
+      damage: hamn.damage,
+      skill: 'hamn',
+      sb: hamn.sb !== 'ingen',
+      natural: true,
+      unarmed: false,
+      twoHanded: false,
+      twoHandBonus: false,
+      reach: 1,
+      entangling: false,
+      noParryWear: true,
+      bvKey: null,
+    };
+  }
   // ASTRALVAPEN tar platsen av det som magikern håller i handen så länge det varar.
   const astral = slot === 'weapon' ? a.effects.find((e) => e.kind === 'astralvapen') : undefined;
   if (astral?.dice) {
@@ -1760,6 +1781,7 @@ function newRound(g: Game): boolean {
   for (const a of participants(g)) {
     tick(g, a);
     burnLight(g, a, ROUND_SECONDS);
+    shapeTime(g, a);
   }
   if (g.state.mode !== 'combat') return false;
   wardCheck(g);
