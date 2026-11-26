@@ -33,6 +33,8 @@ import {
 } from '../engine/magic';
 import { herbProblem, herbsHere, searchHerb, useHerb } from '../engine/poison';
 import { herbChoices, lockChoices, SEEK_KINDS } from '../engine/worldspells';
+import { empathy, empathyProblem, itemDetails, itemLabel, itemUses, ITEM_S, magicDef, senseMagic, senseProblem, useItem, useProblem, type ItemUse } from '../engine/magicitems';
+import { actorHas } from '../engine/hero';
 import { chargeableItems, chargeAvailable, transformChoices, transformGrade } from '../engine/rituals';
 import { spellCl } from '../engine/rules';
 import { buy, buyPrice, canHaggle, discount, haggle, sell, sellable, wares } from '../engine/trade';
@@ -172,7 +174,19 @@ export class PackUi {
         if (WEAPONS[id].kind === 'närstrid') offer('Andra handen', 'offhand');
       } else if (info.kind === 'sköld') offer('Ta på', 'shield');
       else if (info.kind === 'rustning') offer('Ta på', 'armor');
-      rows.push([`${info.name}${n > 1 ? ` ×${n}` : ''}`, `${info.weight} kg`, actions]);
+      // Magiska föremål (Bok III s. 43–44): analys och användning.
+      const name = itemLabel(g, id) ?? info.name;
+      const details = magicDef(id) ? itemDetails(g, id) : '';
+      // Känna magi går att pröva på vapen, rustningar, sköldar och diverse föremål (inte på facklor och mat).
+      const suspect = info.kind !== 'föremål' || info.category === 'diverse' || !!magicDef(id);
+      if (suspect && !senseProblem(g, p, id)) {
+        const b = button('Känn efter magi', () => this.act(() => senseMagic(g, p, id)));
+        b.title = 'Känna magi: −20 första gången, +1 per effektgrad i föremålet. Tar en minut.';
+        actions.append(b);
+      }
+      if (actorHas(g, p, 'magisk_empati') && !empathyProblem(g, p, id)) actions.append(button('Magisk empati', () => this.act(() => empathy(g, p, id))));
+      for (const u of itemUses(g, p, id)) actions.append(this.useControl(id, u));
+      rows.push([`${name}${n > 1 ? ` ×${n}` : ''}${details ? ` – ${details}` : ''}`, `${info.weight} kg`, actions]);
     }
     for (const [item, n] of Object.entries(ch.ammo)) if (n > 0) rows.push([`${itemInfo(item)?.name.replace(/ \(10 st\)/, '') ?? item}: ${n} st`, '', '']);
     body.append(el('h3', '', 'I packningen'), table(['Föremål', 'Vikt', ''], rows));
@@ -202,6 +216,35 @@ export class PackUi {
         button('Leta en dag', () => this.act(() => searchHerb(g, sel.value)), '', !g.canRest()),
       );
     }
+  }
+
+  /** En besvärjelse ur ett magiskt föremål: mål (om det behövs) och knappen. */
+  private useControl(id: string, u: ItemUse): HTMLElement {
+    const g = this.g;
+    const p = g.player;
+    const sp = SPELLS[u.spell];
+    const box = el('span');
+    let target = p.id;
+    let attr: AttrKey = 'STY';
+    // En brygd verkar alltid på den som dricker den.
+    if (sp.aim !== 'själv' && magicDef(id)?.kind !== 'brygd') {
+      const s = el('select');
+      for (const t of spellTargets(g, u.spell, 0, p, ITEM_S)) s.append(new Option(t === p ? `${t.name} (dig själv)` : t.name, t.id));
+      target = s.value;
+      s.onchange = () => (target = s.value);
+      box.append(s);
+    }
+    if (sp.effect?.kind === 'egenskap') {
+      const s = el('select');
+      for (const k of BODY_ATTRS) s.append(new Option(k, k));
+      s.onchange = () => (attr = s.value as AttrKey);
+      box.append(s);
+    }
+    const problem = useProblem(g, p, id, u.index);
+    box.append(
+      button(`${sp.name} E${u.grade}`, () => this.act(() => useItem(g, p, id, u.index, { target, attr })), 'primary', !!problem, problem ?? (u.nexus ? 'Kostar inga PSY.' : `Kostar ${u.grade} PSY.`)),
+    );
+    return box;
   }
 
   private act(fn: () => string | null | void) {

@@ -11,9 +11,12 @@ import type { MapDef } from '../engine/map';
 import type { CreatureDef, NaturalWeaponDef, NpcDef } from '../engine/types';
 import { COMMON_BOOKS } from './mellanspel';
 import { SPELTEST } from './speltest';
-import type { BookDef, ModuleDef, RecruitDef } from './types';
+import type { BookDef, MagicItemDef, ModuleDef, RecruitDef } from './types';
+import { NON_IRON_WEAPONS, WEAPONS } from '../data/weapons';
+import { ARMOR, SHIELDS } from '../data/armor';
+import { ITEMS } from '../data/equipment';
 
-export type { BookDef, DeedDef, Difficulty, ModuleDef, QuestDef, RecruitDef } from './types';
+export type { BookDef, DeedDef, Difficulty, ItemSpell, MagicItemDef, ModuleDef, QuestDef, RecruitDef } from './types';
 export { CITY, type CityTeacher } from './mellanspel';
 
 /** Alla äventyrsmoduler. */
@@ -86,3 +89,21 @@ for (const m of MODULE_LIST) {
 
 /** Modulen som en karta hör till. */
 export const MAP_MODULE: Record<string, string> = Object.fromEntries(MODULE_LIST.flatMap((m) => m.maps.map((map) => [map.id, m.id])));
+
+/** Magiska föremål ur alla moduler (Bok III s. 43–44). */
+export const MAGIC_ITEMS = list<MagicItemDef>(MODULE_LIST.flatMap((m) => m.magicItems ?? []), 'Det magiska föremålet');
+
+/**
+ * De magiska föremålen läggs in i regeldatans register med samma värden som föremålet de bygger
+ * på, så att de fungerar som vanliga vapen, rustningar och föremål: vikt, pris, järnregeln, att ta
+ * dem i handen och att tappa dem. Namnet är utseendet; vad föremålet är visas när det är analyserat.
+ */
+for (const m of Object.values(MAGIC_ITEMS)) {
+  if (m.base && WEAPONS[m.base]) {
+    WEAPONS[m.id] = { ...WEAPONS[m.base], id: m.id, name: m.looks };
+    if (NON_IRON_WEAPONS.has(m.base)) NON_IRON_WEAPONS.add(m.id);
+  } else if (m.base && ARMOR[m.base]) ARMOR[m.id] = { ...ARMOR[m.base], id: m.id, name: m.looks };
+  else if (m.base && SHIELDS[m.base]) SHIELDS[m.id] = { ...SHIELDS[m.base], id: m.id, name: m.looks };
+  else ITEMS[m.id] = { id: m.id, name: m.looks, category: 'diverse', weight: m.weight ?? 0, price: m.price ?? 0 };
+}
+

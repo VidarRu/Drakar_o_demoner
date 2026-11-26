@@ -119,6 +119,39 @@ export interface ModuleDef {
   spellScenes?: SpellSceneDef[];
   /** Vädret när modulen börjar (index i SKY och WIND), och om det är låst. Annars fortsätter det som var. */
   weather?: { sky: number; wind: number; locked?: boolean };
+  /** Magiska föremål i modulen (Bok III s. 43–44). */
+  magicItems?: MagicItemDef[];
+}
+
+/** En besvärjelse som är lagrad i ett magiskt föremål, med en fast effektgrad (Bok III s. 43). */
+export interface ItemSpell {
+  /** Besvärjelsens id i src/data/spells.ts. */
+  spell: string;
+  grade: number;
+  /** PERMANENS: besvärjelsen finns kvar efter att den har använts. Annars förbrukas den. */
+  permanent?: boolean;
+  /** NEXUS: föremålet tar sin kraft ur naturen, och användaren betalar inga PSY. */
+  nexus?: boolean;
+  /** Verkar ständigt när föremålet bärs (kräver PERMANENS och NEXUS). Behöver inte analyseras. */
+  always?: boolean;
+}
+
+/**
+ * Ett magiskt föremål. Vapen, rustningar och sköldar bygger på ett vanligt föremål i regeldatan
+ * (`base`) och får dess värden; andra föremål (brygder, ringar) har egen vikt och eget pris.
+ */
+export interface MagicItemDef {
+  id: string;
+  /** Namnet när föremålet är analyserat. */
+  name: string;
+  /** Hur föremålet ser ut innan någon vet vad det är. */
+  looks: string;
+  kind: 'vapen' | 'rustning' | 'sköld' | 'stav' | 'brygd' | 'övrigt';
+  /** Vapnet, rustningen eller skölden i regeldatan som föremålet bygger på. */
+  base?: string;
+  weight?: number;
+  price?: number;
+  spells: ItemSpell[];
 }
 
 /**

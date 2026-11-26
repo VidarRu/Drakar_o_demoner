@@ -13,6 +13,7 @@ import { isCommonAnimal } from './hero';
 import { isLocked, lockTargets, magicOpen, magicSeal, type LockSpot } from './locks';
 import { distance, tileAt, walkable } from './map';
 import { commonFor, herbsHere, prepareDose } from './poison';
+import { itemDetails, itemLabel, seekMagic, seeMagic } from './magicitems';
 import { advanceTime } from './time';
 import { holdWeather, raining, underSky, weatherOf, weatherText } from './weather';
 import { WEATHER } from './rules';
@@ -46,6 +47,7 @@ export const SEEK_KINDS: Record<string, string> = {
   utgång: 'utgångar',
   kista: 'kistor',
   föremål: 'föremål på marken',
+  magi: 'magiska föremål',
 };
 
 /** Örterna som VÄXTKUNSKAP kan hitta: de som växer här. */
@@ -121,6 +123,12 @@ export function applyWorld(g: Game, caster: Actor, t: Actor, s: PendingSpell, sp
       return true;
     }
     case 'varseblivning': {
+      // Mot magiska föremål: man vet att de är magiska och vilka besvärjelser de har (Bok III s. 44).
+      if (s.seek === 'magi') {
+        const ids = seekMagic(g, caster, grade, range);
+        g.log(ids.length ? `${caster.name} förnimmer magin i ${ids.map((id) => itemLabel(g, id)).join(', ')}: ${ids.map((id) => itemDetails(g, id)).join(' ')}` : `${caster.name} förnimmer ingen okänd magi i närheten.`);
+        return true;
+      }
       const found = seek(g, caster, s.seek ?? 'fiende', range).slice(0, grade);
       const what = SEEK_KINDS[s.seek ?? 'fiende'];
       g.log(
@@ -169,8 +177,13 @@ export function applyWorld(g: Game, caster: Actor, t: Actor, s: PendingSpell, sp
     case 'syn':
       // Vidar: SYN identifierar framför allt magiska föremål, och modulerna kan ge den scener.
       // Magiska föremål finns inte än, så utan en scen visar den ingenting.
-      if (!s.scene) g.log(`${caster.name} ser ingenting särskilt. SYN identifierar magiska föremål när sådana finns.`);
+    {
+      // SYN analyserar de magiska föremål som gruppen bär, ett per E (Bok III s. 44).
+      const ids = seeMagic(g, caster, grade);
+      if (ids.length) g.log(`${caster.name} ser rakt in i magin: ${ids.map((id) => `${itemLabel(g, id)}: ${itemDetails(g, id)}`).join(' ')}`);
+      else if (!s.scene) g.log(`${caster.name} ser ingenting särskilt.`);
       return true;
+    }
     case 'talaMed':
       caster.effects = caster.effects.filter((x) => x.kind !== 'talaMed');
       caster.effects.push({ ...effect, kind: 'talaMed', mod: grade });

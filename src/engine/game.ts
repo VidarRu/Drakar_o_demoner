@@ -38,6 +38,7 @@ import { fogBlocks, passable } from './spelleffects';
 import { lockBlocks } from './locks';
 import { startWeather } from './weather';
 import { ensureLight, toggleLight } from './light';
+import { syncItemEffects } from './magicitems';
 import { shapeAttack, shapeshift as shapeshiftActor } from './shapeshift';
 import { wardCheck } from './magic';
 
@@ -244,6 +245,7 @@ export class Game {
       const a = state.actors.find((x) => x.id === id);
       if (a) ensureLight(this, a);
     }
+    syncItemEffects(this);
     this.updateFov();
   }
 
@@ -294,6 +296,8 @@ export class Game {
   changed() {
     // Uppdrag och dåd som just blev klara ger bonus-EP och hjältepoäng (steg 8).
     hero.grantRewards(this);
+    // Magiska föremål som verkar ständigt när de bärs.
+    syncItemEffects(this);
     for (const fn of this.listeners) fn();
   }
   emit(actorId: string, text: string, kind: Fx['kind']) {

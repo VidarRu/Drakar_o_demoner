@@ -10,7 +10,7 @@ import type { Intent } from '../../engine/intents';
 import { finalize, newDraft, type Draft } from '../../engine/creation';
 import { ARMOR } from '../../data/armor';
 import type { Character } from '../../engine/types';
-import type { BookDef, DeedDef, ModuleDef, QuestDef, RecruitDef, SpellSceneDef } from '../types';
+import type { BookDef, DeedDef, MagicItemDef, ModuleDef, QuestDef, RecruitDef, SpellSceneDef } from '../types';
 
 const human = { STY: 11, STO: 13, FYS: 11, SMI: 11, INT: 11, PSY: 11, KAR: 11 };
 
@@ -66,7 +66,7 @@ const creatures: CreatureDef[] = [
     sprite: 'hovding',
     attrs: { STY: 14, STO: 11, FYS: 13, SMI: 11, INT: 10, PSY: 11, KAR: 8 },
     skills: { enhandssvard: 11, skoldar: 9, upptacka_fara: 9 },
-    weapon: 'bredsvard',
+    weapon: 'grukks_bredsvard',
     armor: ['harnesk_nitlader', 'nitladerhuva'],
     shield: 'vanlig_skold',
     move: 10,
@@ -90,7 +90,7 @@ const creatures: CreatureDef[] = [
     sprite: 'haxkonstnar',
     attrs: { STY: 8, STO: 7, FYS: 10, SMI: 11, INT: 14, PSY: 16, KAR: 8 },
     skills: { trastav: 6, upptacka_fara: 11, smyga: 8 },
-    weapon: 'trastav',
+    weapon: 'haxstav',
     magic: { schools: { elementarmagi: 14, animism: 16 }, spells: ['blixt', 'skold', 'hela'] },
     move: 10,
     hostile: true,
@@ -330,6 +330,38 @@ const flagNotes: Record<string, string> = {
   syn_grukk: 'Spelaren har med besvärjelsen SYN sett Grukk och hans häxkonstnär i grottans innersta del, och vet att de har en låst kista.',
 };
 
+/** Magiska föremål i Gråvad (egna exempel enligt Bok III s. 43–44). */
+const magicItems: MagicItemDef[] = [
+  {
+    id: 'grukks_bredsvard',
+    name: 'Grukks bredsvärd',
+    looks: 'Bredsvärd med svarta runor',
+    kind: 'vapen',
+    base: 'bredsvard',
+    spells: [{ spell: 'fortrolla_vapen', grade: 1, permanent: true, nexus: true, always: true }],
+  },
+  {
+    id: 'haxstav',
+    name: 'Häxkonstnärens stav',
+    looks: 'Knotig trästav med en ugglefjäder',
+    kind: 'stav',
+    base: 'trastav',
+    spells: [
+      { spell: 'laddning', grade: 2 },
+      { spell: 'ljus', grade: 1, permanent: true, nexus: true },
+    ],
+  },
+  {
+    id: 'lakebrygd',
+    name: 'Läkebrygd',
+    looks: 'Liten flaska med grönaktig dryck',
+    kind: 'brygd',
+    weight: 0,
+    price: 300,
+    spells: [{ spell: 'hela', grade: 2, nexus: true }],
+  },
+];
+
 /** Scener som besvärjelser kan visa i Gråvad (exempel för modulformatet). */
 const spellScenes: SpellSceneDef[] = [
   {
@@ -349,7 +381,7 @@ const maps: MapDef[] = [
     habitats: ['överallt', 'skog', 'ängar', 'åkerkanter', 'snårskog'],
     exits: { X: { tile: ',', name: 'Vägen västerut' } },
     // Grukks kista: låst, med svartalfernas rövade silver.
-    locks: { K: { tile: ':', kind: 'kista', name: 'Grukks kista', difficulty: 12, silver: '5T10+20', loot: ['oljelykta'] } },
+    locks: { K: { tile: ':', kind: 'kista', name: 'Grukks kista', difficulty: 12, silver: '5T10+20', loot: ['oljelykta', 'lakebrygd'] } },
     spawns: {
       i: { tile: '_', creature: 'vardshusvard' },
       s: { tile: '_', creature: 'smed' },
@@ -490,6 +522,7 @@ export const SPELTEST: ModuleDef = {
   intents,
   flagNotes,
   spellScenes,
+  magicItems,
   epilogue: [
     'Med Grukk död skingras svartalferna, och stigen genom skogen blir åter säker att gå.',
     'På Gyllene Galten bjuder Bertil på öl, och för en kväll är ni byns hjältar. Men vägen västerut leder vidare, mot nya äventyr.',

@@ -248,11 +248,11 @@ export function flightGrades(t: Actor): number {
 export const BODY_ATTRS: AttrKey[] = ['STY', 'FYS', 'STO', 'KAR', 'SMI'];
 
 /** Räckvidd i rutor (null = obegränsad inom synhåll, 0 = bara en själv). */
-export function rangeSquares(g: Game, a: Actor, spell: SpellDef, extra = 0): number {
+export function rangeSquares(g: Game, a: Actor, spell: SpellDef, extra = 0, S?: number): number {
   if (spell.range === 'personlig') return 0;
   if (spell.range === 'beröring') return 1;
   if (spell.range === 'särskild') return Math.floor((a.attrs.STY + a.attrs.SMI) / 2);
-  const r = spellRange(spell.range, spellS(a, spell.id), extra);
+  const r = spellRange(spell.range, S ?? spellS(a, spell.id), extra);
   if (!r) return 0;
   return r.unit === 'km' ? 9999 : r.value;
 }
@@ -270,11 +270,11 @@ export function foeOf(caster: Actor, t: Actor): boolean {
 }
 
 /** Möjliga mål för en besvärjelse. */
-export function spellTargets(g: Game, id: string, extraRange = 0, caster: Actor = g.player): Actor[] {
+export function spellTargets(g: Game, id: string, extraRange = 0, caster: Actor = g.player, S?: number): Actor[] {
   const p = caster;
   const spell = SPELLS[id];
   if (!spell) return [];
-  const range = rangeSquares(g, p, spell, extraRange);
+  const range = rangeSquares(g, p, spell, extraRange, S);
   const near = g.state.actors.filter(
     (a) => a.alive && !a.fled && a !== p && sees(g, p, a) && distance(p.x, p.y, a.x, a.y) <= range && lineOfSight(g.map, p.x, p.y, a.x, a.y),
   );
@@ -541,8 +541,11 @@ function durationRounds(spell: SpellDef, S: number, extra: number, rng: () => nu
 }
 
 function effectFor(a: Actor, spell: SpellDef, s: PendingSpell, grade: number, g: Game): Pick<ActiveEffect, 'label' | 'spell' | 'grade' | 'persist' | 'rounds' | 'days'> {
-  return { label: `${spell.name} E${grade}`, spell: spell.id, grade, persist: true, ...durationRounds(spell, spellS(a, spell.id), s.extraDuration, g.rng) };
+  return { label: `${spell.name} E${grade}`, spell: spell.id, grade, persist: true, ...durationRounds(spell, sOf(a, s), s.extraDuration, g.rng) };
 }
+
+/** S för besvärjelsen: magikerns, eller det fasta S som ett magiskt föremål har. */
+const sOf = (a: Actor, s: PendingSpell) => s.s ?? spellS(a, s.spell);
 
 /** Ovilliga mål gör motstånd: magikerns kvarvarande PSY mot målets PSY på motståndstabellen. */
 function resists(g: Game, caster: Actor, t: Actor, spell: SpellDef): boolean {
@@ -715,7 +718,7 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       g.log(t.hostile ? `${t.name} vill dig ont.` : `${t.name} är inte fientligt inställd mot dig.`);
       return;
     case 'elementar':
-      summonOrBanish(g, caster, t, e.element, grade, spellS(caster, spell.id), s.extraDuration);
+      summonOrBanish(g, caster, t, e.element, grade, sOf(caster, s), s.extraDuration);
       return;
     case 'egenskap': {
       const attr = s.attr ?? 'STY';
@@ -759,7 +762,7 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       return;
     }
     case 'mörker': {
-      const d = durationRounds(spell, spellS(caster, spell.id), s.extraDuration, g.rng);
+      const d = durationRounds(spell, sOf(caster, s), s.extraDuration, g.rng);
       const seconds = d.days ? d.days * DURATION_SECONDS.dygn : (d.rounds ?? 1) * ROUND_SECONDS;
       // En sfär med sex meters diameter: två rutor åt varje håll.
       (g.state.zones ??= []).push({ kind: 'mörker', map: g.state.mapId, x: t.x, y: t.y, r: 2, until: g.state.time + seconds, spell: spell.id, grade });
@@ -788,8 +791,8 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       const w = ASTRAL_WEAPON[s.hands ?? 1];
       t.effects = t.effects.filter((x) => x.kind !== 'astralvapen');
       // FV är magikerns S när besvärjelsen läggs.
-      t.effects.push({ kind: 'astralvapen', dice: w.dice, mod: spellS(caster, spell.id), ...effectFor(caster, spell, s, grade, g) });
-      g.log(`Ett ${s.hands === 2 ? 'tvåhandsvapen' : 'enhandsvapen'} av glödande magisk energi formas i ${t.name}s ${s.hands === 2 ? 'händer' : 'hand'} (${w.dice}, FV ${spellS(caster, spell.id)}).`);
+      t.effects.push({ kind: 'astralvapen', dice: w.dice, mod: sOf(caster, s), ...effectFor(caster, spell, s, grade, g) });
+      g.log(`Ett ${s.hands === 2 ? 'tvåhandsvapen' : 'enhandsvapen'} av glödande magisk energi formas i ${t.name}s ${s.hands === 2 ? 'händer' : 'hand'} (${w.dice}, FV ${sOf(caster, s)}).`);
       return;
     }
     case 'språng': {
@@ -855,7 +858,7 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       return;
     }
     case 'dimma': {
-      const d = durationRounds(spell, spellS(caster, spell.id), s.extraDuration, g.rng);
+      const d = durationRounds(spell, sOf(caster, s), s.extraDuration, g.rng);
       const seconds = d.days ? d.days * DURATION_SECONDS.dygn : (d.rounds ?? 1) * ROUND_SECONDS;
       (g.state.zones ??= []).push({ kind: 'dimma', map: g.state.mapId, x: t.x, y: t.y, r: FOG_RADIUS, until: g.state.time + seconds, spell: spell.id, grade });
       g.log(`En tjock dimma stiger ur vattnet. Ingen ser längre än ${FOG_SIGHT} rutor i den.`);
@@ -875,9 +878,9 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       return;
     }
     default: {
-      const d = durationRounds(spell, spellS(caster, spell.id), s.extraDuration, g.rng);
+      const d = durationRounds(spell, sOf(caster, s), s.extraDuration, g.rng);
       const seconds = d.days ? d.days * DURATION_SECONDS.dygn : (d.rounds ?? 1) * ROUND_SECONDS;
-      if (!applyWorld(g, caster, t, s, spell, grade, effectFor(caster, spell, s, grade, g), seconds, rangeSquares(g, caster, spell, s.extraRange))) g.log(`${spell.name} verkar inte i spelet än.`);
+      if (!applyWorld(g, caster, t, s, spell, grade, effectFor(caster, spell, s, grade, g), seconds, rangeSquares(g, caster, spell, s.extraRange, s.s))) g.log(`${spell.name} verkar inte i spelet än.`);
       return;
     }
     case 'laddning':
@@ -1110,4 +1113,28 @@ export function wardCheck(g: Game) {
 
 function activeZonesOf(g: Game, kind: 'beskyddare') {
   return (g.state.zones ?? []).filter((z) => z.kind === kind && (!z.map || z.map === g.state.mapId) && z.until > g.state.time);
+}
+
+// ------------------------------------------------------------------ magiska föremål
+
+/** Ett magiskt föremål lyckas alltid (Bok III s. 43): ett lyckat slag utan tärning. */
+const ITEM_SUCCESS: Check = { roll: 0, rolls: [], target: 0, fv: 0, result: 'lyckat', success: true, diff: 0 };
+
+/**
+ * Lägger en besvärjelse ur ett magiskt föremål: fast effektgrad, inget slag, och räckvidd och
+ * varaktighet räknas med föremålets S. Verkan kommer direkt (tolkning). Kostnaden i PSY och om
+ * besvärjelsen förbrukas sköter engine/magicitems.ts.
+ */
+export function castFromItem(g: Game, a: Actor, spellId: string, grade: number, S: number, o: Partial<CastOptions>): string | null {
+  const spell = SPELLS[spellId];
+  if (!spell?.effect) return 'Besvärjelsen i föremålet verkar inte i spelet än.';
+  const target = spell.aim === 'själv' ? a.id : (o.target ?? (spell.aim === 'valfri' ? a.id : undefined));
+  const t = target ? g.actor(target) : undefined;
+  if (spell.aim !== 'själv' && (!t || !spellTargets(g, spellId, 0, a, S).includes(t))) return 'Välj ett mål inom räckhåll som du ser.';
+  const pending: PendingSpell = { caster: a.id, spell: spellId, grade, extraRange: 0, extraDuration: 0, target, x: t?.x ?? a.x, y: t?.y ?? a.y, rounds: 1, attr: o.attr, s: S };
+  breakHiding(g, a, 'använder magi');
+  g.log(`${spell.name} E${grade} verkar.`);
+  pending.scene = showScenes(g, a, spellId) > 0;
+  apply(g, a, antimagic(g, a, pending), grade, ITEM_SUCCESS);
+  return null;
 }

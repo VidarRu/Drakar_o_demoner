@@ -6,6 +6,7 @@ import { RACES } from '../data/races';
 import { WEAPONS } from '../data/weapons';
 import { changeAttribute } from './combat';
 import { itemInfo } from './inventory';
+import { itemCharges } from './magicitems';
 import type { Game } from './game';
 import { AGE, AGE_GROUPS, type AgeGroup } from './rules';
 import type { ActiveEffect, Actor, AttrKey } from './types';
@@ -27,6 +28,7 @@ export function chargeableItems(g: Game, a: Actor): string[] {
 
 /** PSY som magikern kan dra ur laddade föremål som hen bär. */
 export function chargeAvailable(g: Game, a: Actor): number {
+  itemCharges(g, a);
   const ch = g.charOf(a);
   if (!ch) return 0;
   return (ch.charges ?? []).filter((c) => ch.inventory.includes(c.item)).reduce((n, c) => n + c.psy, 0);
@@ -34,6 +36,7 @@ export function chargeAvailable(g: Game, a: Actor): number {
 
 /** Drar PSY ur laddade föremål. Returnerar hur mycket som togs. */
 export function drawCharge(g: Game, a: Actor, want: number): number {
+  itemCharges(g, a);
   const ch = g.charOf(a);
   if (!ch) return 0;
   let taken = 0;

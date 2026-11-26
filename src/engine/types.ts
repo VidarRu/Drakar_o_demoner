@@ -349,6 +349,8 @@ export interface PendingSpell {
   item?: string;
   /** PSY ur laddade föremål (LADDNING) som besvärjelsen får använda. */
   useCharge?: boolean;
+  /** Fast S för räckvidd och varaktighet (besvärjelser ur magiska föremål). */
+  s?: number;
 }
 
 export type WeaponSlot = 'weapon' | 'offhand';
@@ -638,6 +640,10 @@ export interface GameState {
   locks?: Record<string, LockState>;
   /** Vädret. */
   weather?: WeatherState;
+  /** Magiska föremål som gruppen har analyserat: 1 vet att det är magiskt, 2 vet vilka besvärjelser, 3 vet hur de används. */
+  itemKnown?: Record<string, number>;
+  /** Besvärjelser i magiska föremål som är förbrukade (index i föremålets lista). */
+  itemSpent?: Record<string, number[]>;
   log: string[];
   nextId: number;
 }

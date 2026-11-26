@@ -523,6 +523,34 @@ Koden står i `src/engine/locks.ts` och `src/engine/worldspells.ts`.
   - Ointelligenta djur på kartan kommer, närmast först och högst 20 STO per E. Det tar 1T10 minuter, och det går inte mitt i en strid.
   - Djuren slåss för gruppen och går efter den. De ger sig av när besvärjelsen tar slut eller när nästa strid är slut, och blir inte fientliga igen.
 
+### Magiska föremål (byggt)
+
+Bok III s. 43–44. Koden står i `src/engine/magicitems.ts`, och föremålen anges i modulerna (`ModuleDef.magicItems`, `MagicItemDef`).
+
+- **Besvärjelserna i föremålet** har fasta effektgrader och lyckas alltid (Bok III).
+  - Utan NEXUS kostar de användaren lika många PSY som effektgraden.
+  - Utan PERMANENS förbrukas de.
+  - En brygd förbrukas när den dricks och verkar på den som dricker.
+- **Verkar ständigt:** besvärjelser med PERMANENS och NEXUS i vapen, rustningar och sköldar kan verka ständigt när föremålet bärs. Det gäller FÖRTROLLA VAPEN, SKYDD, ANTIMAGI, LJUS, VIRVELSKÖLD, MOTSTÅNDSKRAFT, MAGISK SYN och MÖRKERSYN. Sådana föremål behöver ingen analys. Ett vapen med FÖRTROLLA VAPEN räknas som magiskt mot elementarer.
+- **Analys (Bok III och Bok I):**
+  - (1) att föremålet är magiskt: Känna magi eller VARSEBLIVNING.
+  - (2) vilka besvärjelser det har: VARSEBLIVNING, SYN eller Magisk empati.
+  - (3) hur de aktiveras: bara SYN.
+  - Gruppen delar det den vet (`GameState.itemKnown`), och ett föremål visar sitt utseende tills (2) är känt.
+- **Känna magi (Bok I):**
+  - Slås i den skola som föremålets första besvärjelse hör till, eller i den bästa Känna magi för allmänna besvärjelser. Den som saknar FV slår med BC för PSY.
+  - −20 om man inte har känt på ett likadant föremål förut, och +1 per effektgrad. Ett perfekt slag ger antalet besvärjelser och effektgrader.
+  - Tolkning: ett försök tar en minut, och knappen finns för vapen, rustningar, sköldar och diverse föremål.
+- **Magisk empati (Bok I):** PSY mot antalet effektgrader på motståndstabellen ger (2). Tolkning: det tar tio minuter.
+- **VARSEBLIVNING och SYN (tolkning):** VARSEBLIVNING mot magiska föremål ger (1) och (2) för E föremål som gruppen bär eller som ligger på marken inom räckvidden. SYN ger (3) för E föremål som gruppen bär.
+- **Räckvidd och varaktighet** för besvärjelser ur föremål räknas med S 10 (tolkning). Verkan kommer direkt, och i strid tar det handlingen.
+- **LADDNING i en stav:** när staven är analyserad kan dess PSY dras ur den som ur ett laddat föremål.
+- **Registret:** magiska vapen, rustningar och sköldar får sina värden ur föremålet de bygger på (`base`) och läggs in i regeldatans register, så att de fungerar som vanliga föremål. Järnregeln följer grundföremålet.
+- **Gråvad (egna exempel):**
+  - Grukks bredsvärd: FÖRTROLLA VAPEN E1, verkar ständigt.
+  - Häxkonstnärens stav: LADDNING E2 och LJUS E1 med PERMANENS och NEXUS.
+  - En läkebrygd (HELA E2) i Grukks kista.
+
 ### Hamnbytare (byggt)
 
 Bok I, särskild förmåga 78. Koden står i `src/engine/shapeshift.ts` och djuren i `HAMN` i `src/engine/rules/tables.ts`.
