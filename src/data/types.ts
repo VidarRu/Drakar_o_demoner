@@ -325,7 +325,27 @@ export type SpellEffect =
   /** Snärjer ett mål med en E per 10 STO. */
   | { kind: 'rankor' }
   /** FRAMMANA/SKICKA BORT ELEMENTAR: en besvärjelse per sorts elementar. */
-  | { kind: 'elementar'; element: ElementKind };
+  | { kind: 'elementar'; element: ElementKind }
+  /** ÖKA (+1) och MINSKA (−1): en grundegenskap per E så länge besvärjelsen varar. */
+  | { kind: 'egenskap'; sign: 1 | -1 }
+  /** FLAMMANDE HAND: 1T3 extra skada per E med händerna och med vapen i handen. */
+  | { kind: 'flammandeHand' }
+  /** VIRVELSKÖLD: alla projektiler till och från magikern missar. */
+  | { kind: 'virvelsköld' }
+  /** MOTSTÅNDSKRAFT: 1 mindre skada per E och angrepp av eld och köld. */
+  | { kind: 'motståndskraft' }
+  /** ANTIMAGI: inkommande magi måste övervinna E, annars studsar den tillbaka. */
+  | { kind: 'antimagi' }
+  /** LJUS: målet lyser som en fackla, tre meter per E. */
+  | { kind: 'ljus' }
+  /** MÖRKER: en sfär av mörker kring målets ruta. */
+  | { kind: 'mörker' }
+  /** MAGISK SYN: ser det osynliga och kan inte bländas. */
+  | { kind: 'magiskSyn' }
+  /** OSYNLIGHET: 6 STO per E blir osynliga. */
+  | { kind: 'osynlighet' }
+  /** KAMOUFLAGE: oupptäckt utomhus så länge magikern står still. */
+  | { kind: 'kamouflage' };
 
 export interface ItemDef {
   id: string;

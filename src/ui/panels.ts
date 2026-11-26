@@ -17,6 +17,7 @@ import {
   type EquipSlot,
 } from '../engine/inventory';
 import {
+  BODY_ATTRS,
   castProblem,
   castSpell,
   forget,
@@ -32,7 +33,7 @@ import {
 import { herbProblem, herbsHere, searchHerb, useHerb } from '../engine/poison';
 import { spellCl } from '../engine/rules';
 import { buy, buyPrice, canHaggle, discount, haggle, sell, sellable, wares } from '../engine/trade';
-import type { Actor } from '../engine/types';
+import type { Actor, AttrKey } from '../engine/types';
 import { $, el } from './hud';
 import { renderQuestLog } from './module';
 
@@ -244,7 +245,7 @@ export class ShopUi {
 
 /** Magin: formelsamlingen, minnet och att lägga besvärjelser. */
 export class MagicUi {
-  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean } | null = null;
+  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean; attr: AttrKey } | null = null;
 
   constructor(private g: Game, private panel: Panel) {}
 
@@ -282,7 +283,7 @@ export class MagicUi {
 
   private pick(id: string) {
     const targets = spellTargets(this.g, id);
-    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false };
+    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false, attr: 'STY' };
     this.panel.refresh();
   }
 
@@ -323,6 +324,14 @@ export class MagicUi {
       box.append(l);
       if (!c.target && s.options.length) c.target = s.options[0].value;
     }
+    if (sp.effect?.kind === 'egenskap') {
+      const s = el('select');
+      for (const k of BODY_ATTRS) s.append(new Option(k, k, false, k === c.attr));
+      s.onchange = () => (c.attr = s.value as AttrKey);
+      const l = el('label', '', 'Grundegenskap ');
+      l.append(s);
+      box.append(l);
+    }
     const suicide = el('label', '', 'Självmordsattack (CL = S, kostar mer PSY än du har, du dör) ');
     const cb = el('input');
     cb.type = 'checkbox';
@@ -333,7 +342,7 @@ export class MagicUi {
     };
     suicide.append(cb);
     const S = spellS(p, c.id);
-    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide };
+    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide, attr: c.attr };
     const problem = castProblem(g, c.id, opts);
     box.append(
       suicide,

@@ -44,7 +44,7 @@ function spell(
 
 export const SPELL_LIST: SpellDef[] = [
   // ---------------------------------------------------------------- allmänna
-  spell('allmän', 6, 'ANTIMAGI', '', S(10, 'rutor'), Tdiv(4, 'minuter'), 'Magisk sköld kring en varelse eller ett föremål. Inkommande magi måste övervinna dess E, annars studsar den tillbaka.'),
+  spell('allmän', 6, 'ANTIMAGI', '', S(10, 'rutor'), Tdiv(4, 'minuter'), 'Magisk sköld kring en varelse eller ett föremål. Inkommande magi måste övervinna dess E, annars studsar den tillbaka.', { effect: { kind: 'antimagi' }, aim: 'valfri' }),
   spell('allmän', 6, 'SKINGRA', '', S(10, 'rutor'), 'omedelbar', 'Upphäver en annan besvärjelse om E övervinner dess E. Kan förstöra elementarer och avbryta en besvärjelse som håller på att läggas.', { effect: { kind: 'skingra' }, aim: 'valfri' }),
   spell('allmän', 6, 'VARSEBLIVNING', '', S(10, 'rutor'), 'omedelbar', 'Ger riktning och avstånd till det närmaste av något valt slag, en sak per E.'),
   spell('allmän', 9, 'BESKYDDARE', '', 'beröring', 'permanent', 'Skyddande kub (3×3×3 m) som fungerar som ANTIMAGI E1 och ENERGISTRÅLE E1 mot allt som passerar.'),
@@ -56,12 +56,12 @@ export const SPELL_LIST: SpellDef[] = [
   spell('animism', 2, 'TRÄELD', 'FK', 'beröring', 'omedelbar', 'Tänder ett stycke torrt trä, ett till per extra E.'),
   spell('animism', 4, 'SPÅRLÖS', '', 'beröring', Tdiv(4, 'minuter'), 'Lämnar varken spår eller lukt, en varelse till per extra E.'),
   spell('animism', 5, 'VÄXTKUNSKAP', '', 'beröring', 'omedelbar', 'All kunskap om den växt man rör vid.'),
-  spell('animism', 6, 'MINSKA', '', 'beröring', Tdiv(4, 'minuter'), 'Sänker STY, FYS, STO, KAR eller SMI med 1 per E, lägst till 1.'),
+  spell('animism', 6, 'MINSKA', '', 'beröring', Tdiv(4, 'minuter'), 'Sänker STY, FYS, STO, KAR eller SMI med 1 per E, lägst till 1.', { effect: { kind: 'egenskap', sign: -1 }, aim: 'valfri' }),
   spell('animism', 6, 'NEDKALLA ÅSKVIGG', 'F', S(10, 'rutor'), 'omedelbar', 'Blixt ur ett regnmoln som regnar över både magikern och målet. Skadar som BLIXT.'),
   spell('animism', 6, 'VINDPIL', 'F', S(2, 'rutor'), T(1, 'SR'), 'En träpil utan järnspets svävar framför ansiktet och skjuts iväg dit magikern tittar.'),
-  spell('animism', 6, 'ÖKA', '', 'beröring', Tdiv(4, 'minuter'), 'Höjer STY, FYS, STO, KAR eller SMI med 1 per E.'),
+  spell('animism', 6, 'ÖKA', '', 'beröring', Tdiv(4, 'minuter'), 'Höjer STY, FYS, STO, KAR eller SMI med 1 per E.', { effect: { kind: 'egenskap', sign: 1 }, aim: 'valfri' }),
   spell('animism', 6, 'ÖRTRANKOR', 'F', 'särskild', T(1, 'SR'), 'Frön kastade (STY+SMI)/2 rutor snärjer offret. En E per 10 STO.', { effect: { kind: 'rankor' }, aim: 'fiende' }),
-  spell('animism', 7, 'KAMOUFLAGE', '', 'personlig', Tdiv(4, 'minuter'), 'Magikern smälter in i naturen och kan inte upptäckas så länge hen står still.'),
+  spell('animism', 7, 'KAMOUFLAGE', '', 'personlig', Tdiv(4, 'minuter'), 'Magikern smälter in i naturen och kan inte upptäckas så länge hen står still.', { effect: { kind: 'kamouflage' }, aim: 'själv' }),
   spell('animism', 11, 'VINDKONTROLL', '', S(1, 'km'), T(1, 'timmar'), 'Ändrar vinden med E m/s och vrider den ett åttondels varv per E.'),
   spell('animism', 12, 'FÖRÄNDRA', '', S(2, 'rutor'), T(1, 'minuter'), 'Förvandlar djur, växt eller mineral till en annan form av samma slag. En E per 3 STO.'),
   spell('animism', 12, 'HELA', '', 'beröring', 'omedelbar', 'Läker 1T6 KP per E på en levande varelse. Botar inte sjukdom.', { effect: { kind: 'läka', dice: '1T6' }, aim: 'valfri' }),
@@ -74,12 +74,12 @@ export const SPELL_LIST: SpellDef[] = [
   spell('animism', 10, 'KONTROLLERA VARELSE', '', S(10, 'rutor'), T(1, 'SR'), 'Styr 20 STO varelser per E ur en viss grupp genom telepati.', { perCreatureGroup: true }),
 
   // ---------------------------------------------------------------- elementarmagi
-  spell('elementarmagi', 2, 'LJUS', 'F', S(10, 'rutor'), T(4, 'minuter'), 'Ett föremål lyser upp tre meter, tre meter till eller fem minuter till per extra E.'),
+  spell('elementarmagi', 2, 'LJUS', 'F', S(10, 'rutor'), T(4, 'minuter'), 'Ett föremål lyser upp tre meter, tre meter till eller fem minuter till per extra E.', { effect: { kind: 'ljus' }, aim: 'valfri' }),
   spell('elementarmagi', 2, 'LÅGA', 'FK', 'personlig', { dice: '1T3', unit: 'SR' }, 'En liten låga ur tummen som tänder brännbart.'),
   spell('elementarmagi', 3, 'FÖRSEGLA', 'F', 'beröring', T(1, 'minuter'), 'Sammanfogar två föremål, till exempel en dörr och karmen. Ger 20 KP extra.'),
-  spell('elementarmagi', 3, 'MÖRKER', 'F', S(10, 'rutor'), Tdiv(4, 'minuter'), 'Släcker allt ljus i en sfär med sex meters diameter.'),
+  spell('elementarmagi', 3, 'MÖRKER', 'F', S(10, 'rutor'), Tdiv(4, 'minuter'), 'Släcker allt ljus i en sfär med sex meters diameter.', { effect: { kind: 'mörker' }, aim: 'valfri' }),
   spell('elementarmagi', 3, 'SKÖLD', 'FK', 'personlig', 'omedelbar', 'Luften parerar en fysisk attack automatiskt med BV 4, +2 per extra E.', { effect: { kind: 'luftsköld' }, aim: 'själv' }),
-  spell('elementarmagi', 4, 'FLAMMANDE HAND', 'F', 'beröring', { dice: '1T3', unit: 'minuter' }, 'Handen brinner och ger 1T3 extra skada per E.'),
+  spell('elementarmagi', 4, 'FLAMMANDE HAND', 'F', 'beröring', { dice: '1T3', unit: 'minuter' }, 'Handen brinner och ger 1T3 extra skada per E.', { effect: { kind: 'flammandeHand' }, aim: 'valfri' }),
   spell('elementarmagi', 4, 'KALLA HANDEN', 'FK', Sdiv(2, 'rutor'), 'omedelbar', 'Köldstråle. Offret slår Svårt FYS-slag; misslyckas det kan offret inte göra något den rundan, annars −4 på CL.', { effect: { kind: 'köld' }, aim: 'fiende' }),
   spell('elementarmagi', 6, 'BLIXT', 'FK', S(10, 'rutor'), 'omedelbar', 'Blixt mot ett mål som magikern väljer: 1T6 per E från totala KP. Rustning skyddar inte.', { effect: { kind: 'skada', dice: '1T6', armor: 'ingen', loc: false }, aim: 'fiende' }),
   spell('elementarmagi', 6, 'ELD', 'F', S(10, 'rutor'), 'omedelbar', '1T6 per E i en eller flera sfärer, från totala KP. Rustning och SKYDD absorberar.', { effect: { kind: 'skada', dice: '1T6', armor: 'full', loc: false }, aim: 'fiende' }),
@@ -90,7 +90,7 @@ export const SPELL_LIST: SpellDef[] = [
   spell('elementarmagi', 6, 'KNÄCKA', 'FK', S(2, 'rutor'), 'omedelbar', 'Sänker ett föremåls BV med 10, plus 2 per extra E.', { effect: { kind: 'knäcka', base: 10, perGrade: 2 }, aim: 'fiende' }),
   spell('elementarmagi', 6, 'ÖPPNA', 'F', 'beröring', 'omedelbar', 'Öppnar lås och lock. Kan bryta FÖRSEGLA.'),
   spell('elementarmagi', 7, 'VIGGFÅNGARE', 'F', 'personlig', 'omedelbar', 'Under åska: lockar till sig en blixt (5T6) och omvandlar en del av skadan till PSY.'),
-  spell('elementarmagi', 8, 'VIRVELSKÖLD', 'F', 'personlig', T(1, 'SR'), 'Luftvirvel som stöter bort projektiler, åt båda hållen.'),
+  spell('elementarmagi', 8, 'VIRVELSKÖLD', 'F', 'personlig', T(1, 'SR'), 'Luftvirvel som stöter bort projektiler, åt båda hållen.', { effect: { kind: 'virvelsköld' }, aim: 'själv' }),
   // FRAMMANA/SKICKA BORT ELEMENTAR: varje sorts elementar är en egen besvärjelse (Bok III s. 21–22, 27).
   ...(
     [
@@ -114,7 +114,7 @@ export const SPELL_LIST: SpellDef[] = [
 
   // ---------------------------------------------------------------- mentalism
   spell('mentalism', 1, 'SPRÅNG', 'K', 'beröring', Tdiv(4, 'SR'), 'Jättesprång: 4 m långt och 2 m högt per E. Normalt SMI-slag vid landningen.'),
-  spell('mentalism', 3, 'MOTSTÅNDSKRAFT', '', 'beröring', T(1, 'minuter'), 'Minskar skada av hetta och köld med 1 per E och attack.'),
+  spell('mentalism', 3, 'MOTSTÅNDSKRAFT', '', 'beröring', T(1, 'minuter'), 'Minskar skada av hetta och köld med 1 per E och attack.', { effect: { kind: 'motståndskraft' }, aim: 'valfri' }),
   spell('mentalism', 4, 'LEVITATION', '', 'personlig', T(1, 'minuter'), 'Stiger rakt upp 5 m per E med upp till 50 kg packning.'),
   spell('mentalism', 5, 'KÄNSLOLÄSNING', '', S(2, 'rutor'), Tdiv(4, 'SR'), 'Läser av en varelses känslor och om den är vänligt eller fientligt inställd.', { effect: { kind: 'fiendskap' }, aim: 'valfri', resisted: true }),
   spell('mentalism', 6, 'LYFT', '', S(4, 'rutor'), T(1, 'minuter'), 'Lyfter 3 STO per E och flyttar det två rutor per runda, plus en per extra E.'),
@@ -124,14 +124,14 @@ export const SPELL_LIST: SpellDef[] = [
   spell('mentalism', 8, 'FLYGA', '', 'beröring', Tdiv(4, 'timmar'), 'Flyger E×5 rutor per runda. En extra E per 20 STO över de första 20.'),
   spell('mentalism', 8, 'LÄDERHUD', '', 'personlig', T(1, 'timmar'), 'Huden ger 2 i naturligt skydd men KAR −2.', { effect: { kind: 'skydd', fixed: 2 }, aim: 'själv' }),
   spell('mentalism', 8, 'MÖRKERSYN', '', 'beröring', T(1, 'timmar'), 'Ser värme. Fungerar inte i ljus eller nära starka värmekällor.', { effect: { kind: 'mörkersyn' }, aim: 'valfri' }),
-  spell('mentalism', 9, 'OSYNLIGHET', '', 'beröring', T(1, 'minuter'), 'Gör 6 STO osynliga per E. Bryts om den osynlige slåss, springer, lägger magi eller skadas.'),
+  spell('mentalism', 9, 'OSYNLIGHET', '', 'beröring', T(1, 'minuter'), 'Gör 6 STO osynliga per E. Bryts om den osynlige slåss, springer, lägger magi eller skadas.', { effect: { kind: 'osynlighet' }, aim: 'valfri' }),
   spell('mentalism', 9, 'SYN', '', 'personlig', T(1, 'SR'), 'Ser och hör ett känt ställe inom 120 m (annars 30 m), en dag bakåt per extra E. Identifierar magiska föremål.'),
   spell('mentalism', 10, 'ELCHOCK', 'FK', 'beröring', 'omedelbar', '1T4 per E på den som berörs. Metallrustning skyddar bara till hälften.', { effect: { kind: 'skada', dice: '1T4', armor: 'halvMetall', loc: true }, aim: 'fiende' }),
   spell('mentalism', 11, 'TANKELÄSNING', '', S(2, 'rutor'), T(1, 'minuter'), 'Läser en intelligent varelses tankar utan att den märker det.'),
   spell('mentalism', 12, 'KONTROLLERA PERSON', '', S(4, 'rutor'), T(1, 'SR'), 'Styr en humanoids kropp, en per E. PSY mot PSY.'),
   spell('mentalism', 12, 'TELEPATI', '', 'särskild', T(1, 'minuter'), 'Tankekontakt på vilket avstånd som helst med någon man känner till namnet, en person till per extra E.'),
   spell('mentalism', 12, 'TELEPORTERA', '', 'beröring', 'omedelbar', 'Flyttar 3 STO per E till en välkänd plats inom 100 m, längre med extra E.'),
-  spell('mentalism', 13, 'MAGISK SYN', '', 'beröring', T(1, 'minuter'), 'Ser det osynliga och skyddar mot besvärjelser som förblindar.'),
+  spell('mentalism', 13, 'MAGISK SYN', '', 'beröring', T(1, 'minuter'), 'Ser det osynliga och skyddar mot besvärjelser som förblindar.', { effect: { kind: 'magiskSyn' }, aim: 'valfri' }),
   spell('mentalism', 14, 'ORÄDD', '', 'beröring', T(1, 'minuter'), 'Behöver inte slå på Skräcktabellen.', { effect: { kind: 'orädd' }, aim: 'valfri' }),
 ];
 

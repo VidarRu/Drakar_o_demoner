@@ -9,6 +9,7 @@ import {
   darkAt,
   DIRS,
   finishTurn,
+  hasEffect,
   isOut,
   isParty,
   moraleCheck,
@@ -427,7 +428,7 @@ export function act(g: Game, e: Actor, id: string, targetId?: string): string | 
       break;
     }
     case 'blända':
-      for (const x of g.state.actors.filter((y) => y.alive && y.hostile && !isParty(y) && !y.unconscious && g.canSee(y, e))) {
+      for (const x of g.state.actors.filter((y) => y.alive && y.hostile && !isParty(y) && !y.unconscious && !hasEffect(y, 'magiskSyn') && g.canSee(y, e))) {
         const hard = x.darkvision ? 'Svårt' : 'Normalt';
         const psy = attributeCheck(x.attrs.PSY, g.rng, hard);
         if (psy.success) g.log(`${x.name} vänder bort blicken i tid (${hard} PSY-slag, ${short(psy)}).`);

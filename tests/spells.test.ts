@@ -3,8 +3,9 @@ import * as combat from '../src/engine/combat';
 import { seededRng, type Rng } from '../src/engine/dice';
 import { Game } from '../src/engine/game';
 import { ironProblem } from '../src/engine/inventory';
-import { castProblem, enemyCast, spellS, spellTargets } from '../src/engine/magic';
-import type { Actor } from '../src/engine/types';
+import { castProblem, castSpell, enemyCast, resolvePending, spellS, spellTargets } from '../src/engine/magic';
+import { maxKp } from '../src/engine/rules';
+import type { Actor, Character } from '../src/engine/types';
 import { testCharacter } from './helpers';
 
 /** Slumpkälla som ger talen i tur och ordning och sedan 0,5. */
@@ -100,3 +101,182 @@ describe('fiender som lägger besvärjelser', () => {
     expect(enemyCast(next.g, next.witch)).toBe(false);
   });
 });
+
+/** En magiker med alla tre skolorna på FV 14 och de besvärjelser som provas här. Inget järn. */
+function allRounder(): Character {
+  const c = testCharacter();
+  c.profession = 'magiker';
+  c.attrs.INT = 15;
+  c.attrs.PSY = 18;
+  c.skills['magiskola:animism'] = 14;
+  c.skills['magiskola:elementarmagi'] = 14;
+  c.skills['magiskola:mentalism'] = 14;
+  c.spells = ['oka', 'minska', 'kamouflage', 'flammande_hand', 'virvelskold', 'ljus', 'morker', 'motstandskraft', 'magisk_syn', 'osynlighet', 'antimagi', 'eld'];
+  c.memorized = [...c.spells];
+  c.inventory = ['trastav', 'harnesk_lader'];
+  c.equipped = { weapon: 'trastav', armor: ['harnesk_lader'] };
+  return c;
+}
+
+/** Utforskning med magikern på vägen och en fiende (inte i strid). */
+function explore(defId = 'svartalf', dist = 3): { g: Game; p: Actor; foe: Actor } {
+  const g = Game.create(allRounder(), seededRng(9));
+  const p = g.player;
+  p.psy = 18;
+  const foe = g.state.actors.find((a) => a.defId === defId)!;
+  p.x = 10;
+  p.y = 12;
+  foe.x = 10 + dist;
+  foe.y = 12;
+  foe.hostile = false;
+  g.updateFov();
+  return { g, p, foe };
+}
+
+describe('besvärjelser i strid', () => {
+  it('ÖKA STO ger KP medan den varar, och förlorade KP står kvar när den tar slut', () => {
+    const { g, p } = explore();
+    const before = p.maxKp;
+    const sto = p.attrs.STO;
+    const gain = maxKp({ FYS: p.attrs.FYS, STO: sto + 2 }) - maxKp(p.attrs);
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'oka', { grade: 2, target: p.id, attr: 'STO' })).toBeNull();
+    expect(p.attrs.STO).toBe(sto + 2);
+    expect(p.maxKp).toBe(before + gain);
+    combat.wound(g, p, 3, 'bröstkorg');
+    const kp = p.kp;
+    g.sleep(1);
+    expect(p.attrs.STO).toBe(sto);
+    expect(p.maxKp).toBe(before);
+    expect(p.kp).toBe(kp - gain);
+  });
+
+  it('ÖKA SMI ändrar baschansen för SMI-färdigheter, och MINSKA sänker en fiendes STY', () => {
+    const { g, p, foe } = explore('svartalf', 1);
+    const smyga = combat.skillMod(g, p, 'smyga');
+    // SMI 12 → 13 ger baschans 3 i stället för 2.
+    g.rng = queue(face(2));
+    castSpell(g, 'oka', { grade: 1, target: p.id, attr: 'SMI' });
+    expect(combat.skillMod(g, p, 'smyga')).toBe(smyga + 1);
+    const sty = foe.attrs.STY;
+    g.rng = queue(face(2));
+    castSpell(g, 'minska', { grade: 3, target: foe.id, attr: 'STY' });
+    expect(foe.attrs.STY).toBe(sty - 3);
+    expect(foe.hostile).toBe(true);
+  });
+
+  it('FLAMMANDE HAND ger 1T3 per E på anfall med vapen i handen', () => {
+    const { g, p, foe } = explore('svartalf', 1);
+    g.rng = queue(face(2));
+    castSpell(g, 'flammande_hand', { grade: 2, target: p.id });
+    expect(combat.hasEffect(p, 'flammandeHand')).toBe(true);
+    g.rng = queue(face(3, 3), face(3, 3), face(3, 6), face(10));
+    combat.hit(g, p, foe, combat.weaponInfo(p), {});
+    expect(g.state.log.join('\n')).toContain('Den flammande handen bränner: +6');
+  });
+
+  it('VIRVELSKÖLD stöter bort pilar', () => {
+    const { g, p } = explore();
+    g.rng = queue(face(2));
+    castSpell(g, 'virvelskold', { grade: 1 });
+    const skytt = g.state.actors.find((a) => a.defId === 'svartalf_skytt')!;
+    skytt.x = 15;
+    skytt.y = 12;
+    const kp = p.kp;
+    combat.shoot(g, skytt, p);
+    expect(p.kp).toBe(kp);
+    expect(g.state.log.join('\n')).toContain('virvelskölden');
+  });
+
+  it('MOTSTÅNDSKRAFT tar 1 per E av skadan från ELD', () => {
+    const { g, foe } = explore();
+    foe.hostile = true;
+    foe.effects.push({ kind: 'motståndskraft', label: 'MOTSTÅNDSKRAFT E3', grade: 3, spell: 'motstandskraft', rounds: 100 });
+    const kp = foe.kp;
+    // ELD E2: T20 2 lyckas, 2T6 blir 4 + 4 = 8, minus 3.
+    g.rng = queue(face(2), face(4, 6), face(4, 6));
+    expect(castSpell(g, 'eld', { grade: 2, target: foe.id })).toBeNull();
+    expect(foe.kp).toBe(kp - 5);
+  });
+
+  it('ANTIMAGI får en BLIXT att studsa tillbaka på häxkonstnären', () => {
+    const { g, p, witch } = witchFight(4);
+    p.effects.push({ kind: 'antimagi', label: 'ANTIMAGI E6', grade: 6, spell: 'antimagi', rounds: 100 });
+    const kp = witch.kp;
+    const pkp = p.kp;
+    // BLIXT E3 lyckas (2), E3 mot E6 ger 7: 20 misslyckas, skadan 3T6 blir 1 + 1 + 1.
+    g.rng = queue(face(2), face(20), face(20), face(1, 6), face(1, 6), face(1, 6));
+    combat.autoTurn(g);
+    expect(g.state.log.join('\n')).toContain('studsar');
+    expect(witch.kp).toBe(kp - 3);
+    expect(p.kp).toBe(pkp);
+  });
+
+  it('MÖRKER släcker facklorna i sfären, och LJUS lyser som en fackla', () => {
+    const { g, p, foe } = explore('svartalf', 6);
+    expect(combat.darkAt(g, foe)).toBe(false);
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'morker', { grade: 1, target: foe.id })).toBeNull();
+    expect(combat.darkAt(g, foe)).toBe(true);
+    expect(combat.darkAt(g, p)).toBe(false);
+    // Gruppens fackla lyser inte in i mörkret.
+    p.x = foe.x - 1;
+    expect(combat.torchLit(g, foe)).toBe(false);
+    // Mörkret går över.
+    g.sleep(1);
+    expect(combat.darkAt(g, foe)).toBe(false);
+    p.x = 10;
+    p.torchOut = true;
+    expect(combat.torchLit(g, foe)).toBe(false);
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'ljus', { grade: 2, target: foe.id })).toBeNull();
+    expect(combat.torchLit(g, { x: foe.x + 3, y: foe.y })).toBe(true);
+    expect(combat.torchLit(g, { x: foe.x + 5, y: foe.y })).toBe(false);
+  });
+
+  it('OSYNLIGHET: fienden ser inte magikern förrän hen skadas, utom med MAGISK SYN', () => {
+    const { g, p, witch } = witchFight(4);
+    // Rollpersonen lägger bort järnet och lär sig OSYNLIGHET.
+    g.char.spells = ['osynlighet'];
+    g.char.memorized = ['osynlighet'];
+    g.char.inventory = [];
+    p.skills['magiskola:mentalism'] = 14;
+    p.weapon = 'nave';
+    p.shield = undefined;
+    p.armor = [];
+    p.psy = 10;
+    const c = g.state.combat!;
+    c.order = [p.id, witch.id];
+    c.turn = 0;
+    // 6 STO per E: E1 räcker inte för rollpersonens STO, E3 gör det.
+    expect(castProblem(g, 'osynlighet', { grade: 1, target: p.id })).toMatch(/Det krävs E/);
+    resolveNow(g, () => castSpell(g, 'osynlighet', { grade: 3, target: p.id }));
+    expect(p.hidden).toBe(true);
+    expect(spellTargets(g, 'blixt', 0, witch)).toEqual([]);
+    witch.effects.push({ kind: 'magiskSyn', label: 'MAGISK SYN', rounds: 10 });
+    expect(spellTargets(g, 'blixt', 0, witch)).toEqual([p]);
+    combat.wound(g, p, 1, null);
+    expect(p.hidden).toBe(false);
+  });
+
+  it('KAMOUFLAGE verkar bara utomhus och bryts när magikern flyttar sig', () => {
+    const { g, p } = explore();
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'kamouflage', { grade: 1 })).toBeNull();
+    expect(p.hidden).toBe(true);
+    p.x += 1;
+    combat.tick(g, p);
+    expect(p.hidden).toBe(false);
+    const chief = g.state.actors.find((a) => a.defId === 'svartalfshovding')!;
+    p.x = chief.x - 1;
+    p.y = chief.y;
+    expect(castProblem(g, 'kamouflage', { grade: 1 })).toMatch(/ute i naturen/);
+  });
+});
+
+/** Lägger en besvärjelse i strid och låter den verka direkt (som i början av nästa runda). */
+function resolveNow(g: Game, cast: () => string | null) {
+  expect(cast()).toBeNull();
+  g.rng = queue(face(2));
+  resolvePending(g);
+}

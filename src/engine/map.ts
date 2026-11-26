@@ -5,11 +5,13 @@ export interface TileDef {
   opaque: boolean;
   /** Mörkt utan ljuskälla (grottor). */
   dark?: boolean;
+  /** Utomhus i naturen (KAMOUFLAGE). */
+  outdoor?: boolean;
 }
 
 export const TILES: Record<string, TileDef> = {
-  '.': { name: 'gräs', walkable: true, opaque: false },
-  ',': { name: 'stig', walkable: true, opaque: false },
+  '.': { name: 'gräs', walkable: true, opaque: false, outdoor: true },
+  ',': { name: 'stig', walkable: true, opaque: false, outdoor: true },
   _: { name: 'trägolv', walkable: true, opaque: false },
   ':': { name: 'grottgolv', walkable: true, opaque: false, dark: true },
   '+': { name: 'dörr', walkable: true, opaque: true },

@@ -414,6 +414,51 @@ Regelvärdena står i `ABILITY_RULES` i `src/engine/rules/tables.ts`, och det me
 - **Förtrollande framträdande (bard, Vidar):** barden sjunger eller spelar i en minut och slår i Sjunga eller Spela instrument. Lyckas det får barden +5 på KAR-baserade färdigheter (Övertala, Muta, Bluffa, Köpslå och de andra) i en timme, och AI-spelledaren får veta att åhörarna är förtrollade. Bara utanför strid. Ett misslyckat försök kostar minuten, och det går att försöka igen.
 - **God kroppskontroll:** en handling med ett Normalt FYS-slag. Lyckas det får personen +5 STY i tre rundor, och det räknas in i skadebonusen, i greppet om tunga vapen och i STY mot STY. Två försök om dagen; ett misslyckat försök räknas också (Vidar).
 
+### Fiendernas magi (byggt)
+
+- **Samma regler för alla (Vidar):** `castSpell`, `castProblem` och `spellTargets` i `src/engine/magic.ts` tar magikern som argument (`CastOptions.caster`). Fienden har FV i sina skolor, S per besvärjelse, PSY-poäng, högsta E, järnregeln, snedtändning och bruten koncentration som gruppen.
+- **Data:** en varelse får magi med `CreatureDef.magic` (FV per skola och besvärjelserna). Besvärjelserna står i `Actor.spells` och räknas alla som memorerade. PSY-poängen är varelsens PSY.
+- **Fiendens val** (`enemyCast`), i den här ordningen:
+  1. HELA på en vän med hälften av KP eller mindre, också sig själv.
+  2. Skydd: SKYDD, LÄDERHUD och FÖRTROLLA VAPEN när de inte redan verkar, och SKÖLD en gång per strid när någon står intill.
+  3. En skadebesvärjelse (skada, köld, rankor) mot den närmaste som syns, när ingen står intill.
+  4. Annars närstrid eller skott som förut.
+- **Effektgraden (tolkning):** fienden väljer så hög E att CL blir minst 8, högst E3 för skada och E2 för skydd, och alltid med 2 PSY kvar efteråt (en E1 och aldrig PSY 0).
+- **Fienderna går bara på gruppen** med magi, som i närstrid. Den som är osynlig eller smyger oupptäckt kan de inte välja.
+- **Spelaren ser det komma:** en besvärjelse som inte är kvick står i loggen som "börjar mana … mot …" och verkar i början av nästa runda, om ingen hinner skada magikern innan.
+- **Häxkonstnären i Gråvad:** en svartalfisk häxkonstnär (INT 14, PSY 16, Elementarmagi 14, Animism 16) med BLIXT, SKÖLD och HELA och en trästav står vid Grukk i grottan.
+
+### Besvärjelser i strid (byggt)
+
+Koden står i `apply` i `src/engine/magic.ts`, och det som striden behöver i `src/engine/spelleffects.ts`.
+
+- **ÖKA och MINSKA (Vidar och tolkning):**
+  - Magikern väljer grundegenskap (STY, FYS, STO, KAR eller SMI), och den ändras med 1 per E så länge besvärjelsen varar. MINSKA sänker inte under 1.
+  - STO och FYS ändrar KP (Vidar): KP och KP i kroppsdelarna ändras lika mycket som maxvärdet, så förlorade KP står kvar när besvärjelsen tar slut.
+  - SB följer STY, och förflyttningen räknas om.
+  - Tolkning: baschansen ändras för alla färdigheter som bygger på grundegenskapen.
+  - Tolkning: ovilliga mål gör inte motstånd, eftersom besvärjelsen inte påverkar psyket. Samma besvärjelse på samma grundegenskap ersätter den gamla.
+- **FLAMMANDE HAND:** 1T3 per E i extra skada med händerna och med vapen som hålls i handen, inte med skott och naturliga vapen.
+- **VIRVELSKÖLD:** alla skott och kast till och från magikern missar. Ammunitionen går åt.
+- **MOTSTÅNDSKRAFT:** 1 mindre skada per E och angrepp från ELD, FROST, salamandern, thermen och glacialen, och från vapen som en elementar har hettat upp eller kylt ned.
+- **ANTIMAGI:**
+  - En besvärjelse som riktas mot någon annan med ANTIMAGI slår sin E mot ANTIMAGIs E på motståndstabellen. Misslyckas det studsar den tillbaka på magikern.
+  - Tolkning: EXPLOSION, MÖRKER och elementarerna påverkas inte, eftersom de inte riktas mot målet.
+- **LJUS:** målet lyser som en fackla, två rutor (tre meter) per E. Det räknas som fackelsken.
+- **MÖRKER:**
+  - En sfär med två rutors radie kring målets ruta (`GameState.zones`). Rutorna räknas som mörker också utomhus, och facklor där inne lyser inte.
+  - Tolkning: mörkersyn fungerar, eftersom den ser värme. I umbrans mörker fungerar den inte.
+- **MAGISK SYN:** ser den som är osynlig (men inte den som smyger) och bländas inte av EXPLOSION eller luminalen.
+- **OSYNLIGHET:**
+  - Kräver 1 E per 6 STO. Den osynlige räknas som oupptäckt: fienderna kan inte välja hen som mål.
+  - Den bryts när hen anfaller, skjuter, lägger magi, springer (mer än halva förflyttningen) eller skadas.
+  - Tolkning: den som anfaller osynlig behöver inte slå Smyga, men försvararen slår Upptäcka fara. Misslyckas det är försvararen omedveten, som vid anfall från smygarläge.
+- **KAMOUFLAGE:** bara utomhus (gräs och stig). Magikern är oupptäckt tills hen lämnar rutan, anfaller, skjuter, lägger magi eller skadas.
+- **Kvar:**
+  - VINDPIL och ASTRALVAPEN behöver värden ur Bok III.
+  - NEDKALLA ÅSKVIGG behöver vädret.
+  - KONTROLLERA PERSON, KONTROLLERA VARELSE, SPRÅNG, LEVITATION, FLYGA, LYFT, TELEPORTERA, DIMMA och BESKYDDARE väntar på att byggas.
+
 ### Vädret (Vidar)
 
 Vädret byggs i steg 7 i förslagets ordning. Upplägget:

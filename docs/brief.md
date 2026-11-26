@@ -94,8 +94,19 @@ förslagets avsnitt 5.
   - `heroic` lägger på turen före hjältepoängen, och `raiseTarget` (`rules/check.ts`) räknar om slaget. Riddarslaget är anfallssättet `riddarslag` i `maneuvers.ts`, och Handpåläggning finns bland hjälphandlingarna.
   - STY räknas med `strength(a)` i striden, så att God kroppskontroll (effekten `styrka`) ger SB. Effekter kan gälla en enda färdighet (`scope: 'färdighet'` och `ActiveEffect.skill`), och `consumeSkillEffects` förbrukar dem efter `playerCheck`.
   - Gränssnittet har knappar för Turgubbe, Tjuvtur, Kroppskontroll och Meditera (med val av färdighet) i båda panelerna. Testerna står i `tests/talents.test.ts`.
-- **Nästa (steg 3):** magi för alla (`castSpell` och `resolve` tar magikern som argument), sedan fiender som lägger besvärjelser med häxkonstnären i Gråvad, och besvärjelserna i strid.
-- **Kvar av förmågorna:** Gott balanssinne (när SPRÅNG byggs), Absolut ögonmått och God tidskänsla (gränssnittet), Mottagligt medium och Magisk empati (väntar på kanalisering och magiska föremål), avdraget för den andra handen, bardens Förtrollande framträdande och Hamnbytare.
+- **Klart (barden och munken, Vidar):** bardens Förtrollande framträdande och munkens nya Meditation är en husregel. En minut och ett lyckat slag (Sjunga eller Spela instrument för barden, Normalt PSY-slag för munken) ger +5 på KAR- respektive INT-färdigheter i en timme, utanför strid. `perform` i `talents.ts`, effekterna har `scope: 'kar'` och `'int'`, och AI-spelledaren får veta när barden har förtrollat åhörarna. Knapparna Framträd och Meditera finns i panelerna. Vidar godkände samtidigt de andra tolkningarna för de enkla förmågorna.
+- **Klart (steg 3 och 4):** magi för alla och fiender som lägger besvärjelser.
+  - `castSpell`, `castProblem` och `spellTargets` tar magikern (`CastOptions.caster`). `spellbook` ger formelsamlingen och minnet för vem som helst.
+  - Varelser får magi med `CreatureDef.magic`, och besvärjelserna står i `Actor.spells`.
+  - `enemyCast` i `magic.ts` är fiendens val (HELA, skydd, skada) och anropas från `autoTurn`. `CombatState.cast` håller reda på vad varje fiende har lagt.
+  - Den svartalfiska häxkonstnären står i Gråvads grotta (BLIXT, SKÖLD, HELA, figuren `haxkonstnar`).
+- **Pågår (steg 5):** besvärjelserna i strid. ÖKA, MINSKA, FLAMMANDE HAND, VIRVELSKÖLD, MOTSTÅNDSKRAFT, ANTIMAGI, LJUS, MÖRKER, MAGISK SYN, OSYNLIGHET och KAMOUFLAGE verkar nu.
+  - Verkan står i `apply` i `magic.ts`. Det som striden behöver står i `src/engine/spelleffects.ts`: zonerna (`GameState.zones`), `attrShift`, `flamingHand`, `inVortex`, `heatColdResist`, `unseen` och `breakHiding`.
+  - `changeAttribute` och `endSpellEffect` i `combat.ts` ändrar och återställer grundegenskaper.
+  - Magi-fönstret har ett val av grundegenskap för ÖKA och MINSKA.
+  - Testerna står i `tests/spells.test.ts`.
+- **Nästa i steg 5:** KONTROLLERA PERSON och KONTROLLERA VARELSE, SPRÅNG, LEVITATION, FLYGA, LYFT, TELEPORTERA, DIMMA och BESKYDDARE. VINDPIL och ASTRALVAPEN väntar på värden ur Bok III, och NEDKALLA ÅSKVIGG på vädret.
+- **Kvar av förmågorna:** Gott balanssinne (när SPRÅNG byggs), Absolut ögonmått och God tidskänsla (gränssnittet), Mottagligt medium och Magisk empati (väntar på kanalisering och magiska föremål), avdraget för den andra handen och Hamnbytare.
 
 Vidar vill också göra en genomgång av hela regelsystemet när det är klart, för att se att det är konsekvent.
 
@@ -163,9 +174,9 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 202 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 217 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
-`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
+`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/spells.test.ts` prövar fiendernas magi och besvärjelserna i strid. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
 
 För att provköra gränssnittet: starta `npx vite` och styr sidan med Playwright. Ett snabbt sätt är
 att skapa ett spel med `Game.create(testCharacter())`, lägga `JSON.stringify(g.state)` i
@@ -175,4 +186,7 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 ## Öppna frågor till Vidar
 
 - Chanserna för vädret (tolkning i `docs/regelbeslut.md`) och vindens verkan på skott och båtar, när vädret byggs.
-- Tolkningarna för de enkla förmågorna i `docs/regelbeslut.md` under Förmågor som används i spel: Gott läkekött för all läkning, turen efter tärningen, storleksgränsen för Anfall bakifrån, svårighetsgraden 10 för infektioner, och att PSY och försök räknas även när det misslyckas.
+- Handpåläggning mot infektioner: svårighetsgraden 10 och 10 PSY är fortfarande en tolkning.
+- Tolkningarna för besvärjelserna i strid och fiendens val av effektgrad (`docs/regelbeslut.md` under Fiendernas magi och Besvärjelser i strid).
+- Skada som bara drabbar totala KP (BLIXT, ELD och blödning utan kroppsdel) försvinner när tiden går utanför strid om alla kroppsdelar är oskadda, eftersom totala KP återställs när kroppsdelarna har läkt (`settle` i `time.ts`). Det följer Bok II, men gör att BLIXT inte lämnar skador kvar efter striden. Ska det vara så?
+- Värdena för VINDPIL (skadan) och ASTRALVAPEN (FV) ur Bok III.

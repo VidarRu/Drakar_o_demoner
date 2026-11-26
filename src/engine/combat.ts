@@ -5,6 +5,7 @@ import type { ArmorDef, MeleeWeaponDef, RangedWeaponDef } from '../data/types';
 import { WEAPONS, weaponSkill } from '../data/weapons';
 import { itemInfo, loadMod, loadPenalty, smiBlocked } from './inventory';
 import { breakConcentration, enemyCast, forgetOnKnockout, resolvePending } from './magic';
+import { attrShift, breakHiding, checkCamouflage, flamingHand, heatColdResist, inDarkness, inVortex, magicallyHidden, unseen } from './spelleffects';
 import { poisonOnHit, updatePoisons } from './poison';
 import { die, maxRoll, roll } from './dice';
 import type { Game } from './game';
@@ -40,8 +41,11 @@ import {
   ABILITY_RULES,
   LIMB_PSY_CHECK,
   LOCATION_WOUND_PENALTY,
+  locationKp,
   lookup,
+  maxKp,
   MELEE_MODS,
+  movement,
   MORALE_MODS,
   DAY,
   DISARM,
@@ -59,7 +63,8 @@ import {
   type Scope,
   type TableRow,
 } from './rules';
-import { ATTR_KEYS, type ActiveEffect, type Actor, type CombatState, type WeaponSlot } from './types';
+import { ATTR_KEYS, type ActiveEffect, type Actor, type AttrKey, type CombatState, type WeaponSlot } from './types';
+import { RACES } from '../data/races';
 
 /**
  * Detaljerad strid enligt Bok II (s. 15–22) och husreglerna i docs/regelbeslut.md.
@@ -156,7 +161,7 @@ function clEffects(a: Actor): ActiveEffect[] {
  * gifter och andra effekter. Används för Första hjälpen, Dra vapen, Köpslå och liknande.
  */
 export function skillMod(g: Game, a: Actor, skill: string): number {
-  let mod = woundPenalty(a) + loadPenalty(g, a, skill) + passiveCl(g.charOf(a), skill);
+  let mod = woundPenalty(a) + loadPenalty(g, a, skill) + passiveCl(g.charOf(a), skill) + attrShift(a, skill);
   for (const e of clEffects(a)) if (!e.half && scopeMatches(e.scope, 'annan', skill, undefined, undefined, e.skill)) mod += e.mod ?? 0;
   if (hasEffect(a, 'blind')) mod += BLIND_CL;
   return mod;
@@ -347,7 +352,14 @@ function rollDamage(g: Game, a: Actor, w: WeaponInfo, perfect: boolean): number 
   const magic = weaponMagic(a, w.slot);
   // Järnnäve: obeväpnad gör man alltid maximal skada.
   const iron = w.unarmed && actorHas(g, a, 'jarnnave');
-  return Math.max(0, (perfect || iron ? maxRoll(expr) : roll(expr, g.rng)) + magic);
+  // FLAMMANDE HAND: 1T3 per E med händerna och med vapen i handen, inte med skott och naturliga vapen.
+  const flame = flamingHand(a);
+  let fire = 0;
+  if (flame && (w.unarmed || (!w.natural && !RANGED_GROUPS.has(w.skill)))) {
+    fire = roll(`${flame}T3`, g.rng);
+    g.log(`Den flammande handen bränner: +${fire} i skada.`);
+  }
+  return Math.max(0, (perfect || iron ? maxRoll(expr) : roll(expr, g.rng)) + magic + fire);
 }
 
 /** Extra absorbering på hela kroppen från SKYDD och LÄDERHUD. */
@@ -486,7 +498,7 @@ export function face(a: Actor, x: number, y: number) {
 }
 
 function isDark(g: Game, x: number, y: number): boolean {
-  return !!tileAt(g.map, x, y)?.dark;
+  return !!tileAt(g.map, x, y)?.dark || inDarkness(g, { x, y });
 }
 
 /**
@@ -507,7 +519,16 @@ export function lightMod(g: Game, viewer: Actor, target: Actor): number {
 
 /** Lyser någon i gruppens facklor på rutan? */
 export function torchLit(g: Game, at: { x: number; y: number }): boolean {
-  return g.state.actors.some((a) => a.alive && isParty(a) && !a.elemental && !a.torchOut && distance(a.x, a.y, at.x, at.y) <= TORCH_RANGE);
+  // I en sfär av MÖRKER lyser ingenting, och en fackla där inne lyser inte heller utåt.
+  if (inDarkness(g, at)) return false;
+  return g.state.actors.some((a) => {
+    if (!a.alive || inDarkness(g, a)) return false;
+    const d = distance(a.x, a.y, at.x, at.y);
+    // LJUS: figuren lyser som en fackla, tre meter per E.
+    const glow = a.effects.filter((e) => e.kind === 'ljus').reduce((n, e) => Math.max(n, e.mod ?? 0), 0);
+    if (glow && d <= glow) return true;
+    return isParty(a) && !a.elemental && !a.torchOut && d <= TORCH_RANGE;
+  });
 }
 
 /** Är rutan inom en luminals ljus eller en umbras mörker (fem rutor per grad)? */
@@ -565,6 +586,12 @@ export function computeCl(
   if (load) {
     mod += load;
     notes.push(`${signed(load)} börda`);
+  }
+  // ÖKA och MINSKA ändrar baschansen så länge de varar.
+  const shift = attrShift(a, skill);
+  if (shift) {
+    mod += shift;
+    notes.push(`${signed(shift)} ${shift > 0 ? 'ÖKA' : 'MINSKA'}`);
   }
   const magic = slot ? weaponMagic(a, slot) : 0;
   if (magic && (slot === 'shield' ? kind === 'parering' : kind === 'anfall')) {
@@ -698,7 +725,10 @@ export function attackOnce(g: Game, att: Actor, def: Actor, slot: WeaponSlot, op
     return 'ingen';
   }
   // Den som smyger fram: Smyga mot Upptäcka fara (Bok II s. 21). En omedveten försvarare får inte parera.
-  const unaware = att.hidden ? ambush(g, att, def) : false;
+  // Den som är osynlig behöver inte smyga, men försvararen slår ändå Upptäcka fara (tolkning).
+  const invisible = att.effects.some((e) => e.kind === 'osynlig') && unseen(def, att);
+  const unaware = att.hidden ? ambush(g, att, def, invisible) : false;
+  breakHiding(g, att, 'anfaller');
 
   const situational: [string, number][] = [];
   const orörlig = def.unconscious || hasEffect(def, 'ingenHandling') || hasEffect(def, 'rankor') || hasEffect(def, 'fasthållen');
@@ -821,9 +851,15 @@ function feintCheck(g: Game, a: Actor): boolean {
  * Upptäcka fara med anfallarens differensvärde som avdrag. Den som inte upptäcker anfallaren får
  * inte parera. Anfallet avslöjar den som smög.
  */
-export function ambush(g: Game, att: Actor, def: Actor): boolean {
+export function ambush(g: Game, att: Actor, def: Actor, invisible = false): boolean {
   att.hidden = false;
   att.sneaking = false;
+  if (invisible) {
+    const fv = def.skills.upptacka_fara ?? Math.max(1, Math.floor(def.attrs.PSY / 2));
+    const spot = skillCheck(fv, g.rng, passiveCl(g.charOf(def), 'upptacka_fara'));
+    g.log(`${att.name} anfaller osynlig. ${def.name} slår Upptäcka fara (${short(spot)}): ${spot.success ? 'anar anfallet' : 'märker ingenting'}.`);
+    return !spot.success;
+  }
   const sneak = skillCheck(g.skillFv(att, 'smyga'), g.rng, sneakMod(g, att));
   if (!sneak.success) {
     g.log(`${att.name} smyger fram mot ${def.name} men hörs (Smyga, ${short(sneak)}).`);
@@ -997,7 +1033,16 @@ export function hit(
 ) {
   const perfect = !!opts.perfect;
   let dmg = (opts.damage ?? rollDamage(g, att, w, perfect)) + (opts.extra ?? 0);
-  dmg += elementBonus(g, att, w);
+  const heat = elementBonus(g, att, w);
+  dmg += heat;
+  // MOTSTÅNDSKRAFT: 1 mindre per E mot eld och köld (salamandern, glacialen, thermen och vapen
+  // som de har hettat upp eller kylt ned).
+  const resist = heatColdResist(def);
+  if (resist && (heat || ['eld', 'köld', 'värme'].includes(att.elemental?.kind ?? ''))) {
+    const less = Math.min(resist, att.elemental ? dmg : heat);
+    dmg -= less;
+    if (less) g.log(`MOTSTÅNDSKRAFT tar ${less} av skadan.`);
+  }
   if (def.elemental) {
     const after = elementalTakes(g, att, def, w, dmg);
     if (after === null) return;
@@ -1081,6 +1126,7 @@ export function wound(g: Game, a: Actor, dmg: number, loc: HitLocation | null) {
   const awake = !a.unconscious;
   a.kp -= dmg;
   breakConcentration(g, a);
+  breakHiding(g, a, 'skadas');
   if (loc && a.detailed) {
     a.locKp[loc] -= dmg;
     checkLocation(g, a, loc);
@@ -1637,7 +1683,7 @@ function newRound(g: Game): boolean {
       a.hostile &&
       !a.fled &&
       !isParty(a) &&
-      ours.some((p) => (g.canSee(a, p) && !p.hidden) || (c.order.includes(a.id) && distance(a.x, a.y, p.x, p.y) <= 10)),
+      ours.some((p) => (g.canSee(a, p) && !unseen(a, p)) || (c.order.includes(a.id) && distance(a.x, a.y, p.x, p.y) <= 10)),
   );
   if (!enemies.some((e) => !isOut(e)) || c.round >= MAX_ROUNDS) {
     endCombat(g, 'Striden är över.');
@@ -1706,6 +1752,7 @@ export function tick(g: Game, a: Actor) {
     keep.push(e);
   }
   a.effects = keep;
+  checkCamouflage(g, a);
   breakFree(g, a);
   updatePoisons(g, a);
   if (!a.alive) return;
@@ -1821,6 +1868,9 @@ export function finishTurn(g: Game) {
   if (a) {
     c.acted[a.id] = true;
     faceNearest(g, a);
+    // OSYNLIGHET bryts av att springa, KAMOUFLAGE av att flytta sig.
+    if ((a.movedLast ?? 0) > Math.floor(a.move / 2)) breakHiding(g, a, 'springer');
+    checkCamouflage(g, a);
   }
   if (!activeHostiles(g).length) {
     endCombat(g, 'Striden är vunnen!');
@@ -1862,7 +1912,7 @@ export function endCombat(g: Game, message: string) {
         e.kind === 'skräckMod' ||
         (e.rounds !== undefined && e.rounds > 100 && e.kind === 'cl'),
     );
-    a.hidden = a.sneaking ? a.hidden : false;
+    a.hidden = a.sneaking || magicallyHidden(a) ? a.hidden : false;
   }
   g.state.combat = null;
   if (g.state.mode === 'combat') g.state.mode = 'explore';
@@ -1967,7 +2017,7 @@ export function autoTurn(g: Game) {
   const isPlayer = isParty(a);
   // Fienderna går på den närmaste i gruppen som de ser (inte den som smyger oupptäckt). Djur går
   // inte på den som har Djurvän och inte har anfallit dem.
-  const targets = g.state.actors.filter((x) => x.alive && isParty(x) && !x.hidden && !x.fled && !spares(g, a, x));
+  const targets = g.state.actors.filter((x) => x.alive && isParty(x) && !unseen(a, x) && !x.fled && !spares(g, a, x));
   const nearest = (list: Actor[]) => [...list].sort((l, r) => distance(a.x, a.y, l.x, l.y) - distance(a.x, a.y, r.x, r.y))[0];
   const p = nearest(targets.filter((x) => !isOut(x))) ?? nearest(targets) ?? g.leader;
 
@@ -2219,9 +2269,16 @@ export function shoot(g: Game, a: Actor, target: Actor) {
     return;
   }
   for (const e of x.used) consume(a, e);
+  const verb = r.kind === 'kast' ? 'kastar' : 'skjuter';
+  breakHiding(g, a, verb === 'kastar' ? 'kastar' : 'skjuter');
+  // VIRVELSKÖLD: projektiler till och från den som har den missar.
+  if (inVortex(a) || inVortex(target)) {
+    g.log(`${a.name} ${verb} mot ${target.name}, men virvelskölden kring ${inVortex(a) ? a.name : target.name} stöter bort ${r.kind === 'kast' ? 'vapnet' : 'projektilen'}.`);
+    g.emit(target.id, 'Miss', 'miss');
+    return finishThrow(g, a, r, { x: target.x, y: target.y });
+  }
   let check = heroic(g, a, rollCl(g, x));
   if (autoFail(a, 'anfall')) check = forceFail(check);
-  const verb = r.kind === 'kast' ? 'kastar' : 'skjuter';
   const head = `${a.name} ${verb} mot ${target.name} med ${r.name.toLowerCase()} (T20: ${check.roll} mot ${x.cl}${x.notes.length ? `, ${x.notes.join(', ')}` : ''})`;
   const w = rangedWeapon(a, r);
   let landing = { x: target.x, y: target.y };
@@ -2368,9 +2425,48 @@ export function takeCover(g: Game, a: Actor) {
 
 /** När en effekt tar slut: örter som läker efter en stund verkar nu. */
 export function onExpire(g: Game, a: Actor, e: ActiveEffect) {
+  if (e.kind === 'egenskap' && e.attr && e.mod) changeAttribute(g, a, e.attr, -e.mod);
+  if ((e.kind === 'osynlig' || e.kind === 'kamouflage') && !a.sneaking && !a.effects.some((x) => x !== e && (x.kind === 'osynlig' || x.kind === 'kamouflage'))) a.hidden = false;
   if (e.kind === 'läkning' && a.alive && e.mod) {
     if (a.detailed) g.heal(e.mod, a);
     else a.kp = Math.min(a.maxKp, a.kp + e.mod);
     g.log(`${e.label}: ${a.name} läker ${e.mod} KP.`);
   } else if (e.spell && isParty(a)) g.log(`${e.label} upphör.`);
+}
+
+/** Tar bort en besvärjelses effekt i förtid (SKINGRA) och återställer det den ändrade. */
+export function endSpellEffect(g: Game, a: Actor, e: ActiveEffect) {
+  a.effects = a.effects.filter((x) => x !== e);
+  if (e.kind === 'egenskap' && e.attr && e.mod) changeAttribute(g, a, e.attr, -e.mod);
+  if ((e.kind === 'osynlig' || e.kind === 'kamouflage') && !a.sneaking && !magicallyHidden(a)) a.hidden = false;
+}
+
+/**
+ * ÖKA och MINSKA: ändrar en grundegenskap med `delta`. STO och FYS ändrar KP (Vidar): KP och KP i
+ * kroppsdelarna ändras lika mycket som maxvärdet, så förlorade KP står kvar när besvärjelsen tar
+ * slut. Förflyttningen räknas om för den som har ett rollformulär. Skadebonus följer STY av sig själv.
+ */
+export function changeAttribute(g: Game, a: Actor, attr: AttrKey, delta: number) {
+  if (!delta) return;
+  const before = { ...a.attrs };
+  a.attrs[attr] += delta;
+  if (attr === 'STO' || attr === 'FYS') {
+    const diff = maxKp(a.attrs) - maxKp(before);
+    if (diff) {
+      const locs = locationKp(a.maxKp + diff);
+      a.maxKp += diff;
+      a.kp += diff;
+      for (const l of HIT_LOCATIONS) {
+        const d = locs[l] - a.locMax[l];
+        a.locMax[l] = locs[l];
+        a.locKp[l] += d;
+      }
+      if (diff < 0 && a.alive) {
+        if (a.detailed) for (const l of HIT_LOCATIONS) if (a.locKp[l] <= 0) checkLocation(g, a, l);
+        if (a.alive) checkTotal(g, a);
+      }
+    }
+  }
+  const ch = g.charOf(a);
+  if (ch && (attr === 'STO' || attr === 'FYS' || attr === 'SMI')) a.move = movement(a.attrs, RACES[ch.race].move);
 }

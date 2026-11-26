@@ -170,7 +170,26 @@ export interface ActiveEffect {
     | 'initiativ'
     // ------------------------------------------------ förmågor
     /** `mod` på STY (God kroppskontroll), även för skadebonusen. */
-    | 'styrka';
+    | 'styrka'
+    // ------------------------------------------------ besvärjelser i strid
+    /** ÖKA eller MINSKA: `mod` har lagts på grundegenskapen `attr` och tas bort när den slutar. */
+    | 'egenskap'
+    /** FLAMMANDE HAND: `grade` × 1T3 extra skada med händerna och vapen i handen. */
+    | 'flammandeHand'
+    /** VIRVELSKÖLD: projektiler till och från figuren missar. */
+    | 'virvelsköld'
+    /** MOTSTÅNDSKRAFT: `grade` mindre skada per angrepp av eld och köld. */
+    | 'motståndskraft'
+    /** ANTIMAGI med effektgraden `grade`. */
+    | 'antimagi'
+    /** LJUS: figuren lyser som en fackla `mod` rutor runt sig. */
+    | 'ljus'
+    /** MAGISK SYN: ser osynliga och bländas inte. */
+    | 'magiskSyn'
+    /** OSYNLIGHET: osynlig tills hen anfaller, springer, lägger magi eller skadas. */
+    | 'osynlig'
+    /** KAMOUFLAGE: oupptäckt så länge hen står kvar på rutan `at`. */
+    | 'kamouflage';
   /** Kort text till rollformuläret och loggen. */
   label: string;
   mod?: number;
@@ -203,6 +222,23 @@ export interface ActiveEffect {
   dice?: string;
   /** Färdigheten som modifikationen gäller (scope 'färdighet', t.ex. munkens Meditation). */
   skill?: string;
+  /** Grundegenskapen som ÖKA eller MINSKA har ändrat. */
+  attr?: AttrKey;
+  /** Rutan där figuren stod när effekten började (KAMOUFLAGE). */
+  at?: { x: number; y: number };
+}
+
+/** En besvärjelse som verkar på en plats i stället för på en figur (MÖRKER). */
+export interface SpellZone {
+  kind: 'mörker';
+  x: number;
+  y: number;
+  /** Radie i rutor. */
+  r: number;
+  /** Speltiden då den upphör. */
+  until: number;
+  spell: string;
+  grade: number;
 }
 
 /** Ett gift som verkar i kroppen (Bok II s. 50–51). */
@@ -244,6 +280,8 @@ export interface PendingSpell {
   rounds: number;
   /** Självmordsattack: CL är S oavsett effektgrad, och magikern dör efteråt. */
   suicide?: boolean;
+  /** Grundegenskapen för ÖKA och MINSKA. */
+  attr?: AttrKey;
 }
 
 export type WeaponSlot = 'weapon' | 'offhand';
@@ -510,6 +548,8 @@ export interface GameState {
   met?: Record<string, boolean>;
   /** Belöningar (bonus-EP och HP) som redan har delats ut, som "modul:id". */
   rewarded?: string[];
+  /** Besvärjelser som verkar på en plats på kartan (MÖRKER). */
+  zones?: SpellZone[];
   log: string[];
   nextId: number;
 }
