@@ -197,8 +197,6 @@ export interface ActiveEffect {
     /** KONTROLLERA PERSON: slåss för `by` så länge den varar; `was` är hur den var innan. */
     | 'kontrollerad'
     // ------------------------------------------------ besvärjelser utanför strid
-    /** VÄXTKUNSKAP: nästa sökning efter örten `skill` lyckas. */
-    | 'växtkunskap'
     | 'spårlös'
     /** VATTENANDNING: kan gå ut i vattnet. */
     | 'vattenandning'
@@ -331,6 +329,8 @@ export interface PendingSpell {
   /** Vad VARSEBLIVNING letar efter, och örten för VÄXTKUNSKAP. */
   seek?: string;
   herb?: string;
+  /** En scen i modulen visades när besvärjelsen verkade. */
+  scene?: boolean;
 }
 
 export type WeaponSlot = 'weapon' | 'offhand';

@@ -508,18 +508,20 @@ Koden står i `src/engine/locks.ts` och `src/engine/worldspells.ts`.
 - **Bryta upp (tolkning):** STY mot låsets svårighetsgrad på motståndstabellen, 20 mer om den är förseglad (FÖRSEGLA ger 20 KP). Varje försök tar en minut.
 - **ÖPPNA:** öppnar ett lås som magikern rör vid. En försegling bryts om E övervinner förseglingens E på motståndstabellen.
 - **FÖRSEGLA:** en dörr eller kista som magikern rör vid sitter ihop så länge besvärjelsen varar. Ingen kan gå igenom den. Tolkning: fienderna slår inte sönder dörrar än.
-- **FINNA VATTEN:** riktning och avstånd till närmaste vatten inom räckvidden i regeldatan (S/4 rutor). Regnet stoppar den när vädret finns.
+- **FINNA VATTEN:** riktning och avstånd till närmaste vatten inom räckvidden i regeldatan (S/4 rutor). Regnet stoppar den när vädret finns. **Vidar:** när spelet får regler för att äta och dricka ersätter besvärjelsen en dagsranson vatten.
 - **VARSEBLIVNING:** magikern väljer fientliga varelser, personer, djur, utgångar, kistor eller föremål på marken. Hen får riktning och avstånd till de E närmaste inom räckvidden.
-- **VÄXTKUNSKAP:** magikern väljer en ört som växer här eller som hen bär på. Hen får veta hur många av de egna doserna som är verkningslösa eller skadliga, och nästa sökning efter örten lyckas (tolkning: inom 30 dygn).
-- **TRÄELD och LÅGA:** tänder en fackla utan elddon. LÅGA lyser också själv en ruta runt magikern i 1T3 SR.
-- **SPÅRLÖS:** effekten sätts, men den har verkan först med världskartan.
+- **VÄXTKUNSKAP (Vidar och tolkning):** magikern hittar en ört som växer i närheten, utan slag (Vidar). Tolkning: det tar en timme och ger 1T4 doser, som bereds som vanligt med Drogkunskap eller Giftkunskap.
+- **TRÄELD och LÅGA (Vidar):** magikern plockar upp en kvist och tänder den med magisk eld. Den blir en fackla i packningen och brinner lika länge som en vanlig. LÅGA lyser också själv en ruta runt magikern i 1T3 SR.
+- **SPÅRLÖS (Vidar):** en fientlig grupp eller fiende som jagar gruppen på världskartan slutar följa efter den. Effekten sätts redan nu, men den har verkan först med världskartan.
 - **VATTENANDNING:** den som har den kan gå ut i vattnet. När den tar slut går hen upp på närmaste lediga ruta.
-- **SYN (tolkning):** magikern väljer en plats som gruppen har sett, inom 120 m. Hen får veta vilka som är där nu, inom tre rutor. Föremål identifieras när magiska föremål finns.
+- **SYN (Vidar):** identifierar framför allt magiska föremål, alltså vad de gör, när sådana finns. Modulerna kan också ge SYN scener (se nedan). Utan en scen visar den ingenting särskilt än.
 - **TALA MED VARELSE:** magikern kan tala med ointelligenta djur som inte är fientliga (Vidar). AI-spelledaren får veta att FV i djurets språk är E. Djuret får en enkel persona.
 - **TANKEÖVERFÖRING och TELEPATI:**
   - Ett tyst samtal med en person, TELEPATI på vilket avstånd som helst. AI-spelledaren får veta att ingen annan hör något.
   - Tolkning: TELEPATI når de personer som gruppen har talat med.
   - Med någon annan än en person förmedlas bara känslorna.
+- **Scener för besvärjelser (Vidar):** en modul kan låta en besvärjelse visa något särskilt på en viss plats eller när flaggorna stämmer (`ModuleDef.spellScenes`). Texten skrivs i loggen och en flagga sätts, som AI-spelledaren får veta genom modulens anteckningar. Gråvads exempel är en syn av Grukk och häxkonstnären i grottan. Det fungerar med alla besvärjelser, till exempel SYN, TELEPATI och TANKEÖVERFÖRING.
+- **Samtal på avstånd:** genom TELEPATI eller TANKEÖVERFÖRING finns bara ord, inga handlingar som att handla eller betala.
 - **TANKELÄSNING:** i samtal med personen får AI-spelledaren avslöja vad personen tänker och döljer, utan att personen märker något.
 - **TILLKALLA VARELSE (Vidar och tolkning):**
   - Ointelligenta djur på kartan kommer, närmast först och högst 20 STO per E. Det tar 1T10 minuter, och det går inte mitt i en strid.

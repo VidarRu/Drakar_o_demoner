@@ -114,6 +114,7 @@ förslagets avsnitt 5.
   - Besvärjelserna: `src/engine/worldspells.ts` (`worldProblem` och `applyWorld`). `apply` i `magic.ts` lämnar över allt den inte känner till.
   - Samtal: `dialogDef` i `dialogClient.ts` ger djuren en persona, `Game.canTalk` avgör vem man kan tala med, och `openUi('talk')` öppnar ett samtal på avstånd.
   - Djur som magin styr går efter gruppen i `stepPlayer`.
+  - Scener för besvärjelser: `ModuleDef.spellScenes` och `showScenes` i `worldspells.ts`. Gråvad har en syn av Grukk.
 - **Nästa:** vädret (NEDKALLA ÅSKVIGG, VINDKONTROLL, REGNKONTROLL, VIGGFÅNGARE) och ritualerna (LADDNING, FÖRYNGRA, FÖRÄNDRA), steg 7 i förslaget.
 - **Kvar av förmågorna:** Gott balanssinne (när SPRÅNG byggs), Absolut ögonmått och God tidskänsla (gränssnittet), Mottagligt medium och Magisk empati (väntar på kanalisering och magiska föremål), avdraget för den andra handen och Hamnbytare.
 
@@ -196,5 +197,7 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 
 - Chanserna för vädret (tolkning i `docs/regelbeslut.md`) och vindens verkan på skott och båtar, när vädret byggs.
 - FINNA VATTEN har räckvidden S/4 rutor i regeldatan (2–4 rutor). Kontrollera i Bok III om det ska vara S/4 km.
+- **Facklor:** facklorna tar aldrig slut i spelet. Ska de brinna en timme var (Fackla, 1 timme, i utrustningslistan)? Först då blir facklan från TRÄELD och LÅGA värd något.
+- **TELEPATI och TANKEÖVERFÖRING:** bara modulernas scener, eller också ett tyst samtal med vem som helst (se svaret till Vidar 26 november).
 - Tolkningarna för låsen och besvärjelserna utanför strid (`docs/regelbeslut.md` under Lås och besvärjelser utanför strid).
 - Tolkningarna för besvärjelserna i strid och fiendens val av effektgrad (`docs/regelbeslut.md` under Fiendernas magi och Besvärjelser i strid).

@@ -4,15 +4,15 @@
  * TANKEÖVERFÖRING, TELEPATI, TANKELÄSNING och TILLKALLA VARELSE. Tolkningarna står i
  * docs/regelbeslut.md under Besvärjelser utanför strid.
  */
-import { NPCS } from '../content';
-import { HERBS } from '../data/herbs';
+import { MODULES, NPCS } from '../content';
+import { HERBS, herbSkill } from '../data/herbs';
 import type { SpellDef } from '../data/types';
 import { roll } from './dice';
 import type { Game } from './game';
 import { isCommonAnimal } from './hero';
 import { isLocked, lockTargets, magicOpen, magicSeal, type LockSpot } from './locks';
 import { distance, tileAt, walkable } from './map';
-import { herbsHere } from './poison';
+import { commonFor, herbsHere, prepareDose } from './poison';
 import { advanceTime } from './time';
 import type { ActiveEffect, Actor, PendingSpell } from './types';
 
@@ -25,6 +25,9 @@ export function compass(from: { x: number; y: number }, to: { x: number; y: numb
   const names = ['norr', 'nordost', 'öster', 'sydost', 'söder', 'sydväst', 'väster', 'nordväst'];
   return names[(Math.round(deg / 45) + 8) % 8];
 }
+
+/** VÄXTKUNSKAP: så många doser hittar magikern (tolkning). */
+const HERB_FIND = '1T4';
 
 /** Avstånd i meter (en ruta är 1,5 meter). */
 const meters = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.round(distance(a.x, a.y, b.x, b.y) * 1.5);
@@ -41,10 +44,9 @@ export const SEEK_KINDS: Record<string, string> = {
   föremål: 'föremål på marken',
 };
 
-/** Örterna som VÄXTKUNSKAP kan gälla: de som växer här och de som magikern bär på. */
-export function herbChoices(g: Game, a: Actor): string[] {
-  const carried = g.charOf(a)?.herbs.map((d) => d.id) ?? [];
-  return [...new Set([...herbsHere(g).map((h) => h.id), ...carried])].filter((id) => HERBS[id]);
+/** Örterna som VÄXTKUNSKAP kan hitta: de som växer här. */
+export function herbChoices(g: Game, _a?: Actor): string[] {
+  return herbsHere(g).map((h) => h.id);
 }
 
 /** Personer som magikern känner till namnet och kan nå med TELEPATI: de som gruppen har talat med. */
@@ -68,13 +70,8 @@ export function worldProblem(g: Game, caster: Actor, spell: SpellDef, o: { targe
     case 'varseblivning':
       return o.seek && SEEK_KINDS[o.seek] ? null : 'Välj vad du letar efter.';
     case 'växtkunskap':
-      return o.herb && herbChoices(g, caster).includes(o.herb) ? null : 'Välj en ört som växer här eller som du bär på.';
-    case 'syn': {
-      if (!o.at) return 'Välj en plats.';
-      if (!g.state.explored[o.at.y * g.map.w + o.at.x]) return 'Du måste känna till platsen.';
-      if (distance(caster.x, caster.y, o.at.x, o.at.y) > SYN_SQUARES) return `Platsen måste ligga inom 120 m (${SYN_SQUARES} rutor).`;
-      return null;
-    }
+      if (g.state.mode !== 'explore' || !g.canRest()) return 'Det går inte att leta örter med fiender i närheten.';
+      return o.herb && herbChoices(g, caster).includes(o.herb) ? null : 'Välj en ört som växer här.';
     case 'tankar': {
       if (e.mode !== 'telepati') return null;
       const t = o.target ? g.actor(o.target) : undefined;
@@ -87,8 +84,6 @@ export function worldProblem(g: Game, caster: Actor, spell: SpellDef, o: { targe
   }
 }
 
-/** SYN: ett känt ställe inom 120 m. */
-export const SYN_SQUARES = 80;
 
 // ------------------------------------------------------------------ verkan
 
@@ -127,24 +122,27 @@ export function applyWorld(g: Game, caster: Actor, t: Actor, s: PendingSpell, sp
       return true;
     }
     case 'växtkunskap': {
+      // Vidar: magikern hittar örten i närheten utan slag. Tolkning: det tar en timme och ger 1T4
+      // doser, som bereds som vanligt med Drogkunskap eller Giftkunskap.
       const id = s.herb!;
       const h = HERBS[id];
-      caster.effects = caster.effects.filter((x) => x.kind !== 'växtkunskap');
-      caster.effects.push({ ...effect, kind: 'växtkunskap', skill: id, persist: true, days: 30, rounds: undefined, label: `VÄXTKUNSKAP: ${h.name}` });
-      const doses = g.charOf(caster)?.herbs.filter((d) => d.id === id) ?? [];
-      const bad = doses.filter((d) => d.quality === 'verkningslös' || d.quality === 'skadlig');
-      g.log(
-        `${caster.name} vet nu allt om ${h.name.toLowerCase()} och var den växer. Nästa sökning efter den lyckas.${doses.length ? ` Av de ${doses.length} doser hen bär är ${bad.length ? `${bad.filter((d) => d.quality === 'verkningslös').length} verkningslösa och ${bad.filter((d) => d.quality === 'skadlig').length} skadliga` : 'alla goda'}.` : ''}`,
-      );
+      const ch = g.charOf(caster);
+      const n = roll(HERB_FIND, g.rng);
+      advanceTime(g, 3600, 'aktiv');
+      const fv = g.skillFv(caster, herbSkill(h));
+      for (let i = 0; i < n; i++) ch?.herbs.push(prepareDose(g, id, fv, commonFor(g, h)));
+      g.log(`Magin leder ${caster.name} rakt till ${h.name.toLowerCase()}. På en timme hittar och bereder hen ${n} doser.`);
       return true;
     }
     case 'tända': {
+      // Vidar: en kvist från marken tänds med magisk eld och brinner som en vanlig fackla.
+      g.charOf(t)?.inventory.push('fackla');
       t.torchOut = false;
       if (e.glow) {
         t.effects = t.effects.filter((x) => x.kind !== 'ljus' || x.spell !== spell.id);
         t.effects.push({ ...effect, kind: 'ljus', mod: 1 });
       }
-      g.log(e.glow ? `En liten låga brinner på ${t.name}s tumme och tänder facklan.` : `${t.name}s fackla fattar eld.`);
+      g.log(`${t.name} plockar upp en kvist, och ${e.glow ? 'lågan från tummen' : 'magisk eld'} tänder den. Den brinner som en fackla.`);
       return true;
     }
     case 'spårlös':
@@ -155,12 +153,11 @@ export function applyWorld(g: Game, caster: Actor, t: Actor, s: PendingSpell, sp
       t.effects.push({ ...effect, kind: 'vattenandning' });
       g.log(`${t.name} kan andas under vatten och gå ut i sjöar och vattendrag.`);
       return true;
-    case 'syn': {
-      const at = s.at!;
-      const there = g.state.actors.filter((a) => a.alive && !a.fled && a !== caster && distance(a.x, a.y, at.x, at.y) <= 3);
-      g.log(`${caster.name} ser platsen ${meters(caster, at)} m åt ${compass(caster, at)} framför sig: ${there.length ? there.map((a) => a.name).join(', ') : 'ingen är där'}.`);
+    case 'syn':
+      // Vidar: SYN identifierar framför allt magiska föremål, och modulerna kan ge den scener.
+      // Magiska föremål finns inte än, så utan en scen visar den ingenting.
+      if (!s.scene) g.log(`${caster.name} ser ingenting särskilt. SYN identifierar magiska föremål när sådana finns.`);
       return true;
-    }
     case 'talaMed':
       caster.effects = caster.effects.filter((x) => x.kind !== 'talaMed');
       caster.effects.push({ ...effect, kind: 'talaMed', mod: grade });
@@ -284,3 +281,27 @@ export function lockChoices(g: Game, a: Actor): { spot: LockSpot; text: string }
 }
 
 const compassText = (a: Actor, l: { x: number; y: number }) => compass(a, l);
+
+// ------------------------------------------------------------------ scener i modulerna
+
+/**
+ * Scener som besvärjelsen visar i modulen (`ModuleDef.spellScenes`): texten skrivs i loggen och
+ * flaggan sätts. Returnerar hur många som visades.
+ */
+export function showScenes(g: Game, caster: Actor, spellId: string): number {
+  const scenes = MODULES[g.state.moduleId]?.spellScenes ?? [];
+  let n = 0;
+  for (const sc of scenes) {
+    if (!sc.spells.includes(spellId)) continue;
+    if (sc.map && sc.map !== g.state.mapId) continue;
+    if (sc.at && distance(caster.x, caster.y, sc.at.x, sc.at.y) > sc.at.r) continue;
+    if (sc.ifFlag && !g.state.flags[sc.ifFlag]) continue;
+    if (sc.unlessFlag && g.state.flags[sc.unlessFlag]) continue;
+    if (sc.once && g.state.flags[`scen_${sc.id}`]) continue;
+    g.state.flags[`scen_${sc.id}`] = true;
+    if (sc.setFlag) g.state.flags[sc.setFlag] = true;
+    g.log(sc.text);
+    n++;
+  }
+  return n;
+}

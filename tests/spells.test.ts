@@ -7,7 +7,6 @@ import { castProblem, castSpell, enemyCast, resolvePending, spellS, spellTargets
 import { maxKp } from '../src/engine/rules';
 import { isLocked, lockAt, lootChest, lootProblem, pickLock, pickProblem } from '../src/engine/locks';
 import { herbChoices } from '../src/engine/worldspells';
-import { searchHerb } from '../src/engine/poison';
 import { distance } from '../src/engine/map';
 import { dialogDef } from '../src/ai/dialogClient';
 import type { Actor, Character } from '../src/engine/types';
@@ -560,24 +559,28 @@ describe('lås och besvärjelser utanför strid', () => {
     expect(g.state.log.join('\n')).toMatch(/förnimmer utgångar: Vägen västerut \d+ m åt väster/);
   });
 
-  it('VÄXTKUNSKAP gör att nästa sökning efter örten lyckas', () => {
+  it('VÄXTKUNSKAP hittar en ört i närheten på en timme, utan slag', () => {
     const { g, p } = explore();
     for (const a of g.state.actors) if (a !== p && a.hostile) a.alive = false;
-    const herb = herbChoices(g, p)[0];
-    g.rng = queue(face(2));
-    expect(castSpell(g, 'vaxtkunskap', { grade: 1, herb })).toBeNull();
+    const herb = herbChoices(g)[0];
     const before = g.char.herbs.length;
-    g.rng = queue(face(20), face(20), face(2, 4));
-    expect(searchHerb(g, herb)).toBeNull();
-    expect(g.char.herbs.length).toBeGreaterThan(before);
+    const t = g.state.time;
+    // Slaget (2) och 1T4 doser (3).
+    g.rng = queue(face(2), face(3, 4));
+    expect(castSpell(g, 'vaxtkunskap', { grade: 1, herb })).toBeNull();
+    expect(g.char.herbs.length).toBe(before + 3);
+    expect(g.char.herbs.slice(-3).every((d) => d.id === herb)).toBe(true);
+    expect(g.state.time - t).toBeGreaterThanOrEqual(3600);
   });
 
   it('TRÄELD tänder facklan, och VATTENANDNING låter en gå ut i vattnet', () => {
     const { g, p } = explore();
     p.torchOut = true;
+    const torches = g.char.inventory.filter((x) => x === 'fackla').length;
     g.rng = queue(face(2));
     expect(castSpell(g, 'traeld', { grade: 1, target: p.id })).toBeNull();
     expect(p.torchOut).toBe(false);
+    expect(g.char.inventory.filter((x) => x === 'fackla').length).toBe(torches + 1);
     p.x = 8;
     p.y = 13;
     expect(g.pathTo(9, 15)).toBeNull();
@@ -586,12 +589,16 @@ describe('lås och besvärjelser utanför strid', () => {
     expect(g.pathTo(9, 15)).not.toBeNull();
   });
 
-  it('SYN visar vem som finns på en känd plats', () => {
-    const { g, p, foe } = explore('svartalf', 4);
+  it('SYN visar modulens scen, och annars ingenting särskilt', () => {
+    const { g, p } = explore();
     g.rng = queue(face(2));
-    expect(castSpell(g, 'syn', { grade: 1, at: { x: foe.x, y: foe.y } })).toBeNull();
-    expect(g.state.log.join('\n')).toContain(`framför sig: ${foe.name}`);
-    expect(castProblem(g, 'syn', { grade: 1, at: { x: 40, y: 15 } })).toMatch(/känna till/);
+    expect(castSpell(g, 'syn', { grade: 1 })).toBeNull();
+    expect(g.state.log.join('\n')).toContain('I synen ser du grottan österut');
+    expect(g.state.flags.syn_grukk).toBe(true);
+    g.state.flags.hovding_dod = true;
+    g.rng = queue(face(2));
+    castSpell(g, 'syn', { grade: 1 });
+    expect(g.state.log.join('\n')).toMatch(/ingenting särskilt/);
     expect(p.alive).toBe(true);
   });
 

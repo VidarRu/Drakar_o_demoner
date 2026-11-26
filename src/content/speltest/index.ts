@@ -10,7 +10,7 @@ import type { Intent } from '../../engine/intents';
 import { finalize, newDraft, type Draft } from '../../engine/creation';
 import { ARMOR } from '../../data/armor';
 import type { Character } from '../../engine/types';
-import type { BookDef, DeedDef, ModuleDef, QuestDef, RecruitDef } from '../types';
+import type { BookDef, DeedDef, ModuleDef, QuestDef, RecruitDef, SpellSceneDef } from '../types';
 
 const human = { STY: 11, STO: 13, FYS: 11, SMI: 11, INT: 11, PSY: 11, KAR: 11 };
 
@@ -327,7 +327,19 @@ const flagNotes: Record<string, string> = {
   uppdrag_klart: 'Spelaren har fått sin belöning för att ha dödat hövdingen.',
   hogre_beloning: 'Värdshusvärden har gått med på en högre belöning (750 silvermynt).',
   kopt_ringbrynja: 'Spelaren har köpt smedens ringbrynjeskjorta.',
+  syn_grukk: 'Spelaren har med besvärjelsen SYN sett Grukk och hans häxkonstnär i grottans innersta del, och vet att de har en låst kista.',
 };
+
+/** Scener som besvärjelser kan visa i Gråvad (exempel för modulformatet). */
+const spellScenes: SpellSceneDef[] = [
+  {
+    id: 'syn_grukk',
+    spells: ['syn'],
+    unlessFlag: 'hovding_dod',
+    text: 'I synen ser du grottan österut. I dess innersta del sitter en storvuxen svartalf med bredsvärd och sköld vid en järnbeslagen kista, och bredvid honom en svartalfisk häxkonstnär i mörk kåpa som viskar besvärjelser över en trästav.',
+    setFlag: 'syn_grukk',
+  },
+];
 
 const maps: MapDef[] = [
   {
@@ -477,6 +489,7 @@ export const SPELTEST: ModuleDef = {
   books,
   intents,
   flagNotes,
+  spellScenes,
   epilogue: [
     'Med Grukk död skingras svartalferna, och stigen genom skogen blir åter säker att gå.',
     'På Gyllene Galten bjuder Bertil på öl, och för en kväll är ni byns hjältar. Men vägen västerut leder vidare, mot nya äventyr.',

@@ -115,4 +115,29 @@ export interface ModuleDef {
   deeds?: DeedDef[];
   /** Böcker som går att hitta i modulen. */
   books?: BookDef[];
+  /** Scener där en besvärjelse visar något särskilt (SYN, TELEPATI, TANKEÖVERFÖRING …). */
+  spellScenes?: SpellSceneDef[];
+}
+
+/**
+ * En scen i modulen som en besvärjelse kan visa: en syn, en röst genom TELEPATI, ett minne i ett
+ * föremål. Den visas när någon i gruppen lägger besvärjelsen och den lyckas, på rätt plats och när
+ * flaggorna stämmer. Texten skrivs i loggen, och flaggan berättar det för AI-spelledaren.
+ */
+export interface SpellSceneDef {
+  id: string;
+  /** Besvärjelserna som visar scenen (id i src/data/spells.ts). */
+  spells: string[];
+  /** Kartan, och platsen där magikern måste stå (inom r rutor). Utan den gäller hela modulen. */
+  map?: string;
+  at?: { x: number; y: number; r: number };
+  /** Bara när flaggan är satt, eller bara när den inte är det. */
+  ifFlag?: string;
+  unlessFlag?: string;
+  /** Vad magikern ser, hör eller får veta. */
+  text: string;
+  /** Flaggan som sätts när scenen visas. */
+  setFlag?: string;
+  /** Visas bara en gång. */
+  once?: boolean;
 }

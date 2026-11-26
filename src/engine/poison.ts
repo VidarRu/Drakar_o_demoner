@@ -454,14 +454,7 @@ export function searchHerb(g: Game, id: string): string | null {
   const fv = g.skillFv(p, skill);
   const common = commonFor(g, h);
   const cl = Math.max(1, fv - common);
-  // VÄXTKUNSKAP: nästa sökning efter örten lyckas.
-  const known = p.effects.find((e) => e.kind === 'växtkunskap' && e.skill === id);
-  let check = skillCheck(fv, g.rng, cl - fv);
-  if (known) {
-    p.effects = p.effects.filter((e) => e !== known);
-    if (!check.success) check = { ...check, result: 'lyckat', success: true };
-    g.log(`${p.name} vet var ${h.name.toLowerCase()} växer.`);
-  }
+  const check = skillCheck(fv, g.rng, cl - fv);
   advanceTime(g, 10 * HOUR, 'aktiv');
   const n = check.result === 'perfekt' ? roll('4T4', g.rng) : check.success ? roll('1T4', g.rng) : 0;
   for (let i = 0; i < n; i++) g.char.herbs.push(prepareDose(g, id, fv, common));

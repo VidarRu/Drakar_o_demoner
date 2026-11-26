@@ -53,9 +53,9 @@ export const SPELL_LIST: SpellDef[] = [
 
   // ---------------------------------------------------------------- animism
   spell('animism', 1, 'FINNA VATTEN', '', Sdiv(4, 'rutor'), 'omedelbar', 'Avstånd och riktning till drickbart vatten. Fungerar inte när det regnar.', { effect: { kind: 'finnaVatten' }, aim: 'själv' }),
-  spell('animism', 2, 'TRÄELD', 'FK', 'beröring', 'omedelbar', 'Tänder ett stycke torrt trä, ett till per extra E.', { effect: { kind: 'tända' }, aim: 'valfri' }),
+  spell('animism', 2, 'TRÄELD', 'FK', 'beröring', 'omedelbar', 'Tänder ett stycke torrt trä, ett till per extra E. I spelet (Vidar): en kvist blir en fackla som brinner lika länge som en vanlig.', { effect: { kind: 'tända' }, aim: 'valfri' }),
   spell('animism', 4, 'SPÅRLÖS', '', 'beröring', Tdiv(4, 'minuter'), 'Lämnar varken spår eller lukt, en varelse till per extra E.', { effect: { kind: 'spårlös' }, aim: 'valfri' }),
-  spell('animism', 5, 'VÄXTKUNSKAP', '', 'beröring', 'omedelbar', 'All kunskap om den växt man rör vid.', { effect: { kind: 'växtkunskap' }, aim: 'själv' }),
+  spell('animism', 5, 'VÄXTKUNSKAP', '', 'beröring', 'omedelbar', 'All kunskap om växter. I spelet (Vidar): hittar en ört som växer i närheten, 1T4 doser på en timme, som bereds med Drogkunskap eller Giftkunskap.', { effect: { kind: 'växtkunskap' }, aim: 'själv' }),
   spell('animism', 6, 'MINSKA', '', 'beröring', Tdiv(4, 'minuter'), 'Sänker STY, FYS, STO, KAR eller SMI med 1 per E, lägst till 1.', { effect: { kind: 'egenskap', sign: -1 }, aim: 'valfri' }),
   spell('animism', 6, 'NEDKALLA ÅSKVIGG', 'F', S(10, 'rutor'), 'omedelbar', 'Blixt ur ett regnmoln som regnar över både magikern och målet. Skadar som BLIXT.'),
   spell('animism', 6, 'VINDPIL', 'F', S(2, 'rutor'), T(1, 'SR'), 'En träpil utan järnspets svävar framför ansiktet och skjuts iväg dit magikern tittar. 1T10 + 1 per E i skada (Vidar).', { effect: { kind: 'skada', dice: '1T10', armor: 'full', loc: true, fixed: true, perGrade: 1, projectile: true }, aim: 'fiende' }),
@@ -75,7 +75,7 @@ export const SPELL_LIST: SpellDef[] = [
 
   // ---------------------------------------------------------------- elementarmagi
   spell('elementarmagi', 2, 'LJUS', 'F', S(10, 'rutor'), T(4, 'minuter'), 'Ett föremål lyser upp tre meter, tre meter till eller fem minuter till per extra E.', { effect: { kind: 'ljus' }, aim: 'valfri' }),
-  spell('elementarmagi', 2, 'LÅGA', 'FK', 'personlig', { dice: '1T3', unit: 'SR' }, 'En liten låga ur tummen som tänder brännbart.', { effect: { kind: 'tända', glow: true }, aim: 'själv' }),
+  spell('elementarmagi', 2, 'LÅGA', 'FK', 'personlig', { dice: '1T3', unit: 'SR' }, 'En liten låga ur tummen som tänder brännbart. I spelet (Vidar): tänder en kvist till en fackla.', { effect: { kind: 'tända', glow: true }, aim: 'själv' }),
   spell('elementarmagi', 3, 'FÖRSEGLA', 'F', 'beröring', T(1, 'minuter'), 'Sammanfogar två föremål, till exempel en dörr och karmen. Ger 20 KP extra.', { effect: { kind: 'försegla' }, aim: 'själv' }),
   spell('elementarmagi', 3, 'MÖRKER', 'F', S(10, 'rutor'), Tdiv(4, 'minuter'), 'Släcker allt ljus i en sfär med sex meters diameter.', { effect: { kind: 'mörker' }, aim: 'valfri' }),
   spell('elementarmagi', 3, 'SKÖLD', 'FK', 'personlig', 'omedelbar', 'Luften parerar en fysisk attack automatiskt med BV 4, +2 per extra E.', { effect: { kind: 'luftsköld' }, aim: 'själv' }),
@@ -125,7 +125,7 @@ export const SPELL_LIST: SpellDef[] = [
   spell('mentalism', 8, 'LÄDERHUD', '', 'personlig', T(1, 'timmar'), 'Huden ger 2 i naturligt skydd men KAR −2.', { effect: { kind: 'skydd', fixed: 2 }, aim: 'själv' }),
   spell('mentalism', 8, 'MÖRKERSYN', '', 'beröring', T(1, 'timmar'), 'Ser värme. Fungerar inte i ljus eller nära starka värmekällor.', { effect: { kind: 'mörkersyn' }, aim: 'valfri' }),
   spell('mentalism', 9, 'OSYNLIGHET', '', 'beröring', T(1, 'minuter'), 'Gör 6 STO osynliga per E. Bryts om den osynlige slåss, springer, lägger magi eller skadas.', { effect: { kind: 'osynlighet' }, aim: 'valfri' }),
-  spell('mentalism', 9, 'SYN', '', 'personlig', T(1, 'SR'), 'Ser och hör ett känt ställe inom 120 m (annars 30 m), en dag bakåt per extra E. Identifierar magiska föremål.', { effect: { kind: 'syn' }, aim: 'själv' }),
+  spell('mentalism', 9, 'SYN', '', 'personlig', T(1, 'SR'), 'Ser och hör ett känt ställe inom 120 m (annars 30 m), en dag bakåt per extra E. Identifierar magiska föremål. I spelet (Vidar): identifierar magiska föremål, och modulerna kan ge den scener.', { effect: { kind: 'syn' }, aim: 'själv' }),
   spell('mentalism', 10, 'ELCHOCK', 'FK', 'beröring', 'omedelbar', '1T4 per E på den som berörs. Metallrustning skyddar bara till hälften.', { effect: { kind: 'skada', dice: '1T4', armor: 'halvMetall', loc: true }, aim: 'fiende' }),
   spell('mentalism', 11, 'TANKELÄSNING', '', S(2, 'rutor'), T(1, 'minuter'), 'Läser en intelligent varelses tankar utan att den märker det.', { effect: { kind: 'tankar', mode: 'läsning' }, aim: 'valfri' }),
   spell('mentalism', 12, 'KONTROLLERA PERSON', '', S(4, 'rutor'), T(1, 'SR'), 'Styr en humanoids kropp, en per E. PSY mot PSY.', { effect: { kind: 'kontrollera', who: 'person' }, aim: 'fiende', resisted: true }),

@@ -46,7 +46,7 @@ import {
   type HitLocation,
 } from './rules';
 import type { ActiveEffect, Actor, AttrKey, PendingSpell } from './types';
-import { applyWorld, SYN_SQUARES, worldProblem } from './worldspells';
+import { applyWorld, showScenes, worldProblem } from './worldspells';
 import { between, breakHiding, FOG_SIGHT, heatColdResist, inVortex, outdoors, unseen, zonesAt } from './spelleffects';
 import { advanceTime } from './time';
 import { dissolve, spellVersusElemental, summonOrBanish, summonProblem } from './elementals';
@@ -200,8 +200,7 @@ export function moveReach(g: Game, id: string, grade: number, t: Actor): number 
     case 'teleportera':
       // Inom 100 m.
       return Math.floor(100 / 1.5);
-    case 'syn':
-      return SYN_SQUARES;
+
     default:
       return null;
   }
@@ -327,7 +326,7 @@ export function castProblem(g: Game, id: string, o: CastOptions): string | null 
         if (o.grade * 20 < t.attrs.STO) return `Det krävs E${Math.ceil(t.attrs.STO / 20)} för ${t.name} (20 STO per E).`;
       }
     }
-    if (moveReach(g, id, o.grade, t) !== null && spell.effect.kind !== 'syn') {
+    if (moveReach(g, id, o.grade, t) !== null) {
       const m = moveProblem(g, id, o.grade, t, o.at);
       if (m) return m;
     }
@@ -461,6 +460,8 @@ function resolve(g: Game, s: PendingSpell) {
     g.emit(a.id, 'Misslyckas', 'miss');
   } else {
     g.log(`${head}: ${check.result === 'perfekt' ? 'perfekt!' : 'lyckas.'}`);
+    // Scener i modulen som besvärjelsen visar (SYN, TELEPATI …).
+    s.scene = showScenes(g, a, s.spell) > 0;
     apply(g, a, antimagic(g, a, s), s.grade, check);
   }
   if (a.psy <= 0 && a.alive) {

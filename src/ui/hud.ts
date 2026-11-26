@@ -601,7 +601,10 @@ export class DialogUi {
       box.append(b);
     };
     for (const o of this.options) add(o, '', () => void this.say(o));
-    for (const id of dialogDef(npc).intents) {
+    // Ett samtal genom TELEPATI eller TANKEÖVERFÖRING på avstånd: bara ord, inga handlingar.
+    const leader = this.g.leader;
+    const away = Math.max(Math.abs(leader.x - npc.x), Math.abs(leader.y - npc.y)) > 1;
+    for (const id of away ? [] : dialogDef(npc).intents) {
       const intent = INTENTS[id];
       if (!intent.available(this.g, npc)) continue;
       add(`[${intent.label(this.g, npc)}]`, id === 'anfall' ? 'act danger' : 'act', () => void this.act(id));
