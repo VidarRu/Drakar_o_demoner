@@ -118,11 +118,12 @@ Besluten står i `docs/regelbeslut.md` under Världskartan.
 
 ### Nästa i steg 8
 
-1. **Vidars första äventyr:** han laddar upp ett äldre äventyr, och det byggs om till en modul med egna ord. Modulen får en världskarta som Provfärdens.
-2. **Resekartan** för kampanjen: platshållaren finns, och restiden bestäms senare.
-3. **Utvecklingen mellan äventyren:** klar (se ovan). Kvar är stadskartan i stället för menyn, att bestämma per modul vilka dåd som ger hjältepoäng och bonus-EP, en lista över vilka språk böckerna är skrivna på, och unika lärare i modulerna som kan flytta till staden (med kampanjspelet).
-4. **Riktiga tabeller för slumpmöten** i stället för de generiska.
-5. **Sparning på server** (till exempel Supabase), senare.
+1. **Grafikmotorn (nästa session):** Vidar vill arbeta med hur spelet ser ut innan hans första äventyr byggs. Han tar med sina idéer om utseendet. Grafiken ligger i `src/game/` (`WorldScene.ts` och `art/`).
+2. **Vidars första äventyr:** han laddar upp ett äldre äventyr, och det byggs om till en modul med egna ord. Modulen får en världskarta som Provfärdens.
+3. **Resekartan** för kampanjen: platshållaren finns, och restiden bestäms senare.
+4. **Utvecklingen mellan äventyren:** klar (se ovan). Kvar är stadskartan i stället för menyn, att bestämma per modul vilka dåd som ger hjältepoäng och bonus-EP, en lista över vilka språk böckerna är skrivna på, och unika lärare i modulerna som kan flytta till staden (med kampanjspelet).
+5. **Riktiga tabeller för slumpmöten** i stället för de generiska.
+6. **Sparning på server** (till exempel Supabase), senare.
 
 ### Förmågor, besvärjelser och väder (pågår)
 
