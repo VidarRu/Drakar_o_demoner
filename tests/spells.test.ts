@@ -3,7 +3,7 @@ import * as combat from '../src/engine/combat';
 import { seededRng, type Rng } from '../src/engine/dice';
 import { Game } from '../src/engine/game';
 import { ironProblem } from '../src/engine/inventory';
-import { castProblem, castSpell, enemyCast, resolvePending, spellS, spellTargets } from '../src/engine/magic';
+import { castProblem, castSpell, enemyCast, resolvePending, spellS, spellTargets, wardCheck } from '../src/engine/magic';
 import { maxKp } from '../src/engine/rules';
 import type { Actor, Character } from '../src/engine/types';
 import { testCharacter } from './helpers';
@@ -111,7 +111,7 @@ function allRounder(): Character {
   c.skills['magiskola:animism'] = 14;
   c.skills['magiskola:elementarmagi'] = 14;
   c.skills['magiskola:mentalism'] = 14;
-  c.spells = ['oka', 'minska', 'kamouflage', 'flammande_hand', 'virvelskold', 'ljus', 'morker', 'motstandskraft', 'magisk_syn', 'osynlighet', 'antimagi', 'eld', 'vindpil', 'astralvapen'];
+  c.spells = ['oka', 'minska', 'kamouflage', 'flammande_hand', 'virvelskold', 'ljus', 'morker', 'motstandskraft', 'magisk_syn', 'osynlighet', 'antimagi', 'eld', 'vindpil', 'astralvapen', 'sprang', 'levitation', 'flyga', 'lyft', 'teleportera', 'dimma', 'beskyddare', 'kontrollera_person'];
   c.memorized = [...c.spells];
   c.inventory = ['trastav', 'harnesk_lader'];
   c.equipped = { weapon: 'trastav', armor: ['harnesk_lader'] };
@@ -335,6 +335,137 @@ describe('skada på totala KP och de nya värdena', () => {
     expect(p.effects.filter((e) => e.kind === 'astralvapen')).toHaveLength(1);
     g.sleep(1);
     expect(combat.weaponInfo(p).id).toBe('trastav');
+  });
+});
+
+describe('rörelse, zoner och kontroll', () => {
+  it('SPRÅNG: 4 m per E, över en fiende, med SMI-slag vid landningen', () => {
+    const { g, p, foe } = explore('svartalf', 1);
+    expect(castProblem(g, 'sprang', { grade: 1, target: p.id, at: { x: 13, y: 12 } })).toMatch(/1–2 rutor/);
+    // E2 räcker 5 rutor. SPRÅNG är kvickt: slaget (2) och SMI-slaget (3).
+    g.rng = queue(face(2), face(3));
+    expect(castSpell(g, 'sprang', { grade: 2, target: p.id, at: { x: 13, y: 12 } })).toBeNull();
+    expect([p.x, p.y]).toEqual([13, 12]);
+    expect(foe.x).toBe(11);
+    expect(combat.hasEffect(p, 'liggande')).toBe(false);
+    // Inte genom ett träd.
+    expect(castProblem(g, 'sprang', { grade: 3, target: p.id, at: { x: 13, y: 16 } })).toMatch(/träd|ledig/);
+  });
+
+  it('LEVITATION: bara långa vapen når den som svävar, och den som svävar står still', () => {
+    const { g, p, foe } = explore('svartalf', 1);
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'levitation', { grade: 1 })).toBeNull();
+    expect(combat.inReach(g, foe, p)).toBe(false);
+    expect(combat.inReach(g, p, foe)).toBe(false);
+    expect(combat.effectiveMove(p, g)).toBe(0);
+    g.land();
+    expect(combat.inReach(g, foe, p)).toBe(true);
+  });
+
+  it('FLYGA: E × 5 rutor per runda och över vattnet', () => {
+    const { g, p } = explore();
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'flyga', { grade: 2, target: p.id })).toBeNull();
+    expect(combat.effectiveMove(p, g)).toBe(10);
+    // Över dammen söder om vägen.
+    p.x = 8;
+    p.y = 13;
+    expect(g.pathTo(8, 15)).not.toBeNull();
+    p.x = 8;
+    p.y = 15;
+    g.land();
+    expect(g.map.tiles[p.y * g.map.w + p.x]).not.toBe('~');
+  });
+
+  it('LYFT flyttar en ovillig fiende som förlorar STY-slaget', () => {
+    const { g, p, foe } = explore('svartalf', 2);
+    foe.hostile = true;
+    // Svartalfen har STO 7: E3 krävs, och E4 ger tre rutor.
+    expect(castProblem(g, 'lyft', { grade: 2, target: foe.id, at: { x: 14, y: 12 } })).toMatch(/E3/);
+    g.rng = queue(face(2), face(1));
+    expect(castSpell(g, 'lyft', { grade: 4, target: foe.id, at: { x: 15, y: 12 } })).toBeNull();
+    expect([foe.x, foe.y]).toEqual([15, 12]);
+    expect(p.alive).toBe(true);
+  });
+
+  it('TELEPORTERA går bara till en plats man känner till', () => {
+    const { g, p } = explore();
+    expect(castProblem(g, 'teleportera', { grade: 5, target: p.id, at: { x: 10, y: 12 + 1 } })).toBeNull();
+    expect(castProblem(g, 'teleportera', { grade: 5, target: p.id, at: { x: 40, y: 15 } })).toMatch(/känner till/);
+    // S är bara 5 med Mentalism 14 (skolvärde 12), så magikern behöver mer FV för E5.
+    p.skills['magiskola:mentalism'] = 18;
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'teleportera', { grade: 5, target: p.id, at: { x: 14, y: 12 } })).toBeNull();
+    expect([p.x, p.y]).toEqual([14, 12]);
+  });
+
+  it('DIMMA kräver vatten och skymmer sikten bortom 10 rutor', () => {
+    const { g, p, foe } = explore('svartalf', 3);
+    foe.sight = 20;
+    foe.x = 22;
+    foe.y = 12;
+    expect(g.canSee(foe, p)).toBe(true);
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'dimma', { grade: 1, target: p.id })).toBeNull();
+    expect(g.canSee(foe, p)).toBe(false);
+    // Långt från vattnet går det inte.
+    p.x = 38;
+    p.y = 12;
+    expect(castProblem(g, 'dimma', { grade: 1, target: p.id })).toMatch(/vatten/);
+  });
+
+  it('BESKYDDARE: den som går in träffas av en energistråle, och magi utifrån möter ANTIMAGI E1', () => {
+    const { g, p, foe } = explore('svartalf', 3);
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'beskyddare', { grade: 1 })).toBeNull();
+    const kp = foe.kp;
+    foe.x = 11;
+    g.rng = queue(face(3, 3), face(10));
+    wardCheck(g);
+    expect(foe.kp).toBe(kp - 3);
+    // Magikern själv kan gå ut och in.
+    p.x = 13;
+    wardCheck(g);
+    p.x = 10;
+    wardCheck(g);
+    expect(p.kp).toBe(p.maxKp);
+  });
+
+  it('KONTROLLERA PERSON: svartalfen slåss för gruppen tills besvärjelsen tar slut', () => {
+    const { g, p, witch } = witchFight(3);
+    const alf = g.state.actors.find((a) => a.defId === 'svartalf')!;
+    alf.x = 12;
+    alf.y = 12;
+    witch.x = 14;
+    // Rollpersonen tar kontroll över svartalfen.
+    g.char.spells = ['kontrollera_person'];
+    g.char.memorized = ['kontrollera_person'];
+    g.char.inventory = [];
+    p.skills['magiskola:mentalism'] = 14;
+    p.weapon = 'nave';
+    p.shield = undefined;
+    p.armor = [];
+    p.psy = 18;
+    const c = g.state.combat!;
+    c.order = [p.id, alf.id, witch.id];
+    c.turn = 0;
+    // Läggs nu och verkar nästa runda: slaget (2) och PSY 18 mot svartalfens 11 (1).
+    expect(castSpell(g, 'kontrollera_person', { grade: 1, target: alf.id })).toBeNull();
+    g.rng = queue(face(2), face(1));
+    resolvePending(g);
+    expect(alf.hostile).toBe(false);
+    expect(combat.activeHostiles(g)).not.toContain(alf);
+    // Svartalfen går på häxkonstnären på sin tur.
+    c.order = [alf.id, witch.id, p.id];
+    c.turn = 0;
+    c.acted = {};
+    c.movesLeft = alf.move;
+    combat.autoTurn(g);
+    expect(g.state.log.join('\n')).toMatch(/Svartalf.*Svartalfisk häxkonstnär/);
+    const ctl = alf.effects.find((e) => e.kind === 'kontrollerad')!;
+    combat.endSpellEffect(g, alf, ctl);
+    expect(alf.hostile).toBe(true);
   });
 });
 

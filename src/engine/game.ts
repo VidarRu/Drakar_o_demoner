@@ -34,6 +34,8 @@ import {
   type HitLocation,
 } from './rules';
 import type { Actor, Attrs, Character, CreatureDef, GameState } from './types';
+import { fogBlocks, passable } from './spelleffects';
+import { wardCheck } from './magic';
 
 export const FOV_RADIUS = 8;
 
@@ -348,13 +350,14 @@ export class Game {
   /** Väg för den som går (ledaren utanför strid) till en ruta, eller till en ruta intill om `adjacentOk`. */
   pathTo(x: number, y: number, adjacentOk = false): Point[] | null {
     const who = this.state.mode === 'combat' ? this.player : this.leader;
-    return findPath(this.map, who, { x, y }, this.occupied, adjacentOk);
+    return findPath(this.map, who, { x, y }, this.occupied, adjacentOk, (px, py) => passable(this, who, px, py));
   }
 
   /** Rutor som den som har turen kan nå med sin återstående förflyttning i strid. */
   reachableTiles(): Point[] {
     if (!this.isPlayerTurn()) return [];
-    return reachable(this.map, this.player, this.state.combat!.movesLeft, this.occupied);
+    const p = this.player;
+    return reachable(this.map, p, this.state.combat!.movesLeft, this.occupied, (x, y) => passable(this, p, x, y));
   }
 
   /** Gruppen ser tillsammans: synfälten för alla som är vid medvetande läggs ihop. */
@@ -366,7 +369,8 @@ export class Game {
   }
 
   canSee(a: Actor, b: Actor): boolean {
-    return distance(a.x, a.y, b.x, b.y) <= a.sight && lineOfSight(this.map, a.x, a.y, b.x, b.y);
+    // DIMMA: ingen ser längre än 10 rutor in i eller ut ur dimman.
+    return distance(a.x, a.y, b.x, b.y) <= a.sight && lineOfSight(this.map, a.x, a.y, b.x, b.y) && !fogBlocks(this, a, b);
   }
 
   // ---------------------------------------------------------------- utforskning
@@ -402,6 +406,7 @@ export class Game {
       }
     }
     this.updateFov();
+    wardCheck(this);
     for (const m of members) combat.pickUp(this, m);
     for (const m of members) combat.tick(this, m);
     time.advanceTime(this, 5, 'aktiv');
@@ -471,6 +476,7 @@ export class Game {
     p.y = to.y;
     c.movesLeft--;
     p.movedLast = (p.movedLast ?? 0) + 1;
+    wardCheck(this);
     this.updateFov();
     if (!c.acted[p.id] && this.state.dropped.some((d) => d.x === p.x && d.y === p.y) && combat.pickUp(this)) {
       c.acted[p.id] = true;
@@ -791,6 +797,17 @@ export class Game {
     if (r) this.log(r);
     this.changed();
     return r;
+  }
+
+  /** LEVITATION och FLYGA: den som svävar landar på sin ruta (eller närmaste lediga ruta). */
+  land(): string | null {
+    const p = this.player;
+    const air = p.effects.filter((e) => e.kind === 'svävar');
+    if (!air.length) return 'Du svävar inte.';
+    for (const e of air) combat.endSpellEffect(this, p, e);
+    this.log(`${p.name} landar.`);
+    this.changed();
+    return null;
   }
 
   /** Laddar (eller avbryter) en hjältepoäng för nästa egna slag hos den som styrs. */

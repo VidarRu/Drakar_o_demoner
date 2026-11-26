@@ -18,6 +18,7 @@ import {
 } from '../engine/inventory';
 import {
   BODY_ATTRS,
+  moveReach,
   castProblem,
   castSpell,
   forget,
@@ -245,7 +246,7 @@ export class ShopUi {
 
 /** Magin: formelsamlingen, minnet och att lägga besvärjelser. */
 export class MagicUi {
-  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean; attr: AttrKey; hands: 1 | 2 } | null = null;
+  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean; attr: AttrKey; hands: 1 | 2; dir: number; dist: number } | null = null;
 
   constructor(private g: Game, private panel: Panel) {}
 
@@ -283,7 +284,7 @@ export class MagicUi {
 
   private pick(id: string) {
     const targets = spellTargets(this.g, id);
-    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false, attr: 'STY', hands: 1 };
+    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false, attr: 'STY', hands: 1, dir: 0, dist: 1 };
     this.panel.refresh();
   }
 
@@ -343,6 +344,32 @@ export class MagicUi {
       l.append(s);
       box.append(l);
     }
+    // SPRÅNG, LYFT och TELEPORTERA: rutan väljs med riktning och avstånd från målet.
+    const mover = c.target ? g.actor(c.target) : sp.aim === 'själv' ? p : undefined;
+    const reach = mover ? moveReach(g, c.id, c.grade, mover) : null;
+    let at: { x: number; y: number } | undefined;
+    if (reach !== null && mover) {
+      c.dist = Math.min(Math.max(1, c.dist), Math.max(1, reach));
+      const dirSel = el('select');
+      COMPASS.forEach(([name], i) => dirSel.append(new Option(name, String(i), false, i === c.dir)));
+      dirSel.onchange = () => {
+        c.dir = Number(dirSel.value);
+        this.panel.refresh();
+      };
+      const distSel = el('select');
+      for (let i = 1; i <= Math.max(1, reach); i++) distSel.append(new Option(String(i), String(i), false, i === c.dist));
+      distSel.onchange = () => {
+        c.dist = Number(distSel.value);
+        this.panel.refresh();
+      };
+      const l1 = el('label', '', 'Riktning ');
+      l1.append(dirSel);
+      const l2 = el('label', '', `Rutor (högst ${reach}) `);
+      l2.append(distSel);
+      box.append(l1, l2);
+      const [, dx, dy] = COMPASS[c.dir];
+      at = { x: mover.x + dx * c.dist, y: mover.y + dy * c.dist };
+    }
     const suicide = el('label', '', 'Självmordsattack (CL = S, kostar mer PSY än du har, du dör) ');
     const cb = el('input');
     cb.type = 'checkbox';
@@ -353,7 +380,7 @@ export class MagicUi {
     };
     suicide.append(cb);
     const S = spellS(p, c.id);
-    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide, attr: c.attr, hands: c.hands };
+    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide, attr: c.attr, hands: c.hands, at };
     const problem = castProblem(g, c.id, opts);
     box.append(
       suicide,
@@ -380,6 +407,18 @@ export class MagicUi {
     this.panel.report(typeof r === 'string' ? r : null);
   }
 }
+
+/** Väderstrecken för SPRÅNG, LYFT och TELEPORTERA: namn och steg på kartan (norr är uppåt). */
+const COMPASS: [string, number, number][] = [
+  ['Norr', 0, -1],
+  ['Nordost', 1, -1],
+  ['Öster', 1, 0],
+  ['Sydost', 1, 1],
+  ['Söder', 0, 1],
+  ['Sydväst', -1, 1],
+  ['Väster', -1, 0],
+  ['Nordväst', -1, -1],
+];
 
 /** Skapar fönstren och kopplar dem till spelet. */
 export function mountPanels(g: Game) {

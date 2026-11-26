@@ -462,9 +462,35 @@ Koden står i `apply` i `src/engine/magic.ts`, och det som striden behöver i `s
   - FV är magikerns S när besvärjelsen läggs, och skadebonus läggs till.
   - "En E per kg": ett enhandsvapen kräver E2 och ett tvåhandsvapen E4.
   - Vapnet tar platsen av det magikern håller i handen så länge det varar, går inte sönder och räknas som magiskt vapen, så det biter på elementarer som bara skadas av magi. Det räknas inte som järn.
+- **SPRÅNG:**
+  - Ett hopp till en ruta som magikern väljer med riktning och avstånd, högst 4 m per E: E1 två rutor, E2 fem och E3 åtta.
+  - Hoppet går över fiender och vatten men inte genom väggar, berg och träd, och landningsrutan måste vara ledig.
+  - Vid landningen slås ett Normalt SMI-slag, och Gott balanssinne ger +5. Tolkning: misslyckas det hamnar hoppet på marken i en runda.
+- **LEVITATION och FLYGA:**
+  - Figuren svävar. Den som svävar når och nås i närstrid bara med långa vapen (räckvidd 2 eller mer), om inte båda svävar. Skott går som vanligt.
+  - LEVITATION står still i luften.
+  - FLYGA ger E × 5 rutor per runda, men en E går åt för varje påbörjat 20-tal STO över 20. Den som flyger tar sig över vatten och träd (tolkning), och skador i benen spelar ingen roll.
+  - Knappen Landa avslutar båda. Tolkning: den som landar över vatten eller ett träd hamnar på närmaste lediga ruta, utan skada.
+- **LYFT:**
+  - Kräver 1 E per 3 STO och flyttar målet två rutor, plus en för varje E utöver det som krävs, över fiender och vatten.
+  - Tolkning: målet flyttas på en gång när besvärjelsen verkar och sätts ned utan skada.
+  - Tolkning: en fiende gör motstånd med E × 3 mot sin STY på motståndstabellen.
+- **TELEPORTERA (tolkning):** kräver 1 E per 3 STO och flyttar målet till en ledig ruta inom 100 m (66 rutor) som gruppen har sett. I strid måste rutan synas just nu.
+- **DIMMA:**
+  - En dimbank med tio rutors radie kring målet. Ingen ser eller skjuter längre än 10 rutor in i, ut ur eller inom dimman.
+  - Tolkning: det krävs vatten inom tio rutor från målet.
+- **BESKYDDARE (tolkning):**
+  - Fältet är tre gånger tre rutor kring magikern och varar tills vidare, på den karta där det lades.
+  - Den som går in träffas av en ENERGISTRÅLE E1: 1T3 mot en kroppsdel i detaljerad strid, annars 1T6.
+  - Magi utifrån mot någon där inne måste övervinna ANTIMAGI E1.
+  - Magikern själv kan gå in och ut. De som stod i fältet när det lades träffas inte förrän de har gått ut och in igen.
+- **KONTROLLERA PERSON:**
+  - Bara mot humanoider, PSY mot PSY. Den kontrollerade slutar vara fientlig och slåss för gruppen i S stridsrundor.
+  - Tolkning: magikern låter den anfalla den närmaste fienden på dess tur, i stället för att styra den knapp för knapp. Fienderna anfaller den inte.
+  - Kontrollen bryts när magikern dör eller faller medvetslös, eller när den skingras. Sedan blir personen fientlig igen.
 - **Kvar:**
   - NEDKALLA ÅSKVIGG behöver vädret.
-  - KONTROLLERA PERSON, KONTROLLERA VARELSE, SPRÅNG, LEVITATION, FLYGA, LYFT, TELEPORTERA, DIMMA och BESKYDDARE väntar på att byggas.
+  - KONTROLLERA VARELSE väntar på ett beslut om varelsegrupperna (se `docs/brief.md`).
 
 ### Vädret (Vidar)
 

@@ -358,7 +358,23 @@ export type SpellEffect =
   /** KAMOUFLAGE: oupptäckt utomhus så länge magikern står still. */
   | { kind: 'kamouflage' }
   /** ASTRALVAPEN: ett magiskt eggvapen i handen, 1T10 med en hand och 2T10 med två. */
-  | { kind: 'astralvapen' };
+  | { kind: 'astralvapen' }
+  /** SPRÅNG: ett hopp till en ruta, 4 m per E, över fiender och vatten. */
+  | { kind: 'språng' }
+  /** LEVITATION: svävar ovanför marken. */
+  | { kind: 'levitation' }
+  /** FLYGA: E × 5 rutor per runda, över vatten och träd. */
+  | { kind: 'flyga' }
+  /** LYFT: flyttar 3 STO per E två rutor, plus en per E utöver det som krävs. */
+  | { kind: 'lyft' }
+  /** TELEPORTERA: 3 STO per E till en känd ruta inom 100 m. */
+  | { kind: 'teleportera' }
+  /** DIMMA: sikten blir 10 rutor i ett område. Kräver vatten. */
+  | { kind: 'dimma' }
+  /** BESKYDDARE: en skyddad kub kring magikern (ANTIMAGI E1 och ENERGISTRÅLE E1). */
+  | { kind: 'beskyddare' }
+  /** KONTROLLERA PERSON: en humanoid slåss för magikern. */
+  | { kind: 'kontrollera' };
 
 export interface ItemDef {
   id: string;

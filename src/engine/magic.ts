@@ -3,9 +3,9 @@ import { SPELLS, spellRange } from '../data/spells';
 import type { SpellDef, SpellDuration } from '../data/types';
 import { die, roll } from './dice';
 import type { Game } from './game';
-import { heroic, markPsyWin, passive, provokeAnimal } from './hero';
+import { actorHas, heroic, markPsyWin, passive, provokeAnimal } from './hero';
 import { ironProblem } from './inventory';
-import { distance, lineOfSight } from './map';
+import { distance, lineOfSight, tileAt, walkable } from './map';
 import { neutralize } from './poison';
 import {
   armorPiece,
@@ -46,7 +46,7 @@ import {
   type HitLocation,
 } from './rules';
 import type { ActiveEffect, Actor, AttrKey, PendingSpell } from './types';
-import { breakHiding, heatColdResist, inVortex, outdoors, unseen } from './spelleffects';
+import { between, breakHiding, FOG_SIGHT, heatColdResist, inVortex, outdoors, unseen, zonesAt } from './spelleffects';
 import { advanceTime } from './time';
 import { dissolve, spellVersusElemental, summonOrBanish, summonProblem } from './elementals';
 
@@ -180,6 +180,51 @@ export interface CastOptions {
   attr?: AttrKey;
   /** ASTRALVAPEN med en eller två händer. */
   hands?: 1 | 2;
+  /** Rutan som SPRÅNG, LYFT och TELEPORTERA flyttar målet till. */
+  at?: { x: number; y: number };
+}
+
+/** Hur långt målet kan flyttas (rutor) med SPRÅNG, LYFT och TELEPORTERA, eller null. */
+export function moveReach(g: Game, id: string, grade: number, t: Actor): number | null {
+  switch (SPELLS[id]?.effect?.kind) {
+    case 'språng':
+      // 4 m per E, och en ruta är 1,5 m.
+      return Math.floor((grade * 4) / 1.5);
+    case 'lyft':
+      // Två rutor, plus en för varje E utöver det som krävs för målets STO.
+      return 2 + Math.max(0, grade - Math.ceil(t.attrs.STO / 3));
+    case 'teleportera':
+      // Inom 100 m.
+      return Math.floor(100 / 1.5);
+    default:
+      return null;
+  }
+}
+
+/** Varför målet inte kan flyttas till rutan, eller null. */
+function moveProblem(g: Game, id: string, grade: number, t: Actor, at?: { x: number; y: number }): string | null {
+  const kind = SPELLS[id].effect!.kind;
+  const max = moveReach(g, id, grade, t)!;
+  if (!at) return 'Välj en ruta att flytta till.';
+  const d = distance(t.x, t.y, at.x, at.y);
+  if (d < 1 || d > max) return `Rutan måste ligga 1–${max} rutor bort.`;
+  if (!walkable(g.map, at.x, at.y) || g.actorAt(at.x, at.y)) return 'Rutan är inte ledig.';
+  if (kind === 'teleportera') {
+    if (!g.state.explored[at.y * g.map.w + at.x]) return 'Man kan bara teleportera till en plats man känner till.';
+    if (g.state.mode === 'combat' && !g.isVisible(at.x, at.y)) return 'I strid går det bara till en ruta som du ser.';
+    return null;
+  }
+  // SPRÅNG och LYFT går över fiender och vatten men inte genom väggar, berg och träd.
+  for (const p of between(t, at)) {
+    const tile = tileAt(g.map, p.x, p.y);
+    if (!tile.walkable && tile.name !== 'vatten') return `Vägen är stängd av ${tile.name}.`;
+  }
+  return null;
+}
+
+/** FLYGA: en E extra per 20 STO över de första 20, och flygfarten E × 5 rutor av det som blir över. */
+export function flightGrades(t: Actor): number {
+  return Math.ceil(Math.max(0, t.attrs.STO - 20) / 20);
 }
 
 /** Grundegenskaperna som ÖKA och MINSKA kan ändra. */
@@ -265,6 +310,17 @@ export function castProblem(g: Game, id: string, o: CastOptions): string | null 
     if (!t || !spellTargets(g, id, o.extraRange, p).includes(t)) return 'Välj ett mål inom räckhåll som du ser.';
     if (spell.effect.kind === 'elementar') return summonProblem(g, p, spell.effect.element, t);
     if (spell.effect.kind === 'osynlighet' && o.grade * 6 < t.attrs.STO) return `Det krävs E${Math.ceil(t.attrs.STO / 6)} för att göra ${t.name} osynlig (6 STO per E).`;
+    if ((spell.effect.kind === 'lyft' || spell.effect.kind === 'teleportera') && o.grade * 3 < t.attrs.STO) return `Det krävs E${Math.ceil(t.attrs.STO / 3)} för ${t.name} (3 STO per E).`;
+    if (spell.effect.kind === 'flyga' && o.grade <= flightGrades(t)) return `${t.name} är tung: det krävs mer än E${flightGrades(t)}.`;
+    if (spell.effect.kind === 'kontrollera' && (!t.detailed || t.elemental)) return 'KONTROLLERA PERSON verkar bara på humanoider.';
+    if (moveReach(g, id, o.grade, t) !== null) {
+      const m = moveProblem(g, id, o.grade, t, o.at);
+      if (m) return m;
+    }
+  }
+  if (spell.effect.kind === 'dimma') {
+    const t = o.target ? g.actor(o.target) : undefined;
+    if (t && !waterWithin(g, t, 10)) return 'DIMMA kräver vatten i närheten.';
   }
   return null;
 }
@@ -294,6 +350,7 @@ export function castSpell(g: Game, id: string, o: CastOptions): string | null {
     suicide: o.suicide,
     attr: o.attr,
     hands: o.hands,
+    at: o.at,
   };
   // Den som lägger magi syns igen (OSYNLIGHET och KAMOUFLAGE).
   breakHiding(g, p, 'lägger magi');
@@ -402,8 +459,10 @@ function resolve(g: Game, s: PendingSpell) {
 function antimagic(g: Game, caster: Actor, s: PendingSpell): PendingSpell {
   const t = s.target ? g.actor(s.target) : undefined;
   const kind = SPELLS[s.spell].effect?.kind;
-  if (!t || t === caster || kind === 'explosion' || kind === 'elementar' || kind === 'mörker') return s;
-  const shield = t.effects.find((e) => e.kind === 'antimagi');
+  if (!t || t === caster || kind === 'explosion' || kind === 'elementar' || kind === 'mörker' || kind === 'dimma') return s;
+  // BESKYDDARE fungerar som ANTIMAGI E1 mot magi utifrån.
+  const ward = zonesAt(g, 'beskyddare', t).some((z) => distance(z.x, z.y, caster.x, caster.y) > z.r);
+  const shield = t.effects.find((e) => e.kind === 'antimagi') ?? (ward ? { grade: 1 } : undefined);
   if (!shield?.grade) return s;
   const total = totalGrade(s);
   const r = resistance(total, shield.grade, g.rng);
@@ -648,7 +707,7 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       const d = durationRounds(spell, spellS(caster, spell.id), s.extraDuration, g.rng);
       const seconds = d.days ? d.days * DURATION_SECONDS.dygn : (d.rounds ?? 1) * ROUND_SECONDS;
       // En sfär med sex meters diameter: två rutor åt varje håll.
-      (g.state.zones ??= []).push({ kind: 'mörker', x: t.x, y: t.y, r: 2, until: g.state.time + seconds, spell: spell.id, grade });
+      (g.state.zones ??= []).push({ kind: 'mörker', map: g.state.mapId, x: t.x, y: t.y, r: 2, until: g.state.time + seconds, spell: spell.id, grade });
       g.log(`Ett kompakt mörker sluter sig kring ${t.name}s ruta. Där lyser ingenting.`);
       return;
     }
@@ -676,6 +735,88 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       // FV är magikerns S när besvärjelsen läggs.
       t.effects.push({ kind: 'astralvapen', dice: w.dice, mod: spellS(caster, spell.id), ...effectFor(caster, spell, s, grade, g) });
       g.log(`Ett ${s.hands === 2 ? 'tvåhandsvapen' : 'enhandsvapen'} av glödande magisk energi formas i ${t.name}s ${s.hands === 2 ? 'händer' : 'hand'} (${w.dice}, FV ${spellS(caster, spell.id)}).`);
+      return;
+    }
+    case 'språng': {
+      const at = s.at!;
+      if (!walkable(g.map, at.x, at.y) || g.actorAt(at.x, at.y)) {
+        g.log('Landningsplatsen är inte längre ledig.');
+        return;
+      }
+      t.x = at.x;
+      t.y = at.y;
+      // Normalt SMI-slag vid landningen; Gott balanssinne ger +5. Misslyckas det hamnar hen på marken (tolkning).
+      const smi = attributeCheck(t.attrs.SMI + (actorHas(g, t, 'gott_balanssinne') ? 5 : 0), g.rng, 'Normalt');
+      if (smi.success) g.log(`${t.name} gör ett jättesprång och landar på fötterna (Normalt SMI-slag, T20: ${smi.roll} mot ${smi.target}).`);
+      else {
+        t.effects.push({ kind: 'liggande', label: 'Landade illa', rounds: 1 });
+        g.log(`${t.name} gör ett jättesprång men landar illa och faller (Normalt SMI-slag, T20: ${smi.roll} mot ${smi.target}).`);
+      }
+      return;
+    }
+    case 'levitation':
+      t.effects = t.effects.filter((x) => x.kind !== 'svävar');
+      t.effects.push({ kind: 'svävar', mod: 0, ...effectFor(caster, spell, s, grade, g) });
+      g.log(`${t.name} stiger upp i luften. Bara långa vapen når hen nu.`);
+      return;
+    case 'flyga': {
+      const speed = (grade - flightGrades(t)) * 5;
+      t.effects = t.effects.filter((x) => x.kind !== 'svävar');
+      t.effects.push({ kind: 'svävar', mod: speed, ...effectFor(caster, spell, s, grade, g) });
+      g.log(`${t.name} lyfter och flyger, ${speed} rutor per runda.`);
+      return;
+    }
+    case 'lyft': {
+      const at = s.at!;
+      // En ovillig varelse gör motstånd: E × 3 mot målets STY (tolkning).
+      if (t !== caster && foeOf(caster, t)) {
+        const r = resistance(grade * 3, t.attrs.STY, g.rng);
+        if (!r.success) {
+          g.log(`${t.name} sliter sig loss ur greppet (E×3 ${grade * 3} mot STY ${t.attrs.STY}, T20: ${r.roll} mot ${r.target}).`);
+          provoke(g, t, caster);
+          return;
+        }
+      }
+      if (!walkable(g.map, at.x, at.y) || g.actorAt(at.x, at.y)) {
+        g.log('Platsen är inte längre ledig.');
+        return;
+      }
+      t.x = at.x;
+      t.y = at.y;
+      g.log(`${t.name} lyfts genom luften och sätts ned ${distance(s.x, s.y, at.x, at.y)} rutor bort.`);
+      if (t !== caster && foeOf(caster, t)) provoke(g, t, caster);
+      return;
+    }
+    case 'teleportera': {
+      const at = s.at!;
+      if (g.actorAt(at.x, at.y)) {
+        g.log('Platsen är inte längre ledig.');
+        return;
+      }
+      t.x = at.x;
+      t.y = at.y;
+      g.log(`${t.name} försvinner och dyker upp på en annan plats.`);
+      g.updateFov();
+      return;
+    }
+    case 'dimma': {
+      const d = durationRounds(spell, spellS(caster, spell.id), s.extraDuration, g.rng);
+      const seconds = d.days ? d.days * DURATION_SECONDS.dygn : (d.rounds ?? 1) * ROUND_SECONDS;
+      (g.state.zones ??= []).push({ kind: 'dimma', map: g.state.mapId, x: t.x, y: t.y, r: FOG_RADIUS, until: g.state.time + seconds, spell: spell.id, grade });
+      g.log(`En tjock dimma stiger ur vattnet. Ingen ser längre än ${FOG_SIGHT} rutor i den.`);
+      return;
+    }
+    case 'beskyddare': {
+      const inside = g.state.actors.filter((x) => x.alive && distance(x.x, x.y, t.x, t.y) <= 1).map((x) => x.id);
+      (g.state.zones ??= []).push({ kind: 'beskyddare', map: g.state.mapId, x: t.x, y: t.y, r: 1, until: Number.MAX_SAFE_INTEGER, spell: spell.id, grade, caster: caster.id, inside });
+      g.log(`${caster.name} drar upp ett skyddande fält kring sig (tre gånger tre rutor). Den som går in träffas av en energistråle.`);
+      return;
+    }
+    case 'kontrollera': {
+      t.effects = t.effects.filter((x) => x.kind !== 'kontrollerad');
+      t.effects.push({ kind: 'kontrollerad', by: caster.id, was: { hostile: t.hostile }, ...effectFor(caster, spell, s, grade, g) });
+      t.hostile = false;
+      g.log(`${caster.name} tar kontroll över ${t.name}, som nu slåss för gruppen.`);
       return;
     }
     case 'rankor': {
@@ -854,4 +995,48 @@ export function enemyCast(g: Game, a: Actor): boolean {
     }
   }
   return false;
+}
+
+// ------------------------------------------------------------------ DIMMA och BESKYDDARE
+
+/** DIMMA täcker en cirkel med den här radien kring målet (tolkning). */
+const FOG_RADIUS = 10;
+
+/** Finns det vatten inom `r` rutor (DIMMA)? */
+function waterWithin(g: Game, at: { x: number; y: number }, r: number): boolean {
+  for (let dy = -r; dy <= r; dy++)
+    for (let dx = -r; dx <= r; dx++) {
+      const x = at.x + dx;
+      const y = at.y + dy;
+      if (x >= 0 && y >= 0 && x < g.map.w && y < g.map.h && tileAt(g.map, x, y).name === 'vatten') return true;
+    }
+  return false;
+}
+
+/**
+ * BESKYDDARE: den som går in i fältet träffas av en ENERGISTRÅLE E1 (1T3 i detaljerad strid, annars
+ * 1T6, mot en kroppsdel). Magikern själv kan gå in och ut. Anropas när någon har flyttat sig och i
+ * början av varje runda.
+ */
+export function wardCheck(g: Game) {
+  for (const z of activeZonesOf(g, 'beskyddare')) {
+    const now = g.state.actors.filter((x) => x.alive && !x.fled && distance(x.x, x.y, z.x, z.y) <= z.r).map((x) => x.id);
+    const entered = now.filter((id) => !(z.inside ?? []).includes(id) && id !== z.caster);
+    z.inside = now;
+    for (const id of entered) {
+      const a = g.actor(id)!;
+      const dice = a.detailed ? '1T3' : '1T6';
+      const dmg = Math.max(0, roll(dice, g.rng));
+      const loc = a.detailed ? lookup(HIT_TABLE.avstånd, die(20, g.rng))! : null;
+      const abs = (loc ? (armorPiece(a, loc)?.abs ?? 0) : 0) + a.naturalArmor + magicArmor(a);
+      const dealt = Math.max(0, dmg - abs);
+      g.log(`${a.name} går in i det skyddande fältet och träffas av en energistråle: ${dealt} i skada${loc ? ` i ${loc}` : ''}${abs ? ` (${dmg} − ${abs} i skydd)` : ''}.`);
+      g.emit(a.id, dealt ? `-${dealt}` : '0', 'damage');
+      wound(g, a, dealt, loc);
+    }
+  }
+}
+
+function activeZonesOf(g: Game, kind: 'beskyddare') {
+  return (g.state.zones ?? []).filter((z) => z.kind === kind && (!z.map || z.map === g.state.mapId) && z.until > g.state.time);
 }

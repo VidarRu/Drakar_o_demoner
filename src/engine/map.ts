@@ -177,6 +177,8 @@ export function findPath(
   to: Point,
   blocked: (x: number, y: number) => boolean,
   adjacentOk = false,
+  /** Vilka rutor man kan gå på (FLYGA tar sig över vatten och träd). */
+  canPass: (x: number, y: number) => boolean = (x, y) => walkable(map, x, y),
 ): Point[] | null {
   const done = (x: number, y: number) =>
     adjacentOk ? distance(x, y, to.x, to.y) <= 1 : x === to.x && y === to.y;
@@ -192,7 +194,7 @@ export function findPath(
     for (const [dx, dy] of DIRS) {
       const nx = cx + dx;
       const ny = cy + dy;
-      if (!walkable(map, nx, ny)) continue;
+      if (!canPass(nx, ny)) continue;
       const ni = idx(map, nx, ny);
       if (prev.has(ni)) continue;
       if (blocked(nx, ny)) continue;
@@ -215,6 +217,7 @@ export function reachable(
   from: Point,
   steps: number,
   blocked: (x: number, y: number) => boolean,
+  canPass: (x: number, y: number) => boolean = (x, y) => walkable(map, x, y),
 ): Point[] {
   const dist = new Map<number, number>([[idx(map, from.x, from.y), 0]]);
   const queue: Point[] = [from];
@@ -226,7 +229,7 @@ export function reachable(
     for (const [dx, dy] of DIRS) {
       const nx = cur.x + dx;
       const ny = cur.y + dy;
-      if (!walkable(map, nx, ny) || blocked(nx, ny)) continue;
+      if (!canPass(nx, ny) || blocked(nx, ny)) continue;
       const ni = idx(map, nx, ny);
       if (dist.has(ni)) continue;
       dist.set(ni, d + 1);

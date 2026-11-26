@@ -404,6 +404,11 @@ export class Hud {
       b.title = `Köp +1 på CL för 1 PSY på nästa egna slag. Tryck igen för mer, högst +3. ${source === 'tjuvtur' ? 'Två gånger mellan varje sömn, fyra för alver.' : ''}`;
       out.push(b);
     }
+    if (p.effects.some((e) => e.kind === 'svävar')) {
+      const b = button('Landa', () => g.land());
+      b.title = 'Avsluta LEVITATION eller FLYGA och sjunk till marken.';
+      out.push(b);
+    }
     if (actorHas(g, p, 'god_kroppskontroll')) {
       const b = button('Kroppskontroll', () => g.bodyControl(), '', !!bodyControlProblem(g, p));
       b.title = 'Normalt FYS-slag: +5 STY (och skadebonus) i tre rundor. Två gånger om dagen.';

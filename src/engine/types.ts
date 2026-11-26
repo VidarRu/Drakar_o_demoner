@@ -191,7 +191,11 @@ export interface ActiveEffect {
     /** KAMOUFLAGE: oupptäckt så länge hen står kvar på rutan `at`. */
     | 'kamouflage'
     /** ASTRALVAPEN: vapnet i handen gör `dice` i skada och har FV `mod`. */
-    | 'astralvapen';
+    | 'astralvapen'
+    /** LEVITATION eller FLYGA: svävar ovanför marken; `mod` är flygfarten (0 = står still i luften). */
+    | 'svävar'
+    /** KONTROLLERA PERSON: slåss för `by` så länge den varar; `was` är hur den var innan. */
+    | 'kontrollerad';
   /** Kort text till rollformuläret och loggen. */
   label: string;
   mod?: number;
@@ -228,11 +232,21 @@ export interface ActiveEffect {
   attr?: AttrKey;
   /** Rutan där figuren stod när effekten började (KAMOUFLAGE). */
   at?: { x: number; y: number };
+  /** Magikern som styr (KONTROLLERA PERSON). */
+  by?: string;
+  /** Fientlig innan den blev kontrollerad. */
+  was?: { hostile: boolean };
 }
 
 /** En besvärjelse som verkar på en plats i stället för på en figur (MÖRKER). */
 export interface SpellZone {
-  kind: 'mörker';
+  kind: 'mörker' | 'dimma' | 'beskyddare';
+  /** Kartan där zonen finns. */
+  map?: string;
+  /** Magikern som lade den (BESKYDDARE skadar inte magikern själv). */
+  caster?: string;
+  /** Figurer som står i zonen (BESKYDDARE slår till mot den som går in). */
+  inside?: string[];
   x: number;
   y: number;
   /** Radie i rutor. */
@@ -286,6 +300,8 @@ export interface PendingSpell {
   attr?: AttrKey;
   /** ASTRALVAPEN med en eller två händer. */
   hands?: 1 | 2;
+  /** Rutan som besvärjelsen flyttar målet till (SPRÅNG, LYFT, TELEPORTERA). */
+  at?: { x: number; y: number };
 }
 
 export type WeaponSlot = 'weapon' | 'offhand';

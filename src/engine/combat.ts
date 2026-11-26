@@ -4,8 +4,8 @@ import { SKILLS } from '../data/skills';
 import type { ArmorDef, MeleeWeaponDef, RangedWeaponDef } from '../data/types';
 import { WEAPONS, weaponSkill } from '../data/weapons';
 import { itemInfo, loadMod, loadPenalty, smiBlocked } from './inventory';
-import { breakConcentration, enemyCast, forgetOnKnockout, resolvePending } from './magic';
-import { attrShift, breakHiding, checkCamouflage, flamingHand, heatColdResist, inDarkness, inVortex, magicallyHidden, unseen } from './spelleffects';
+import { breakConcentration, enemyCast, forgetOnKnockout, resolvePending, wardCheck } from './magic';
+import { airborne, attrShift, breakHiding, checkCamouflage, controller, flamingHand, flightSpeed, fogBlocks, heatColdResist, inDarkness, inVortex, magicallyHidden, unseen } from './spelleffects';
 import { poisonOnHit, updatePoisons } from './poison';
 import { die, maxRoll, roll } from './dice';
 import type { Game } from './game';
@@ -227,6 +227,9 @@ export function woundPenalty(a: Actor, locs: HitLocation[] = []): number {
 /** Förflyttning den här rundan, med skador och effekter. */
 export function effectiveMove(a: Actor, g?: Game): number {
   if (!canAct(a)) return 0;
+  // LEVITATION håller figuren still i luften; FLYGA ger sin egen fart (skador i benen spelar ingen roll).
+  const flight = flightSpeed(a);
+  if (flight !== null) return flight;
   let m = a.move;
   // Bördan minskar förflyttningen, men aldrig under 1. Över STY × 6 orkar man inte röra sig.
   if (g) {
@@ -698,6 +701,8 @@ export function canAttackNow(a: Actor): boolean {
 export function inReach(g: Game, att: Actor, def: Actor): boolean {
   const d = distance(att.x, att.y, def.x, def.y);
   const reach = weaponInfo(att).reach;
+  // Den som svävar når och nås bara med långa vapen, om inte båda svävar.
+  if (airborne(att) !== airborne(def) && reach < 2) return false;
   return d >= 1 && d <= reach && (d === 1 || lineOfSight(g.map, att.x, att.y, def.x, def.y));
 }
 
@@ -1750,6 +1755,8 @@ function newRound(g: Game): boolean {
   c.parries = {};
   for (const a of participants(g)) tick(g, a);
   if (g.state.mode !== 'combat') return false;
+  wardCheck(g);
+  if (g.state.mode !== 'combat') return false;
   elementalRound(g);
   holdRound(g);
   // De som smyger måste lyckas med Smyga varje runda för att förbli oupptäckta.
@@ -1797,6 +1804,12 @@ export function tick(g: Game, a: Actor) {
   }
   a.effects = keep;
   checkCamouflage(g, a);
+  // KONTROLLERA PERSON bryts när magikern dör eller faller medvetslös.
+  const ctl = a.effects.find((e) => e.kind === 'kontrollerad');
+  if (ctl) {
+    const by = ctl.by ? g.actor(ctl.by) : undefined;
+    if (!by || !by.alive || by.unconscious) endSpellEffect(g, a, ctl);
+  }
   breakFree(g, a);
   updatePoisons(g, a);
   if (!a.alive) return;
@@ -1858,8 +1871,8 @@ export function nextTurn(g: Game) {
     if (a.sneaking) c.movesLeft = Math.ceil(c.movesLeft / 2);
     a.movedLast = 0;
     a.effects = a.effects.filter((e) => e.kind !== 'rullar');
-    // Neutrala deltar i turordningen men står still.
-    if (!a.hostile && !isParty(a)) {
+    // Neutrala deltar i turordningen men står still. Den som är kontrollerad slåss för magikern.
+    if (!a.hostile && !isParty(a) && !controller(a)) {
       c.acted[a.id] = true;
       continue;
     }
@@ -2031,6 +2044,7 @@ function stepTowards(g: Game, a: Actor, target: Actor, stop: () => boolean) {
     c.movesLeft--;
     a.movedLast = (a.movedLast ?? 0) + 1;
   }
+  wardCheck(g);
 }
 
 /** Flyr bort från en källa. Returnerar false om det inte gick att komma längre bort. */
@@ -2059,6 +2073,17 @@ export function autoTurn(g: Game) {
   const c = g.state.combat!;
   const a = g.actor(c.order[c.turn])!;
   const isPlayer = isParty(a);
+  // KONTROLLERA PERSON: magikern låter den kontrollerade anfalla den närmaste fienden (tolkning).
+  if (controller(a)) {
+    const foes = activeHostiles(g).filter((x) => x !== a && !controller(x));
+    const t = [...foes].sort((l, r) => distance(a.x, a.y, l.x, l.y) - distance(a.x, a.y, r.x, r.y))[0];
+    if (t) {
+      if (!inReach(g, a, t)) stepTowards(g, a, t, () => inReach(g, a, t));
+      if (inReach(g, a, t) && canAttackNow(a) && !c.acted[a.id]) attackOnce(g, a, t, 'weapon');
+    }
+    if (g.state.mode === 'combat') finishTurn(g);
+    return;
+  }
   // Fienderna går på den närmaste i gruppen som de ser (inte den som smyger oupptäckt). Djur går
   // inte på den som har Djurvän och inte har anfallit dem.
   const targets = g.state.actors.filter((x) => x.alive && isParty(x) && !unseen(a, x) && !x.fled && !spares(g, a, x));
@@ -2249,6 +2274,7 @@ export function shootProblem(g: Game, a: Actor, t: Actor): string | null {
   if (d < RANGED.minDistance) return 'Det måste finnas minst en ruta mellan dig och målet.';
   if (d > r.range) return `Målet är utom räckhåll (${r.range} rutor).`;
   if (!lineOfSight(g.map, a.x, a.y, t.x, t.y)) return 'Du har inte fri sikt.';
+  if (fogBlocks(g, a, t)) return 'Dimman skymmer målet.';
   if ((a.movedLast ?? 0) > 0) return 'Man måste stå stilla för att sikta.';
   return null;
 }
@@ -2470,6 +2496,7 @@ export function takeCover(g: Game, a: Actor) {
 /** När en effekt tar slut: örter som läker efter en stund verkar nu. */
 export function onExpire(g: Game, a: Actor, e: ActiveEffect) {
   if (e.kind === 'egenskap' && e.attr && e.mod) changeAttribute(g, a, e.attr, -e.mod);
+  if (e.kind === 'kontrollerad' || e.kind === 'svävar') revertSpell(g, a, e);
   if ((e.kind === 'osynlig' || e.kind === 'kamouflage') && !a.sneaking && !a.effects.some((x) => x !== e && (x.kind === 'osynlig' || x.kind === 'kamouflage'))) a.hidden = false;
   if (e.kind === 'läkning' && a.alive && e.mod) {
     if (a.detailed) g.heal(e.mod, a);
@@ -2482,6 +2509,7 @@ export function onExpire(g: Game, a: Actor, e: ActiveEffect) {
 export function endSpellEffect(g: Game, a: Actor, e: ActiveEffect) {
   a.effects = a.effects.filter((x) => x !== e);
   if (e.kind === 'egenskap' && e.attr && e.mod) changeAttribute(g, a, e.attr, -e.mod);
+  if (e.kind === 'kontrollerad' || e.kind === 'svävar') revertSpell(g, a, e);
   if ((e.kind === 'osynlig' || e.kind === 'kamouflage') && !a.sneaking && !magicallyHidden(a)) a.hidden = false;
 }
 
@@ -2513,4 +2541,29 @@ export function changeAttribute(g: Game, a: Actor, attr: AttrKey, delta: number)
   }
   const ch = g.charOf(a);
   if (ch && (attr === 'STO' || attr === 'FYS' || attr === 'SMI')) a.move = movement(a.attrs, RACES[ch.race].move);
+}
+
+/**
+ * När KONTROLLERA PERSON tar slut blir personen som förut, och när LEVITATION eller FLYGA tar slut
+ * landar figuren: över vatten eller ett träd på närmaste lediga ruta (tolkning).
+ */
+function revertSpell(g: Game, a: Actor, e: ActiveEffect) {
+  if (e.kind === 'kontrollerad') {
+    if (e.was) a.hostile = e.was.hostile;
+    if (a.alive) g.log(`${a.name} är inte längre kontrollerad${a.hostile ? ' och vänder sig mot gruppen igen' : ''}.`);
+    if (a.hostile && a.alive && g.state.mode === 'explore') g.provoke(a.id);
+    return;
+  }
+  if (a.effects.some((x) => x.kind === 'svävar')) return;
+  if (!walkable(g.map, a.x, a.y)) {
+    for (let r = 1; r <= 6; r++) {
+      const spot = DIRS.map(([dx, dy]) => ({ x: a.x + dx * r, y: a.y + dy * r })).find((p) => walkable(g.map, p.x, p.y) && !g.actorAt(p.x, p.y));
+      if (spot) {
+        a.x = spot.x;
+        a.y = spot.y;
+        break;
+      }
+    }
+  }
+  if (a.alive) g.log(`${a.name} sjunker till marken.`);
 }
