@@ -32,6 +32,7 @@ import {
   spellTargets,
 } from '../engine/magic';
 import { herbProblem, herbsHere, searchHerb, useHerb } from '../engine/poison';
+import { herbChoices, lockChoices, SEEK_KINDS, telepathyTargets } from '../engine/worldspells';
 import { spellCl } from '../engine/rules';
 import { buy, buyPrice, canHaggle, discount, haggle, sell, sellable, wares } from '../engine/trade';
 import type { Actor, AttrKey } from '../engine/types';
@@ -246,7 +247,7 @@ export class ShopUi {
 
 /** Magin: formelsamlingen, minnet och att lägga besvärjelser. */
 export class MagicUi {
-  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean; attr: AttrKey; hands: 1 | 2; dir: number; dist: number } | null = null;
+  private choice: { id: string; grade: number; extraRange: number; extraDuration: number; target: string; suicide: boolean; attr: AttrKey; hands: 1 | 2; dir: number; dist: number; seek: string; herb: string; lock: number } | null = null;
 
   constructor(private g: Game, private panel: Panel) {}
 
@@ -284,7 +285,7 @@ export class MagicUi {
 
   private pick(id: string) {
     const targets = spellTargets(this.g, id);
-    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false, attr: 'STY', hands: 1, dir: 0, dist: 1 };
+    this.choice = { id, grade: 1, extraRange: 0, extraDuration: 0, target: targets[0]?.id ?? '', suicide: false, attr: 'STY', hands: 1, dir: 0, dist: 1, seek: 'fiende', herb: '', lock: 0 };
     this.panel.refresh();
   }
 
@@ -370,6 +371,37 @@ export class MagicUi {
       const [, dx, dy] = COMPASS[c.dir];
       at = { x: mover.x + dx * c.dist, y: mover.y + dy * c.dist };
     }
+    const kind = sp.effect?.kind;
+    const pick = (label: string, options: [string, string][], value: string, set: (v: string) => void) => {
+      const s = el('select');
+      for (const [v, text] of options) s.append(new Option(text, v, false, v === value));
+      s.onchange = () => {
+        set(s.value);
+        this.panel.refresh();
+      };
+      const l = el('label', '', `${label} `);
+      l.append(s);
+      box.append(l);
+      return s.value;
+    };
+    // ÖPPNA och FÖRSEGLA: en dörr eller kista som magikern kan röra vid.
+    if (kind === 'öppna' || kind === 'försegla') {
+      const locks = lockChoices(g, p);
+      if (locks.length) {
+        const v = pick('Dörr eller kista', locks.map((l, i) => [String(i), l.text]), String(c.lock), (v) => (c.lock = Number(v)));
+        const l = locks[Number(v)] ?? locks[0];
+        at = { x: l.spot.x, y: l.spot.y };
+      }
+    }
+    if (kind === 'varseblivning') c.seek = pick('Leta efter', Object.entries(SEEK_KINDS), c.seek, (v) => (c.seek = v));
+    if (kind === 'växtkunskap') {
+      const herbs = herbChoices(g, p);
+      if (herbs.length) c.herb = pick('Ört', herbs.map((id) => [id, HERBS[id].name]), c.herb || herbs[0], (v) => (c.herb = v));
+    }
+    if (kind === 'tankar' && sp.effect?.kind === 'tankar' && sp.effect.mode === 'telepati') {
+      const known = telepathyTargets(g);
+      if (known.length) c.target = pick('Person', known.map((a) => [a.id, a.name]), known.some((a) => a.id === c.target) ? c.target : known[0].id, (v) => (c.target = v));
+    }
     const suicide = el('label', '', 'Självmordsattack (CL = S, kostar mer PSY än du har, du dör) ');
     const cb = el('input');
     cb.type = 'checkbox';
@@ -380,7 +412,7 @@ export class MagicUi {
     };
     suicide.append(cb);
     const S = spellS(p, c.id);
-    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide, attr: c.attr, hands: c.hands, at };
+    const opts = { grade: c.grade, extraRange: c.extraRange, extraDuration: c.extraDuration, target: c.target || undefined, suicide: c.suicide, attr: c.attr, hands: c.hands, at, seek: c.seek, herb: c.herb };
     const problem = castProblem(g, c.id, opts);
     box.append(
       suicide,

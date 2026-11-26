@@ -5,6 +5,11 @@ import { Game } from '../src/engine/game';
 import { ironProblem } from '../src/engine/inventory';
 import { castProblem, castSpell, enemyCast, resolvePending, spellS, spellTargets, wardCheck } from '../src/engine/magic';
 import { maxKp } from '../src/engine/rules';
+import { isLocked, lockAt, lootChest, lootProblem, pickLock, pickProblem } from '../src/engine/locks';
+import { herbChoices } from '../src/engine/worldspells';
+import { searchHerb } from '../src/engine/poison';
+import { distance } from '../src/engine/map';
+import { dialogDef } from '../src/ai/dialogClient';
 import type { Actor, Character } from '../src/engine/types';
 import { testCharacter } from './helpers';
 
@@ -111,7 +116,7 @@ function allRounder(): Character {
   c.skills['magiskola:animism'] = 14;
   c.skills['magiskola:elementarmagi'] = 14;
   c.skills['magiskola:mentalism'] = 14;
-  c.spells = ['oka', 'minska', 'kamouflage', 'flammande_hand', 'virvelskold', 'ljus', 'morker', 'motstandskraft', 'magisk_syn', 'osynlighet', 'antimagi', 'eld', 'vindpil', 'astralvapen', 'sprang', 'levitation', 'flyga', 'lyft', 'teleportera', 'dimma', 'beskyddare', 'kontrollera_person', 'kontrollera_varelse'];
+  c.spells = ['oka', 'minska', 'kamouflage', 'flammande_hand', 'virvelskold', 'ljus', 'morker', 'motstandskraft', 'magisk_syn', 'osynlighet', 'antimagi', 'eld', 'vindpil', 'astralvapen', 'sprang', 'levitation', 'flyga', 'lyft', 'teleportera', 'dimma', 'beskyddare', 'kontrollera_person', 'kontrollera_varelse', 'oppna', 'forsegla', 'finna_vatten', 'varseblivning', 'vaxtkunskap', 'traeld', 'laga', 'vattenandning', 'syn', 'tala_med_varelse', 'telepati', 'tankelasning', 'tillkalla_varelse'];
   c.memorized = [...c.spells];
   c.inventory = ['trastav', 'harnesk_lader'];
   c.equipped = { weapon: 'trastav', armor: ['harnesk_lader'] };
@@ -486,6 +491,143 @@ describe('varelsebesvärjelserna', () => {
     expect(castSpell(g, 'kontrollera_varelse', { grade: 1, target: foe.id })).toBeNull();
     expect(foe.hostile).toBe(false);
     expect(foe.effects.some((e) => e.kind === 'kontrollerad' && e.by === p.id)).toBe(true);
+  });
+});
+
+describe('lås och besvärjelser utanför strid', () => {
+  /** Magikern intill Grukks kista i grottan, utan fiender i närheten. */
+  function atChest() {
+    const r = explore();
+    const { g, p } = r;
+    for (const a of g.state.actors) if (a !== p && a.hostile) a.alive = false;
+    const chest = g.map.locks.find((l) => l.kind === 'kista')!;
+    p.x = chest.x - 1;
+    p.y = chest.y;
+    g.updateFov();
+    return { ...r, chest };
+  }
+
+  it('Grukks kista är låst: den står i vägen och kan dyrkas upp och tömmas', () => {
+    const { g, p, chest } = atChest();
+    expect(g.blocked(chest.x, chest.y)).toBe(true);
+    const l = lockAt(g, chest.x, chest.y)!;
+    expect(isLocked(l)).toBe(true);
+    expect(pickProblem(g, p, l)).toMatch(/dyrka lås|dyrkar/);
+    p.skills.lasdyrkning = 15;
+    g.char.inventory.push('dyrkar_sma');
+    expect(lootProblem(g, p, l)).toMatch(/stängd/);
+    // Differensvärdet 15 − 2 = 13 räcker för svårighetsgraden 12.
+    g.rng = queue(face(2));
+    expect(pickLock(g, p, l)).toBeNull();
+    expect(isLocked(l)).toBe(false);
+    const silver = g.leader.silver;
+    expect(lootChest(g, p, l)).toBeNull();
+    expect(g.leader.silver).toBeGreaterThan(silver);
+    expect(g.char.inventory).toContain('oljelykta');
+    expect(lootProblem(g, p, l)).toMatch(/tom/);
+  });
+
+  it('ÖPPNA öppnar låset, och FÖRSEGLA stänger en dörr tills ÖPPNA övervinner den', () => {
+    const { g, p, chest } = atChest();
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'oppna', { grade: 1, at: { x: chest.x, y: chest.y } })).toBeNull();
+    expect(isLocked(lockAt(g, chest.x, chest.y)!)).toBe(false);
+    // Värdshusets dörr.
+    p.x = 5;
+    p.y = 7;
+    expect(g.blocked(5, 6)).toBe(false);
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'forsegla', { grade: 3, at: { x: 5, y: 6 } })).toBeNull();
+    expect(g.blocked(5, 6)).toBe(true);
+    // E1 mot E3: 20 misslyckas.
+    g.rng = queue(face(2), face(20), face(20));
+    castSpell(g, 'oppna', { grade: 1, at: { x: 5, y: 6 } });
+    expect(g.blocked(5, 6)).toBe(true);
+    g.rng = queue(face(2), face(1));
+    castSpell(g, 'oppna', { grade: 1, at: { x: 5, y: 6 } });
+    expect(g.blocked(5, 6)).toBe(false);
+  });
+
+  it('FINNA VATTEN och VARSEBLIVNING ger riktning och avstånd', () => {
+    const { g, p } = explore();
+    p.x = 9;
+    p.y = 12;
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'finna_vatten', { grade: 1 })).toBeNull();
+    expect(g.state.log.join('\n')).toMatch(/känner vatten 3 meter åt söder/);
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'varseblivning', { grade: 2, seek: 'utgång' })).toBeNull();
+    expect(g.state.log.join('\n')).toMatch(/förnimmer utgångar: Vägen västerut \d+ m åt väster/);
+  });
+
+  it('VÄXTKUNSKAP gör att nästa sökning efter örten lyckas', () => {
+    const { g, p } = explore();
+    for (const a of g.state.actors) if (a !== p && a.hostile) a.alive = false;
+    const herb = herbChoices(g, p)[0];
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'vaxtkunskap', { grade: 1, herb })).toBeNull();
+    const before = g.char.herbs.length;
+    g.rng = queue(face(20), face(20), face(2, 4));
+    expect(searchHerb(g, herb)).toBeNull();
+    expect(g.char.herbs.length).toBeGreaterThan(before);
+  });
+
+  it('TRÄELD tänder facklan, och VATTENANDNING låter en gå ut i vattnet', () => {
+    const { g, p } = explore();
+    p.torchOut = true;
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'traeld', { grade: 1, target: p.id })).toBeNull();
+    expect(p.torchOut).toBe(false);
+    p.x = 8;
+    p.y = 13;
+    expect(g.pathTo(9, 15)).toBeNull();
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'vattenandning', { grade: 1, target: p.id })).toBeNull();
+    expect(g.pathTo(9, 15)).not.toBeNull();
+  });
+
+  it('SYN visar vem som finns på en känd plats', () => {
+    const { g, p, foe } = explore('svartalf', 4);
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'syn', { grade: 1, at: { x: foe.x, y: foe.y } })).toBeNull();
+    expect(g.state.log.join('\n')).toContain(`framför sig: ${foe.name}`);
+    expect(castProblem(g, 'syn', { grade: 1, at: { x: 40, y: 15 } })).toMatch(/känna till/);
+    expect(p.alive).toBe(true);
+  });
+
+  it('TILLKALLA VARELSE: vargarna kommer, följer med och går att tala med genom TALA MED VARELSE', () => {
+    const { g, p } = explore();
+    for (const a of g.state.actors) if (a.defId !== 'varg' && a !== p && a.hostile) a.alive = false;
+    const wolves = g.state.actors.filter((a) => a.defId === 'varg' && a.alive);
+    expect(wolves.length).toBeGreaterThan(0);
+    g.rng = queue(face(2), face(3, 10));
+    expect(castSpell(g, 'tillkalla_varelse', { grade: 1 })).toBeNull();
+    // 20 STO per E: två vargar med STO 7.
+    const come = wolves.filter((w) => w.effects.some((e) => e.kind === 'kontrollerad'));
+    expect(come.length).toBe(2);
+    for (const w of come) expect(w.hostile).toBe(false);
+    expect(g.canTalk(come[0])).toBe(false);
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'tala_med_varelse', { grade: 3 })).toBeNull();
+    expect(g.canTalk(come[0])).toBe(true);
+    expect(dialogDef(come[0]).persona).toMatch(/djur/);
+    // De går efter gruppen.
+    g.stepPlayer({ x: p.x + 1, y: p.y });
+    g.stepPlayer({ x: p.x + 1, y: p.y });
+    for (const w of come) expect(distance(w.x, w.y, p.x, p.y)).toBeLessThanOrEqual(3);
+  });
+
+  it('TELEPATI öppnar ett samtal med en känd person, och TANKELÄSNING läggs på magikern', () => {
+    const { g, p } = explore();
+    const asta = g.state.actors.find((a) => a.npc === 'gumma')!;
+    expect(castProblem(g, 'telepati', { grade: 1, target: asta.id })).toMatch(/känner till namnet/);
+    g.state.met = { gumma: false };
+    const opened: string[] = [];
+    g.onUi((name, arg) => name === 'talk' && arg && opened.push(arg));
+    g.rng = queue(face(2));
+    expect(castSpell(g, 'telepati', { grade: 1, target: asta.id })).toBeNull();
+    expect(opened).toEqual([asta.id]);
+    expect(p.effects.some((e) => e.kind === 'tankekontakt' && e.by === 'gumma')).toBe(true);
   });
 });
 

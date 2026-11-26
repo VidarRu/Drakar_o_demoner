@@ -46,6 +46,7 @@ import {
   type HitLocation,
 } from './rules';
 import type { ActiveEffect, Actor, AttrKey, PendingSpell } from './types';
+import { applyWorld, SYN_SQUARES, worldProblem } from './worldspells';
 import { between, breakHiding, FOG_SIGHT, heatColdResist, inVortex, outdoors, unseen, zonesAt } from './spelleffects';
 import { advanceTime } from './time';
 import { dissolve, spellVersusElemental, summonOrBanish, summonProblem } from './elementals';
@@ -180,8 +181,11 @@ export interface CastOptions {
   attr?: AttrKey;
   /** ASTRALVAPEN med en eller två händer. */
   hands?: 1 | 2;
-  /** Rutan som SPRÅNG, LYFT och TELEPORTERA flyttar målet till. */
+  /** Rutan som besvärjelsen gäller (SPRÅNG, LYFT, TELEPORTERA, SYN, ÖPPNA, FÖRSEGLA). */
   at?: { x: number; y: number };
+  /** Vad VARSEBLIVNING letar efter (`SEEK_KINDS`), och örten för VÄXTKUNSKAP. */
+  seek?: string;
+  herb?: string;
 }
 
 /** Hur långt målet kan flyttas (rutor) med SPRÅNG, LYFT och TELEPORTERA, eller null. */
@@ -196,6 +200,8 @@ export function moveReach(g: Game, id: string, grade: number, t: Actor): number 
     case 'teleportera':
       // Inom 100 m.
       return Math.floor(100 / 1.5);
+    case 'syn':
+      return SYN_SQUARES;
     default:
       return null;
   }
@@ -321,11 +327,13 @@ export function castProblem(g: Game, id: string, o: CastOptions): string | null 
         if (o.grade * 20 < t.attrs.STO) return `Det krävs E${Math.ceil(t.attrs.STO / 20)} för ${t.name} (20 STO per E).`;
       }
     }
-    if (moveReach(g, id, o.grade, t) !== null) {
+    if (moveReach(g, id, o.grade, t) !== null && spell.effect.kind !== 'syn') {
       const m = moveProblem(g, id, o.grade, t, o.at);
       if (m) return m;
     }
   }
+  const world = worldProblem(g, p, spell, o);
+  if (world) return world;
   if (spell.effect.kind === 'dimma') {
     const t = o.target ? g.actor(o.target) : undefined;
     if (t && !waterWithin(g, t, 10)) return 'DIMMA kräver vatten i närheten.';
@@ -343,7 +351,9 @@ export function castSpell(g: Game, id: string, o: CastOptions): string | null {
   const p = o.caster ?? g.player;
   const spell = SPELLS[id];
   const memorized = spellbook(g, p).memorized.includes(id);
-  const target = spell.aim === 'själv' ? p.id : o.target;
+  // TELEPATI läggs på magikern själv men gäller den person som hen väljer.
+  const telepathy = spell.effect?.kind === 'tankar' && spell.effect.mode === 'telepati';
+  const target = spell.aim === 'själv' && !telepathy ? p.id : o.target;
   const t = target ? g.actor(target) : undefined;
   const pending: PendingSpell = {
     caster: p.id,
@@ -359,6 +369,8 @@ export function castSpell(g: Game, id: string, o: CastOptions): string | null {
     attr: o.attr,
     hands: o.hands,
     at: o.at,
+    seek: o.seek,
+    herb: o.herb,
   };
   // Den som lägger magi syns igen (OSYNLIGHET och KAMOUFLAGE).
   breakHiding(g, p, 'lägger magi');
@@ -825,6 +837,12 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       t.effects.push({ kind: 'kontrollerad', by: caster.id, was: { hostile: t.hostile }, ...effectFor(caster, spell, s, grade, g) });
       t.hostile = false;
       g.log(`${caster.name} tar kontroll över ${t.name}, som nu slåss för gruppen.`);
+      return;
+    }
+    default: {
+      const d = durationRounds(spell, spellS(caster, spell.id), s.extraDuration, g.rng);
+      const seconds = d.days ? d.days * DURATION_SECONDS.dygn : (d.rounds ?? 1) * ROUND_SECONDS;
+      if (!applyWorld(g, caster, t, s, spell, grade, effectFor(caster, spell, s, grade, g), seconds, rangeSquares(g, caster, spell, s.extraRange))) g.log(`${spell.name} verkar inte i spelet än.`);
       return;
     }
     case 'rankor': {

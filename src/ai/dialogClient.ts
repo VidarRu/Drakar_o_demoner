@@ -5,7 +5,23 @@ import { enchanting } from '../engine/talents';
 import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
 import type { Game } from '../engine/game';
-import type { Actor } from '../engine/types';
+import type { Actor, NpcDef } from '../engine/types';
+
+/**
+ * Personen bakom samtalet. Ett djur som man talar med genom TALA MED VARELSE får en enkel persona:
+ * det tänker som ett djur och kan bara det som ett djur vet.
+ */
+export function dialogDef(npc: Actor): NpcDef {
+  if (npc.npc && NPCS[npc.npc]) return NPCS[npc.npc];
+  return {
+    id: npc.defId,
+    persona: `Du är ett djur: ${npc.name.toLowerCase()}. Du tänker och talar enkelt, som ett djur, om mat, revir, faror och flocken. Du förstår inte människornas saker.`,
+    knowledge: 'Du vet var du har din håla och ditt jaktområde, vilka andra djur och varelser som rör sig i trakten och var vattnet finns.',
+    greeting: `${npc.name} betraktar dig vaksamt.`,
+    topics: [{ text: 'Vad har du sett i trakten?', reply: 'Tvåbeningar. Lukt av rök. Fara i grottan.' }],
+    intents: [],
+  };
+}
 
 export interface DialogEntry {
   /** 'npc' = personens replik, 'player' = spelarens replik, 'event' = något spelmotorn avgjort. */
@@ -39,9 +55,17 @@ export const setAccessCode = (code: string) => {
  * inte är tillgänglig – då används den förskrivna reservdialogen.
  */
 export async function requestTurn(game: Game, npc: Actor, history: DialogEntry[]): Promise<DialogTurn | null> {
-  const def = NPCS[npc.npc!];
+  const def = dialogDef(npc);
   const p = game.player;
   const notes = flagNotes(game);
+  const leader = game.leader;
+  // TALA MED VARELSE: magikern talar djurens språk med FV lika med E.
+  const animalTalk = leader.effects.find((e) => e.kind === 'talaMed');
+  if (!npc.npc && animalTalk) notes.push(`${leader.name} talar med djuret genom magi (TALA MED VARELSE) och behärskar dess språk med FV ${animalTalk.mod ?? 1} av 20: ju lägre, desto enklare och mer bristfälligt förstår de varandra.`);
+  // TANKEÖVERFÖRING och TELEPATI: ett tyst samtal genom tanken, kanske på långt avstånd.
+  if (npc.npc && leader.effects.some((e) => e.kind === 'tankekontakt' && e.by === npc.npc)) notes.push(`Samtalet sker tyst, tanke till tanke, genom magi. ${npc.name} hör ${leader.name}s röst inne i huvudet och svarar på samma sätt; ingen annan hör något.`);
+  // TANKELÄSNING: personen märker inget, men spelaren får veta vad hen tänker.
+  if (npc.npc && leader.effects.some((e) => e.kind === 'tankeläsning' && e.by === npc.npc)) notes.push(`${leader.name} läser ${npc.name}s tankar med magi utan att ${npc.name} märker det. Avsluta varje replik med vad ${npc.name} egentligen tänker och döljer, inom hakparentes.`);
   // Igenkänd som hjälte (steg 8): personen vet vem rollpersonen är och har hört om hens dåd.
   if (recognizes(game, npc)) notes.push(`${npc.name} känner igen ${game.leader.name} som en ryktbar hjälte och har hört talas om hens bragder.`);
   // Bardens Förtrollande framträdande: åhörarna ser barden som mer karismatisk i en timme.
@@ -78,7 +102,7 @@ export async function requestTurn(game: Game, npc: Actor, history: DialogEntry[]
 
 /** Förskriven reservdialog utan språkmodell. */
 export function scriptedTurn(npc: Actor, history: DialogEntry[]): DialogTurn {
-  const def = NPCS[npc.npc!];
+  const def = dialogDef(npc);
   const options = def.topics.map((t) => t.text);
   const last = history[history.length - 1];
   if (!last) return { line: def.greeting, options };

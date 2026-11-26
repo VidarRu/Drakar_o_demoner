@@ -1,8 +1,8 @@
-import { requestTurn, scriptedTurn, type DialogEntry } from '../ai/dialogClient';
+import { forceLock, forceProblem, isLocked, locksNear, lootChest, lootProblem, pickLock, pickProblem, sealedAt } from '../engine/locks';
+import { dialogDef, requestTurn, scriptedTurn, type DialogEntry } from '../ai/dialogClient';
 import { actorHas, canArmHero, meet } from '../engine/hero';
 import { skillName } from '../engine/creation';
 import { bodyControlProblem, luckProblem, luckSources, performanceKind, performanceProblem, performanceSkills, thiefLuckLeft } from '../engine/talents';
-import { NPCS } from '../content';
 import { ARMOR, SHIELDS } from '../data/armor';
 import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
@@ -299,6 +299,7 @@ export class Hud {
       panel.append(this.sneakButton(), this.torchButton());
       if (g.charOf(p)?.heroPoints || p.heroArmed) panel.append(this.heroButton());
       panel.append(...this.talentControls());
+      panel.append(...this.lockControls());
       panel.append(button('Sov 8 timmar', () => g.sleep(8), '', !g.canRest()));
       panel.append(button('Packning (P)', () => this.open.pack()));
       panel.append(button('Uppdrag (U)', () => this.open.quests()));
@@ -429,6 +430,29 @@ export class Hud {
       const b = button('Meditera', () => g.perform(), '', !!performanceProblem(g, p));
       b.title = 'Meditation: en minut och ett lyckat Normalt PSY-slag ger +5 på INT-färdigheter i en timme. Inte i strid.';
       out.push(b);
+    }
+    return out;
+  }
+
+  /** Låsta dörrar och kistor intill: dyrka upp, bryta upp och tömma en kista. */
+  private lockControls(): HTMLElement[] {
+    const g = this.g;
+    const p = g.player;
+    const out: HTMLElement[] = [];
+    for (const l of locksNear(g, p)) {
+      if (!l.def && !sealedAt(g, l.x, l.y)) continue;
+      if (isLocked(l) && !sealedAt(g, l.x, l.y) && (p.skills.lasdyrkning ?? 0) > 0) {
+        const why = pickProblem(g, p, l);
+        const b = button(`Dyrka upp ${l.name}`, () => pickLock(g, p, l), '', !!why);
+        b.title = why ?? 'Låsdyrkning: ett försök tar en minut, och differensvärdet nöter ned låsets svårighetsgrad.';
+        out.push(b);
+      }
+      if (!forceProblem(g, p, l)) {
+        const b = button(`Bryt upp ${l.name}`, () => forceLock(g, p, l));
+        b.title = 'STY mot låsets svårighetsgrad (20 mer om den är förseglad). Ett försök tar en minut.';
+        out.push(b);
+      }
+      if (!lootProblem(g, p, l)) out.push(button(`Öppna ${l.name}`, () => lootChest(g, p, l), 'primary'));
     }
     return out;
   }
@@ -577,7 +601,7 @@ export class DialogUi {
       box.append(b);
     };
     for (const o of this.options) add(o, '', () => void this.say(o));
-    for (const id of NPCS[npc.npc!].intents) {
+    for (const id of dialogDef(npc).intents) {
       const intent = INTENTS[id];
       if (!intent.available(this.g, npc)) continue;
       add(`[${intent.label(this.g, npc)}]`, id === 'anfall' ? 'act danger' : 'act', () => void this.act(id));

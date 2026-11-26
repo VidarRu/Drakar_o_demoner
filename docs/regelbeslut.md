@@ -494,6 +494,37 @@ Koden står i `apply` i `src/engine/magic.ts`, och det som striden behöver i `s
   - NEDKALLA ÅSKVIGG behöver vädret.
 
 
+### Lås och besvärjelser utanför strid (byggt)
+
+Koden står i `src/engine/locks.ts` och `src/engine/worldspells.ts`.
+
+- **Låsta dörrar och kistor:**
+  - Modulerna anger dem i kartan (`MapDef.locks`) med en svårighetsgrad, och en kista med silver och föremål. Hur det står till med dem sparas i `GameState.locks`.
+  - En kista står alltid i vägen. En dörr står i vägen när den är låst eller förseglad, också för fienderna.
+  - Gråvad har Grukks kista (svårighetsgrad 12) i grottan.
+- **Låsdyrkning (tolkning av "differensvärdet nöter ner låsets svårighetsgrad"):**
+  - Det krävs dyrkar: för små lås till kistor och för större lås till dörrar.
+  - Varje försök tar en minut. Ett lyckat slag drar differensvärdet (minst 1) från svårighetsgraden, och låset går upp när den når 0. Ett perfekt slag öppnar på en gång.
+- **Bryta upp (tolkning):** STY mot låsets svårighetsgrad på motståndstabellen, 20 mer om den är förseglad (FÖRSEGLA ger 20 KP). Varje försök tar en minut.
+- **ÖPPNA:** öppnar ett lås som magikern rör vid. En försegling bryts om E övervinner förseglingens E på motståndstabellen.
+- **FÖRSEGLA:** en dörr eller kista som magikern rör vid sitter ihop så länge besvärjelsen varar. Ingen kan gå igenom den. Tolkning: fienderna slår inte sönder dörrar än.
+- **FINNA VATTEN:** riktning och avstånd till närmaste vatten inom räckvidden i regeldatan (S/4 rutor). Regnet stoppar den när vädret finns.
+- **VARSEBLIVNING:** magikern väljer fientliga varelser, personer, djur, utgångar, kistor eller föremål på marken. Hen får riktning och avstånd till de E närmaste inom räckvidden.
+- **VÄXTKUNSKAP:** magikern väljer en ört som växer här eller som hen bär på. Hen får veta hur många av de egna doserna som är verkningslösa eller skadliga, och nästa sökning efter örten lyckas (tolkning: inom 30 dygn).
+- **TRÄELD och LÅGA:** tänder en fackla utan elddon. LÅGA lyser också själv en ruta runt magikern i 1T3 SR.
+- **SPÅRLÖS:** effekten sätts, men den har verkan först med världskartan.
+- **VATTENANDNING:** den som har den kan gå ut i vattnet. När den tar slut går hen upp på närmaste lediga ruta.
+- **SYN (tolkning):** magikern väljer en plats som gruppen har sett, inom 120 m. Hen får veta vilka som är där nu, inom tre rutor. Föremål identifieras när magiska föremål finns.
+- **TALA MED VARELSE:** magikern kan tala med ointelligenta djur som inte är fientliga (Vidar). AI-spelledaren får veta att FV i djurets språk är E. Djuret får en enkel persona.
+- **TANKEÖVERFÖRING och TELEPATI:**
+  - Ett tyst samtal med en person, TELEPATI på vilket avstånd som helst. AI-spelledaren får veta att ingen annan hör något.
+  - Tolkning: TELEPATI når de personer som gruppen har talat med.
+  - Med någon annan än en person förmedlas bara känslorna.
+- **TANKELÄSNING:** i samtal med personen får AI-spelledaren avslöja vad personen tänker och döljer, utan att personen märker något.
+- **TILLKALLA VARELSE (Vidar och tolkning):**
+  - Ointelligenta djur på kartan kommer, närmast först och högst 20 STO per E. Det tar 1T10 minuter, och det går inte mitt i en strid.
+  - Djuren slåss för gruppen och går efter den. De ger sig av när besvärjelsen tar slut eller när nästa strid är slut, och blir inte fientliga igen.
+
 ### Vädret (Vidar)
 
 Vädret byggs i steg 7 i förslagets ordning. Upplägget:

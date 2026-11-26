@@ -1957,6 +1957,14 @@ export function endCombat(g: Game, message: string) {
       }
     }
   }
+  // Tillkallade djur går sin väg när striden är slut (tolkning).
+  for (const a of g.state.actors) {
+    const e = a.effects.find((x) => x.kind === 'kontrollerad' && x.summoned);
+    if (e && a.alive) {
+      endSpellEffect(g, a, e);
+      a.fled = true;
+    }
+  }
   // Elementarerna försvinner när striden är slut (tolkning).
   for (const e of g.state.actors.filter((a) => a.alive && a.elemental)) dissolve(g, e, `${e.name} återvänder till sitt element.`);
   for (const a of g.state.actors) {
@@ -2034,7 +2042,7 @@ export function endCombat(g: Game, message: string) {
 
 function stepTowards(g: Game, a: Actor, target: Actor, stop: () => boolean) {
   const c = g.state.combat!;
-  const path = findPath(g.map, a, target, (x, y) => !!g.actorAt(x, y), true);
+  const path = findPath(g.map, a, target, (x, y) => g.blocked(x, y), true);
   if (!path) return;
   for (const step of path) {
     if (c.movesLeft <= 0 || stop()) break;
@@ -2053,7 +2061,7 @@ function flee(g: Game, a: Actor, from: Actor, random: boolean): boolean {
   let moved = false;
   while (c.movesLeft > 0) {
     const options = DIRS.map(([dx, dy]) => ({ x: a.x + dx, y: a.y + dy }))
-      .filter((s) => walkable(g.map, s.x, s.y) && !g.actorAt(s.x, s.y))
+      .filter((s) => walkable(g.map, s.x, s.y) && !g.blocked(s.x, s.y))
       .map((s) => ({ s, d: distance(s.x, s.y, from.x, from.y) + (random ? g.rng() * 3 : 0) }))
       .filter((o) => random || o.d > distance(a.x, a.y, from.x, from.y));
     if (!options.length) break;
@@ -2496,7 +2504,7 @@ export function takeCover(g: Game, a: Actor) {
 /** När en effekt tar slut: örter som läker efter en stund verkar nu. */
 export function onExpire(g: Game, a: Actor, e: ActiveEffect) {
   if (e.kind === 'egenskap' && e.attr && e.mod) changeAttribute(g, a, e.attr, -e.mod);
-  if (e.kind === 'kontrollerad' || e.kind === 'svävar') revertSpell(g, a, e);
+  if (e.kind === 'kontrollerad' || e.kind === 'svävar' || e.kind === 'vattenandning') revertSpell(g, a, e);
   if ((e.kind === 'osynlig' || e.kind === 'kamouflage') && !a.sneaking && !a.effects.some((x) => x !== e && (x.kind === 'osynlig' || x.kind === 'kamouflage'))) a.hidden = false;
   if (e.kind === 'läkning' && a.alive && e.mod) {
     if (a.detailed) g.heal(e.mod, a);
@@ -2509,7 +2517,7 @@ export function onExpire(g: Game, a: Actor, e: ActiveEffect) {
 export function endSpellEffect(g: Game, a: Actor, e: ActiveEffect) {
   a.effects = a.effects.filter((x) => x !== e);
   if (e.kind === 'egenskap' && e.attr && e.mod) changeAttribute(g, a, e.attr, -e.mod);
-  if (e.kind === 'kontrollerad' || e.kind === 'svävar') revertSpell(g, a, e);
+  if (e.kind === 'kontrollerad' || e.kind === 'svävar' || e.kind === 'vattenandning') revertSpell(g, a, e);
   if ((e.kind === 'osynlig' || e.kind === 'kamouflage') && !a.sneaking && !magicallyHidden(a)) a.hidden = false;
 }
 
@@ -2549,12 +2557,19 @@ export function changeAttribute(g: Game, a: Actor, attr: AttrKey, delta: number)
  */
 function revertSpell(g: Game, a: Actor, e: ActiveEffect) {
   if (e.kind === 'kontrollerad') {
+    // Ett tillkallat djur blir inte fientligt igen när magin tar slut; det går sin väg (tolkning).
+    if (e.summoned) {
+      a.hostile = false;
+      a.fled = true;
+      if (a.alive) g.log(`${a.name} lämnar gruppen och försvinner in i terrängen.`);
+      return;
+    }
     if (e.was) a.hostile = e.was.hostile;
     if (a.alive) g.log(`${a.name} är inte längre kontrollerad${a.hostile ? ' och vänder sig mot gruppen igen' : ''}.`);
     if (a.hostile && a.alive && g.state.mode === 'explore') g.provoke(a.id);
     return;
   }
-  if (a.effects.some((x) => x.kind === 'svävar')) return;
+  if (a.effects.some((x) => x.kind === 'svävar' || x.kind === 'vattenandning')) return;
   if (!walkable(g.map, a.x, a.y)) {
     for (let r = 1; r <= 6; r++) {
       const spot = DIRS.map(([dx, dy]) => ({ x: a.x + dx * r, y: a.y + dy * r })).find((p) => walkable(g.map, p.x, p.y) && !g.actorAt(p.x, p.y));
@@ -2565,5 +2580,5 @@ function revertSpell(g: Game, a: Actor, e: ActiveEffect) {
       }
     }
   }
-  if (a.alive) g.log(`${a.name} sjunker till marken.`);
+  if (a.alive) g.log(e.kind === 'vattenandning' ? `${a.name} måste upp ur vattnet.` : `${a.name} sjunker till marken.`);
 }

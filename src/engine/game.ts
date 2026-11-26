@@ -35,12 +35,14 @@ import {
 } from './rules';
 import type { Actor, Attrs, Character, CreatureDef, GameState } from './types';
 import { fogBlocks, passable } from './spelleffects';
+import { lockBlocks } from './locks';
 import { wardCheck } from './magic';
 
 export const FOV_RADIUS = 8;
 
 /** Vyer som spelmotorn kan be gränssnittet öppna. */
-export type UiView = 'training' | 'shop' | 'exit';
+/** Vyer som spelmotorn kan be gränssnittet öppna. 'talk' öppnar ett samtal med figuren `arg`. */
+export type UiView = 'training' | 'shop' | 'exit' | 'talk';
 const LOG_LIMIT = 300;
 
 /** Visuell effekt som gränssnittet kan visa (t.ex. skadesiffror). */
@@ -345,7 +347,11 @@ export class Game {
   isVisible(x: number, y: number): boolean {
     return this.visible.has(idx(this.map, x, y));
   }
-  private occupied = (x: number, y: number) => !!this.actorAt(x, y);
+  /** Står någon på rutan, eller stänger en låst dörr eller en kista vägen? */
+  private occupied = (x: number, y: number) => !!this.actorAt(x, y) || lockBlocks(this, x, y);
+  blocked(x: number, y: number): boolean {
+    return this.occupied(x, y);
+  }
 
   /** Väg för den som går (ledaren utanför strid) till en ruta, eller till en ruta intill om `adjacentOk`. */
   pathTo(x: number, y: number, adjacentOk = false): Point[] | null {
@@ -403,6 +409,17 @@ export class Game {
         combat.face(m, goal.x, goal.y);
         m.x = goal.x;
         m.y = goal.y;
+      }
+    }
+    // Djur och personer som magin styr (TILLKALLA VARELSE, KONTROLLERA) går efter gruppen.
+    for (const f of this.state.actors.filter((a) => a.alive && a.effects.some((e) => e.kind === 'kontrollerad' && e.by && this.state.party.includes(e.by)))) {
+      const last = members[members.length - 1];
+      if (distance(f.x, f.y, last.x, last.y) <= 1) continue;
+      const path = findPath(this.map, f, last, this.occupied, true);
+      if (path?.length) {
+        combat.face(f, path[0].x, path[0].y);
+        f.x = path[0].x;
+        f.y = path[0].y;
       }
     }
     this.updateFov();
@@ -797,6 +814,12 @@ export class Game {
     if (r) this.log(r);
     this.changed();
     return r;
+  }
+
+  /** Kan ledaren tala med figuren? Personer, och djur som inte är fientliga med TALA MED VARELSE. */
+  canTalk(a: Actor): boolean {
+    if (a.kind === 'npc') return true;
+    return !a.hostile && hero.isCommonAnimal(this, a) && this.leader.effects.some((e) => e.kind === 'talaMed');
   }
 
   /** LEVITATION och FLYGA: den som svävar landar på sin ruta (eller närmaste lediga ruta). */

@@ -336,6 +336,8 @@ const maps: MapDef[] = [
     start: { char: '@', tile: ',' },
     habitats: ['överallt', 'skog', 'ängar', 'åkerkanter', 'snårskog'],
     exits: { X: { tile: ',', name: 'Vägen västerut' } },
+    // Grukks kista: låst, med svartalfernas rövade silver.
+    locks: { K: { tile: ':', kind: 'kista', name: 'Grukks kista', difficulty: 12, silver: '5T10+20', loot: ['oljelykta'] } },
     spawns: {
       i: { tile: '_', creature: 'vardshusvard' },
       s: { tile: '_', creature: 'smed' },
@@ -353,7 +355,7 @@ const maps: MapDef[] = [
       'TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT',
       'T..........T....TT......T...%%%%%%%%%%%%%%%T',
       'T.#######.......T....T......%%::::%%%%:::%%T',
-      'T.#___h_#..........TT....T..%:::g::%%::::%%T',
+      'T.#___h_#..........TT....T..%:::g::%%:::K%%T',
       'T.#_i___#....T..........T...%::::::::b:C:%%T',
       'T.#_____#.........T.........%%::::%%%:::m%%T',
       'T.###+###......T......w..T..%%%:%%%%%%%%%%%T',

@@ -127,8 +127,11 @@ export function flightSpeed(a: Actor): number | null {
 /** Kan figuren gå in på rutan? Den som flyger tar sig över vatten och träd. */
 export function passable(g: Game, a: Actor, x: number, y: number): boolean {
   if (walkable(g.map, x, y)) return true;
-  if (!inBounds(g.map, x, y) || !(flightSpeed(a) ?? 0)) return false;
+  if (!inBounds(g.map, x, y)) return false;
   const name = tileAt(g.map, x, y)?.name;
+  // VATTENANDNING: man kan gå ut i vattnet.
+  if (name === 'vatten' && a.effects.some((e) => e.kind === 'vattenandning')) return true;
+  if (!(flightSpeed(a) ?? 0)) return false;
   return name === 'vatten' || name === 'träd';
 }
 

@@ -372,7 +372,32 @@ export type SpellEffect =
   /** BESKYDDARE: en skyddad kub kring magikern (ANTIMAGI E1 och ENERGISTRÅLE E1). */
   | { kind: 'beskyddare' }
   /** KONTROLLERA PERSON (en person) och KONTROLLERA VARELSE (ointelligenta djur): målet slåss för magikern. */
-  | { kind: 'kontrollera'; who: 'person' | 'djur' };
+  | { kind: 'kontrollera'; who: 'person' | 'djur' }
+  // ---------------------------------------------------------------- utanför strid
+  /** ÖPPNA: öppnar ett lås och kan bryta FÖRSEGLA. */
+  | { kind: 'öppna' }
+  /** FÖRSEGLA: en dörr eller kista sitter ihop så länge den varar. */
+  | { kind: 'försegla' }
+  /** FINNA VATTEN: riktning och avstånd till närmaste vatten inom räckvidden. */
+  | { kind: 'finnaVatten' }
+  /** VARSEBLIVNING: riktning och avstånd till det närmaste av ett valt slag, en sak per E. */
+  | { kind: 'varseblivning' }
+  /** VÄXTKUNSKAP: allt om en ört, och nästa sökning efter den lyckas. */
+  | { kind: 'växtkunskap' }
+  /** TRÄELD och LÅGA: tänder en fackla. LÅGA lyser också själv en kort stund. */
+  | { kind: 'tända'; glow?: boolean }
+  /** SPÅRLÖS: lämnar varken spår eller lukt. */
+  | { kind: 'spårlös' }
+  /** VATTENANDNING: kan gå ut i vattnet så länge den varar. */
+  | { kind: 'vattenandning' }
+  /** SYN: ser och hör en känd plats. */
+  | { kind: 'syn' }
+  /** TALA MED VARELSE: samtal med ointelligenta djur. */
+  | { kind: 'talaMed' }
+  /** TANKEÖVERFÖRING, TELEPATI och TANKELÄSNING: tankekontakt med en person. */
+  | { kind: 'tankar'; mode: 'överföring' | 'telepati' | 'läsning' }
+  /** TILLKALLA VARELSE: ointelligenta djur i trakten kommer och följer med en tid. */
+  | { kind: 'tillkalla' };
 
 export interface ItemDef {
   id: string;

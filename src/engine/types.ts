@@ -195,7 +195,19 @@ export interface ActiveEffect {
     /** LEVITATION eller FLYGA: svävar ovanför marken; `mod` är flygfarten (0 = står still i luften). */
     | 'svävar'
     /** KONTROLLERA PERSON: slåss för `by` så länge den varar; `was` är hur den var innan. */
-    | 'kontrollerad';
+    | 'kontrollerad'
+    // ------------------------------------------------ besvärjelser utanför strid
+    /** VÄXTKUNSKAP: nästa sökning efter örten `skill` lyckas. */
+    | 'växtkunskap'
+    | 'spårlös'
+    /** VATTENANDNING: kan gå ut i vattnet. */
+    | 'vattenandning'
+    /** TALA MED VARELSE: kan tala med ointelligenta djur, FV `mod` i deras språk. */
+    | 'talaMed'
+    /** TANKELÄSNING: läser tankarna hos personen `by` (npc-id) i samtal. */
+    | 'tankeläsning'
+    /** TANKEÖVERFÖRING eller TELEPATI: tyst tankekontakt med personen `by` (npc-id). */
+    | 'tankekontakt';
   /** Kort text till rollformuläret och loggen. */
   label: string;
   mod?: number;
@@ -236,6 +248,20 @@ export interface ActiveEffect {
   by?: string;
   /** Fientlig innan den blev kontrollerad. */
   was?: { hostile: boolean };
+  /** Tillkallad med TILLKALLA VARELSE: går sin väg när striden är slut. */
+  summoned?: boolean;
+}
+
+/** Hur det står till med en dörr eller kista på kartan. */
+export interface LockState {
+  /** Låset är öppnat (dyrkat, uppbrutet eller med ÖPPNA). */
+  open?: boolean;
+  /** Svårighetsgraden som är kvar efter Låsdyrkning. */
+  left?: number;
+  /** Kistan är tömd. */
+  looted?: boolean;
+  /** FÖRSEGLA: dörren eller kistan sitter ihop till speltiden `until`. */
+  sealed?: { until: number; grade: number };
 }
 
 /** En besvärjelse som verkar på en plats i stället för på en figur (MÖRKER). */
@@ -300,8 +326,11 @@ export interface PendingSpell {
   attr?: AttrKey;
   /** ASTRALVAPEN med en eller två händer. */
   hands?: 1 | 2;
-  /** Rutan som besvärjelsen flyttar målet till (SPRÅNG, LYFT, TELEPORTERA). */
+  /** Rutan som besvärjelsen gäller (SPRÅNG, LYFT, TELEPORTERA, SYN, ÖPPNA, FÖRSEGLA). */
   at?: { x: number; y: number };
+  /** Vad VARSEBLIVNING letar efter, och örten för VÄXTKUNSKAP. */
+  seek?: string;
+  herb?: string;
 }
 
 export type WeaponSlot = 'weapon' | 'offhand';
@@ -568,8 +597,10 @@ export interface GameState {
   met?: Record<string, boolean>;
   /** Belöningar (bonus-EP och HP) som redan har delats ut, som "modul:id". */
   rewarded?: string[];
-  /** Besvärjelser som verkar på en plats på kartan (MÖRKER). */
+  /** Besvärjelser som verkar på en plats på kartan (MÖRKER, DIMMA, BESKYDDARE). */
   zones?: SpellZone[];
+  /** Lås och förseglingar per ruta, som "karta:x,y". */
+  locks?: Record<string, LockState>;
   log: string[];
   nextId: number;
 }
