@@ -611,8 +611,8 @@ export const ABILITY_RULES = {
   backstab: { misslyckat: 1, lyckat: 2, perfekt: 4 },
   /** Anfall bakifrån: offret får ha högst så här mycket mer STO än lönnmördaren (tolkning av "2 m längre"). */
   backstabMaxSto: 10,
-  /** Meditation: gäller ett slag inom en minut. */
-  meditationRounds: 12,
+  /** Bardens Förtrollande framträdande och munkens Meditation (husregel): en minut ger +5 i en timme. */
+  performance: { minutes: 1, bonus: 5, hours: 1 },
   /** God kroppskontroll: +5 STY i tre rundor, två gånger om dagen. */
   bodyControl: { sty: 5, rounds: 3, perDay: 2 },
   /** Handpåläggning: svårighetsgraden för infektioner och feber (tolkning). */

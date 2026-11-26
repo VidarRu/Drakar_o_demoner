@@ -1,10 +1,9 @@
 /**
  * Särskilda förmågor och yrkesförmågor som används på turen (Bok I s. 25–27 och yrkena):
  * Turgubbe och Tjuvtur, Gudarnas gunstling, lönnmördarens Anfall bakifrån, helarens
- * Handpåläggning, munkens Meditation och God kroppskontroll. Riddarslaget är ett anfallssätt i
+ * Handpåläggning, bardens och munkens framträdande och God kroppskontroll. Riddarslaget är ett anfallssätt i
  * maneuvers.ts. Tolkningarna står i docs/regelbeslut.md.
  */
-import { SKILLS } from '../data/skills';
 import { addEffect, canAct, canUseSkills, finishTurn, hasEffect, short, tick, type WeaponInfo } from './combat';
 import { die } from './dice';
 import type { Game } from './game';
@@ -164,42 +163,76 @@ export function bodyControl(g: Game, a: Actor): string | null {
   return null;
 }
 
-/** Färdigheter som munken kan meditera inför: de som hen har FV i. */
-export function meditationSkills(a: Actor): string[] {
-  return Object.keys(a.skills).filter((k) => (a.skills[k] ?? 0) > 0 && SKILLS[k.split(':')[0]] && !k.startsWith('magiskola'));
+// ------------------------------------------------------------------ bardens och munkens framträdande
+
+/** Bardens Förtrollande framträdande eller munkens Meditation (husregel). */
+export type PerformanceKind = 'bard' | 'munk';
+
+/** Vilket framträdande figuren kan göra, eller null. */
+export function performanceKind(g: Game, a: Actor): PerformanceKind | null {
+  if (actorProfession(g, a, 'bard')) return 'bard';
+  if (actorProfession(g, a, 'munk')) return 'munk';
+  return null;
 }
 
-export function meditationProblem(g: Game, a: Actor, skill: string): string | null {
-  if (!actorProfession(g, a, 'munk')) return 'Bara munkar mediterar.';
-  if (!meditationSkills(a).includes(skill)) return 'Välj en färdighet som du kan.';
-  const now = a.effects.find((e) => e.kind === 'cl' && e.scope === 'färdighet' && e.label.startsWith('Meditation'));
-  if (now && now.skill === skill && (now.mod ?? 0) >= g.skillFv(a, skill)) return 'Meditationen kan inte ge mer än dubbla FV.';
-  return canDo(g, a);
+/** Bardens färdigheter att framträda med: Sjunga och de instrument som hen spelar. */
+export function performanceSkills(a: Actor): string[] {
+  return Object.keys(a.skills).filter((k) => (a.skills[k] ?? 0) > 0 && (k === 'sjunga' || k.startsWith('spela_instrument')));
+}
+
+const PERFORMANCE_LABEL: Record<PerformanceKind, string> = {
+  bard: 'Förtrollande framträdande: +5 på KAR-färdigheter',
+  munk: 'Meditation: +5 på INT-färdigheter',
+};
+
+export function performanceProblem(g: Game, a: Actor, skill?: string): string | null {
+  const kind = performanceKind(g, a);
+  if (!kind) return 'Bara barder och munkar kan det.';
+  if (g.state.mode !== 'explore') return 'Det tar en minut och går inte i strid.';
+  if (!canUseSkills(a) || a.elemental) return 'Du kan inte göra det nu.';
+  if (a.effects.some((e) => e.label === PERFORMANCE_LABEL[kind])) return 'Det verkar redan.';
+  if (kind === 'bard') {
+    const skills = performanceSkills(a);
+    if (!skills.length) return 'Du kan varken sjunga eller spela ett instrument.';
+    if (skill && !skills.includes(skill)) return 'Välj Sjunga eller ett instrument som du spelar.';
+  }
+  return null;
 }
 
 /**
- * Meditation: varje hel runda ger +1 i färdigheten, högst till dubbla FV, och gäller nästa slag
- * inom en minut. I strid tar varje runda turen. Utanför strid mediterar munken tills det inte går
- * att komma högre, och tiden går under tiden. Tolkning: tillägget räknas som CL.
+ * Husregel (Vidar): barden sjunger eller spelar i en minut och slår i färdigheten; munken
+ * mediterar i en minut och slår ett Normalt PSY-slag. Lyckas det får barden +5 på KAR-färdigheter
+ * (Övertala, Muta, Bluffa, Köpslå …) och munken +5 på INT-färdigheter i en timme. Bara utanför
+ * strid. AI-spelledaren får veta att barden har förtrollat åhörarna.
  */
-export function meditate(g: Game, a: Actor, skill: string): string | null {
-  const problem = meditationProblem(g, a, skill);
+export function perform(g: Game, a: Actor, skill?: string): string | null {
+  const problem = performanceProblem(g, a, skill);
   if (problem) return problem;
-  const fv = g.skillFv(a, skill);
-  const old = a.effects.find((e) => e.kind === 'cl' && e.scope === 'färdighet' && e.label.startsWith('Meditation'));
-  const before = old?.skill === skill ? (old.mod ?? 0) : 0;
-  if (old) a.effects = a.effects.filter((e) => e !== old);
-  const rounds = g.state.mode === 'combat' ? 1 : fv - before;
-  const mod = Math.min(fv, before + rounds);
-  const name = SKILLS[skill.split(':')[0]]?.name ?? skill;
-  addEffect(a, { kind: 'cl', scope: 'färdighet', skill, mod, uses: 1, rounds: ABILITY_RULES.meditationRounds, label: `Meditation: +${mod} på ${name}` });
-  g.log(`${a.name} mediterar${rounds > 1 ? ` i ${rounds} rundor` : ''}: +${mod} på nästa slag i ${name} inom en minut.`);
-  if (g.state.mode === 'combat') spend(g, a);
-  else {
-    advanceTime(g, rounds * ROUND_SECONDS, 'vila');
-    g.changed();
+  const kind = performanceKind(g, a)!;
+  const r = ABILITY_RULES.performance;
+  let check: Check;
+  let what: string;
+  if (kind === 'bard') {
+    const skills = performanceSkills(a);
+    const k = skill ?? skills.sort((x, y) => g.skillFv(a, y) - g.skillFv(a, x))[0];
+    check = g.playerCheck(k);
+    what = k === 'sjunga' ? 'sjunger' : 'spelar';
+  } else {
+    check = attributeCheck(a.attrs.PSY, g.rng, 'Normalt');
+    what = 'mediterar';
   }
+  advanceTime(g, r.minutes * 60, 'vila');
+  if (check.success) {
+    addEffect(a, { kind: 'cl', scope: kind === 'bard' ? 'kar' : 'int', mod: r.bonus, rounds: (r.hours * 3600) / ROUND_SECONDS, persist: true, label: PERFORMANCE_LABEL[kind] });
+    g.log(`${a.name} ${what} en stund (${kind === 'munk' ? 'Normalt PSY-slag, ' : ''}${short(check)}): +${r.bonus} på ${kind === 'bard' ? 'KAR' : 'INT'}-färdigheter i en timme.`);
+  } else g.log(`${a.name} ${what} en stund, men det ger ingenting (${kind === 'munk' ? 'Normalt PSY-slag, ' : ''}${short(check)}).`);
+  g.changed();
   return null;
+}
+
+/** Har barden förtrollat sina åhörare (för AI-spelledaren)? */
+export function enchanting(a: Actor): boolean {
+  return a.effects.some((e) => e.label === PERFORMANCE_LABEL.bard);
 }
 
 // ------------------------------------------------------------------ Handpåläggning

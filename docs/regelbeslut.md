@@ -391,27 +391,28 @@ varje besvärjelse och förmåga ska göra. Besluten flyttas hit allteftersom de
 ### Förmågor som används i spel (byggt)
 
 Regelvärdena står i `ABILITY_RULES` i `src/engine/rules/tables.ts`, och det mesta av koden i
-`src/engine/talents.ts`. Det som står som tolkning väntar på Vidars godkännande.
+`src/engine/talents.ts`. Vidar godkände tolkningarna den 26 november 2026, utom svårighetsgraden för infektioner vid Handpåläggning, som fortfarande är en tolkning.
 
 - **God bågskytt:** räckvidden för projektilvapen (bågar, armborst, slungor och blåsrör) gångras med 1,25 och avrundas nedåt till hela rutor. Kastvapen räknas inte.
 - **Järnnäve:** obeväpnade anfall gör alltid högsta skada, med SB.
 - **Snabb uppfattning:** +5 på CL vid parering i närstrid, med vapen och sköld. Den som ser skytten kan parera pilar och lod med ett närstridsvapen (inte med skölden), och kastvapen med vapnet eller skölden. Ett perfekt skott kan inte pareras.
 - **Djurvän:** vanliga djur (gruppen djur i regeldatan, inte de legendariska varelserna) väljer inte personen som mål och upptäcker inte gruppen för hens skull. Den som anfaller djuret, med vapen, skott eller skadlig magi, är inte fredad av det djuret längre (`Actor.provokedBy`).
-- **Gott läkekött (tolkning):** all naturlig läkning går dubbelt så fort. Spelet skiljer inte på skador av våld och av annat, och nästan alla skador kommer från vapen eller elementarbesvärjelser.
+- **Gott läkekött (Vidar):** all naturlig läkning går dubbelt så fort. Spelet skiljer inte på skador av våld och av annat, och nästan alla skador kommer från vapen eller elementarbesvärjelser.
 - **God mental kontroll:** PSY-poängen kommer tillbaka dubbelt så fort.
 - **Turgubbe (Vidar):** knappen köper +1 på CL för 1 PSY på nästa egna slag, högst +3. Ett tryck till efter taket stänger av den. PSY dras när slaget slås.
 - **Tjuvtur:** samma knapp, 1–3 PSY, två gånger mellan varje sömn (fyra för alver). Sömnen återställer den.
-- **Turen läggs på efter tärningen (tolkning):** tillägget räknas in i `heroic`, som alla slag går igenom. Bara slag 2–19 kan gå från misslyckat till lyckat; omslagen för perfekt och fummel räknas inte om. Turen kan inte ta PSY till 0, och den läggs på före en hjältepoäng.
-- **Gudarnas gunstling (Vidar och tolkning):** när KP når 0 slås 1T100, och på 25 eller lägre kommer alla KP tillbaka (också i kroppsdelarna). Kritiska skador, förlorade kroppsdelar och blödningar står kvar. Det slås varje gång KP når 0, tills guden har räddat personen en gång under äventyret; det börjar om när modulen lämnas.
-- **Riddarslag:** ett anfallssätt för riddare med ett närstridsvapen, för 5 PSY. Med sikte på en kroppsdel blir det inget avdrag för siktet; utan sikte gör anfallet högsta skada med högsta SB. Rustning och parering gäller som vanligt. PSY dras även om anfallet missar (tolkning).
-- **Anfall bakifrån (lönnmördare):** gäller när offret inte märker anfallaren som smyger fram (Smyga lyckas och Upptäcka fara misslyckas). Ett misslyckat anfall gör normal skada, ett lyckat dubbel och ett perfekt fyrdubbel, alltid utan SB. Ett fummel är ett fummel. Bara mot humanoider och inte med stridskonsternas slag och grepp. **Storleken (tolkning):** "högst 2 m längre" blir att offret har högst 10 STO mer än lönnmördaren.
+- **Turen läggs på efter tärningen (Vidar):** tillägget räknas in i `heroic`, som alla slag går igenom. Bara slag 2–19 kan gå från misslyckat till lyckat; omslagen för perfekt och fummel räknas inte om. Turen kan inte ta PSY till 0, och den läggs på före en hjältepoäng.
+- **Gudarnas gunstling (Vidar):** när KP når 0 slås 1T100, och på 25 eller lägre kommer alla KP tillbaka (också i kroppsdelarna). Kritiska skador, förlorade kroppsdelar och blödningar står kvar. Det slås varje gång KP når 0, tills guden har räddat personen en gång under äventyret; det börjar om när modulen lämnas.
+- **Riddarslag:** ett anfallssätt för riddare med ett närstridsvapen, för 5 PSY. Med sikte på en kroppsdel blir det inget avdrag för siktet; utan sikte gör anfallet högsta skada med högsta SB. Rustning och parering gäller som vanligt. PSY dras även om anfallet missar (Vidar).
+- **Anfall bakifrån (lönnmördare):** gäller när offret inte märker anfallaren som smyger fram (Smyga lyckas och Upptäcka fara misslyckas). Ett misslyckat anfall gör normal skada, ett lyckat dubbel och ett perfekt fyrdubbel, alltid utan SB. Ett fummel är ett fummel. Bara mot humanoider och inte med stridskonsternas slag och grepp. **Storleken (Vidar):** "högst 2 m längre" blir att offret har högst 10 STO mer än lönnmördaren.
 - **Handpåläggning (helare):** en hjälphandling på den som helaren kan röra vid, också på sig själv.
   - Läka: 1 KP för 1 PSY. I strid läker varje tur 1 KP; utanför strid läker helaren så mycket som PSY räcker till, och lika många rundor går.
   - Bota gift: PSY/2 mot det starkaste giftets STY på motståndstabellen, för lika många PSY som STY.
   - Bota en infektion (tolkning): infektionerna och deras feber räknas som sjukdom med svårighetsgraden 10, och det kostar 10 PSY.
-  - PSY dras också när det misslyckas, och får inte gå ned till 0 (tolkning).
-- **Meditation (munk):** munken väljer en färdighet. Varje hel runda ger +1, högst till FV (alltså dubbla FV), och gäller nästa slag i färdigheten inom en minut (12 rundor). I strid tar varje runda turen. Utanför strid mediterar munken tills det inte går högre, och tiden går under tiden. Tolkning: tillägget räknas som CL.
-- **God kroppskontroll:** en handling med ett Normalt FYS-slag. Lyckas det får personen +5 STY i tre rundor, och det räknas in i skadebonusen, i greppet om tunga vapen och i STY mot STY. Två försök om dagen; ett misslyckat försök räknas också (tolkning).
+  - PSY dras också när det misslyckas (Vidar), och får inte gå ned till 0.
+- **Meditation (munk, husregel av Vidar):** bokens Meditation används inte. Munken mediterar i en minut och slår ett Normalt PSY-slag. Lyckas det får munken +5 på INT-baserade färdigheter i en timme. Bara utanför strid.
+- **Förtrollande framträdande (bard, Vidar):** barden sjunger eller spelar i en minut och slår i Sjunga eller Spela instrument. Lyckas det får barden +5 på KAR-baserade färdigheter (Övertala, Muta, Bluffa, Köpslå och de andra) i en timme, och AI-spelledaren får veta att åhörarna är förtrollade. Bara utanför strid. Ett misslyckat försök kostar minuten, och det går att försöka igen.
+- **God kroppskontroll:** en handling med ett Normalt FYS-slag. Lyckas det får personen +5 STY i tre rundor, och det räknas in i skadebonusen, i greppet om tunga vapen och i STY mot STY. Två försök om dagen; ett misslyckat försök räknas också (Vidar).
 
 ### Vädret (Vidar)
 

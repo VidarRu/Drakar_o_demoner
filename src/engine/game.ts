@@ -777,9 +777,9 @@ export class Game {
     return r;
   }
 
-  /** Munkens Meditation inför ett slag i färdigheten. */
-  meditate(skill: string): string | null {
-    const r = talents.meditate(this, this.player, skill);
+  /** Bardens Förtrollande framträdande eller munkens Meditation: +5 i en timme. */
+  perform(skill?: string): string | null {
+    const r = talents.perform(this, this.player, skill);
     if (r) this.log(r);
     this.changed();
     return r;

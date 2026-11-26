@@ -1,6 +1,7 @@
 import { NPCS } from '../content';
 import { flagNotes } from '../engine/modules';
 import { recognizes } from '../engine/hero';
+import { enchanting } from '../engine/talents';
 import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
 import type { Game } from '../engine/game';
@@ -43,6 +44,8 @@ export async function requestTurn(game: Game, npc: Actor, history: DialogEntry[]
   const notes = flagNotes(game);
   // Igenkänd som hjälte (steg 8): personen vet vem rollpersonen är och har hört om hens dåd.
   if (recognizes(game, npc)) notes.push(`${npc.name} känner igen ${game.leader.name} som en ryktbar hjälte och har hört talas om hens bragder.`);
+  // Bardens Förtrollande framträdande: åhörarna ser barden som mer karismatisk i en timme.
+  if (enchanting(p)) notes.push(`${p.name} har nyss förtrollat sina åhörare med sång eller spel och verkar ovanligt karismatisk och övertygande.`);
   try {
     const res = await fetch('/api/dialog', {
       method: 'POST',

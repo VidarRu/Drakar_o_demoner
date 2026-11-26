@@ -1,13 +1,13 @@
 import { requestTurn, scriptedTurn, type DialogEntry } from '../ai/dialogClient';
-import { actorHas, actorProfession, canArmHero, meet } from '../engine/hero';
+import { actorHas, canArmHero, meet } from '../engine/hero';
 import { skillName } from '../engine/creation';
-import { bodyControlProblem, luckProblem, luckSources, meditationProblem, meditationSkills, thiefLuckLeft } from '../engine/talents';
+import { bodyControlProblem, luckProblem, luckSources, performanceKind, performanceProblem, performanceSkills, thiefLuckLeft } from '../engine/talents';
 import { NPCS } from '../content';
 import { ARMOR, SHIELDS } from '../data/armor';
 import { PROFESSIONS } from '../data/professions';
 import { RACES } from '../data/races';
 import { HERBS } from '../data/herbs';
-import { activeHostiles, ammoLeft, damageExpr, effectiveMove, hasEffect, isOut, martialOk, rangedInfo, weaponInfo } from '../engine/combat';
+import { activeHostiles, ammoLeft, damageExpr, effectiveMove, hasEffect, isOut, martialOk, rangedInfo } from '../engine/combat';
 import { elementalAttacks } from '../engine/elementals';
 import { attackModes, passiveTechniques } from '../engine/maneuvers';
 import { carriedWeight, loadMod } from '../engine/inventory';
@@ -60,7 +60,7 @@ function ammoRow(g: Game, p: Actor, kv: (k: string, v: string) => HTMLElement): 
 export class Hud {
   private logCount = -1;
   /** Färdigheten som munken senast valde att meditera inför. */
-  private meditationSkill?: string;
+  private performanceSkill?: string;
 
   constructor(
     private g: Game,
@@ -391,7 +391,7 @@ export class Hud {
     return b;
   }
 
-  /** Förmågor som används på turen: Turgubbe, Tjuvtur, God kroppskontroll och Meditation. */
+  /** Förmågor som används på turen: Turgubbe, Tjuvtur, God kroppskontroll, framträdandet och Meditation. */
   private talentControls(): HTMLElement[] {
     const g = this.g;
     const p = g.player;
@@ -409,16 +409,21 @@ export class Hud {
       b.title = 'Normalt FYS-slag: +5 STY (och skadebonus) i tre rundor. Två gånger om dagen.';
       out.push(b);
     }
-    if (actorProfession(g, p, 'munk')) {
-      const skills = meditationSkills(p);
+    const kind = performanceKind(g, p);
+    if (kind === 'bard') {
+      const skills = performanceSkills(p);
       const pick = el('select');
-      pick.title = 'Färdigheten att meditera inför';
-      const weapon = weaponInfo(p).skill;
-      for (const k of skills) pick.append(new Option(skillName(k), k, false, k === (this.meditationSkill ?? weapon)));
-      pick.onchange = () => (this.meditationSkill = pick.value);
-      const b = button('Meditera', () => g.meditate(pick.value), '', !!meditationProblem(g, p, pick.value || weapon));
-      b.title = 'Varje hel runda ger +1 i färdigheten, högst dubbla FV. Gäller nästa slag inom en minut.';
-      out.push(pick, b);
+      pick.title = 'Sjunga eller spela';
+      for (const k of skills) pick.append(new Option(skillName(k), k, false, k === this.performanceSkill));
+      pick.onchange = () => (this.performanceSkill = pick.value);
+      const b = button('Framträd', () => g.perform(pick.value || undefined), '', !!performanceProblem(g, p, pick.value || undefined));
+      b.title = 'Förtrollande framträdande: en minuts sång eller spel och ett lyckat slag ger +5 på KAR-färdigheter i en timme. Inte i strid.';
+      if (skills.length > 1) out.push(pick);
+      out.push(b);
+    } else if (kind === 'munk') {
+      const b = button('Meditera', () => g.perform(), '', !!performanceProblem(g, p));
+      b.title = 'Meditation: en minut och ett lyckat Normalt PSY-slag ger +5 på INT-färdigheter i en timme. Inte i strid.';
+      out.push(b);
     }
     return out;
   }

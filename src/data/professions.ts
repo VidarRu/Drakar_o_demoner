@@ -23,7 +23,7 @@ export const PROFESSION_LIST: ProfessionDef[] = [
     spellsAtStart: false,
     ability: {
       name: 'Förtrollande framträdande',
-      desc: 'Efter minst en minuts sång eller spel och ett lyckat slag ser alla åhörare bardens KAR som 5 högre i en timme. KAR-baserade färdigheter får +5.',
+      desc: 'Efter en minuts sång eller spel och ett lyckat slag i färdigheten får barden +5 på KAR-baserade färdigheter i en timme.',
     },
     desc: 'Underhållare och mångsysslare: sång, musik, berättande och list.',
     options: [
@@ -116,7 +116,7 @@ export const PROFESSION_LIST: ProfessionDef[] = [
     spellsAtStart: false,
     ability: {
       name: 'Meditation',
-      desc: 'Varje hel stridsrunda av meditation ger +1 FV i en färdighet, högst till dubbla FV. Gäller ett slag inom en minut.',
+      desc: 'Husregel: efter en minuts meditation och ett lyckat Normalt PSY-slag får munken +5 på INT-baserade färdigheter i en timme.',
     },
     desc: 'Lever för sin tro, mediterar och undviker våld.',
     options: [

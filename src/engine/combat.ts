@@ -128,6 +128,8 @@ function scopeMatches(scope: Scope | undefined, kind: 'anfall' | 'parering' | 'a
       return RANGED_GROUPS.has(skill);
     case 'int':
       return attr === 'INT';
+    case 'kar':
+      return attr === 'KAR';
     case 'psy':
       return attr === 'PSY';
     case 'sty':

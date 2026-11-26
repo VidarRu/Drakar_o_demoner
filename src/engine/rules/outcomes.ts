@@ -22,6 +22,7 @@ export type Scope =
   | 'avstånd'
   /** Färdigheter som bygger på en viss grundegenskap (gifter). Besvärjelser bygger på PSY. */
   | 'int'
+  | 'kar'
   | 'psy'
   | 'sty'
   /** Alla besvärjelser, eller allt utom besvärjelser. */
