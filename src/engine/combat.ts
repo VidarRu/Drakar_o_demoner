@@ -6,6 +6,7 @@ import { WEAPONS, weaponSkill } from '../data/weapons';
 import { itemInfo, loadMod, loadPenalty, smiBlocked } from './inventory';
 import { breakConcentration, enemyCast, forgetOnKnockout, resolvePending, wardCheck } from './magic';
 import { torchBurns, updateWeather, weatherRanged } from './weather';
+import { burnLight } from './light';
 import { airborne, attrShift, breakHiding, checkCamouflage, controller, flamingHand, flightSpeed, fogBlocks, heatColdResist, inDarkness, inVortex, magicallyHidden, unseen } from './spelleffects';
 import { poisonOnHit, updatePoisons } from './poison';
 import { die, maxRoll, roll } from './dice';
@@ -1755,7 +1756,10 @@ function newRound(g: Game): boolean {
   updateWeather(g, g.state.time - ROUND_SECONDS);
   c.acted = {};
   c.parries = {};
-  for (const a of participants(g)) tick(g, a);
+  for (const a of participants(g)) {
+    tick(g, a);
+    burnLight(g, a, ROUND_SECONDS);
+  }
   if (g.state.mode !== 'combat') return false;
   wardCheck(g);
   if (g.state.mode !== 'combat') return false;

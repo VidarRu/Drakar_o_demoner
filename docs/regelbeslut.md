@@ -516,16 +516,25 @@ Koden står i `src/engine/locks.ts` och `src/engine/worldspells.ts`.
 - **VATTENANDNING:** den som har den kan gå ut i vattnet. När den tar slut går hen upp på närmaste lediga ruta.
 - **SYN (Vidar):** identifierar framför allt magiska föremål, alltså vad de gör, när sådana finns. Modulerna kan också ge SYN scener (se nedan). Utan en scen visar den ingenting särskilt än.
 - **TALA MED VARELSE:** magikern kan tala med ointelligenta djur som inte är fientliga (Vidar). AI-spelledaren får veta att FV i djurets språk är E. Djuret får en enkel persona.
-- **TANKEÖVERFÖRING och TELEPATI:**
-  - Ett tyst samtal med en person, TELEPATI på vilket avstånd som helst. AI-spelledaren får veta att ingen annan hör något.
-  - Tolkning: TELEPATI når de personer som gruppen har talat med.
-  - Med någon annan än en person förmedlas bara känslorna.
+- **TANKEÖVERFÖRING och TELEPATI (Vidar):** de är rollspel i modulernas scener: en fånge som ropar på hjälp, en uppdragsgivare som skickar nyheter. Utan en scen händer inget särskilt. TANKEÖVERFÖRING kan dessutom fylla en fiendes tankar med skräck i strid: fienden slår moral och kan fly. Den som inte lyder under moralreglerna och elementarerna påverkas inte.
 - **Scener för besvärjelser (Vidar):** en modul kan låta en besvärjelse visa något särskilt på en viss plats eller när flaggorna stämmer (`ModuleDef.spellScenes`). Texten skrivs i loggen och en flagga sätts, som AI-spelledaren får veta genom modulens anteckningar. Gråvads exempel är en syn av Grukk och häxkonstnären i grottan. Det fungerar med alla besvärjelser, till exempel SYN, TELEPATI och TANKEÖVERFÖRING.
-- **Samtal på avstånd:** genom TELEPATI eller TANKEÖVERFÖRING finns bara ord, inga handlingar som att handla eller betala.
 - **TANKELÄSNING:** i samtal med personen får AI-spelledaren avslöja vad personen tänker och döljer, utan att personen märker något.
 - **TILLKALLA VARELSE (Vidar och tolkning):**
   - Ointelligenta djur på kartan kommer, närmast först och högst 20 STO per E. Det tar 1T10 minuter, och det går inte mitt i en strid.
   - Djuren slåss för gruppen och går efter den. De ger sig av när besvärjelsen tar slut eller när nästa strid är slut, och blir inte fientliga igen.
+
+### Ljus (Vidar, byggt)
+
+Koden står i `src/engine/light.ts` och brinntiderna i `LIGHT_SECONDS` i `src/engine/rules/tables.ts`.
+
+- **Facklor (Vidar):** en fackla brinner en timme och förbrukas när den tänds. Den som inte har någon fackla eller lykta har inget ljus.
+- **Oljelyktan (Vidar och tolkning):** den räcker längre: sex timmar på en fyllning, som utrustningslistan säger. Lyktan finns kvar och fylls på med lampolja, en timme per flaska. Tolkning: den slocknar inte i regn, eftersom den har glas.
+- **Tolkningar:**
+  - När ljuset brinner ut tänder man nästa fackla av sig själv.
+  - Ljuset brinner inte medan gruppen sover.
+  - En släckt fackla kan tändas igen med den tid som är kvar.
+  - Oljelyktan tänds före facklorna.
+- Ljuset syns i statuspanelen. Följeslagarna i Gråvad har fyra facklor var.
 
 ### Vädret (Vidar, byggt)
 
@@ -547,5 +556,5 @@ Koden står i `src/engine/weather.ts` och värdena i `WEATHER`, `SKY` och `WIND`
 - **VINDKONTROLL (tolkning av "E m/s"):** vinden ökar eller minskar ett steg per fyra E, minst ett, under S timmar. Sedan kommer vädret som var tillbaka.
 - **REGNKONTROLL:** när det är mulet eller regnar kan magikern få det att regna, och när det regnar kan hen stoppa regnet (det blir mulet). Det varar i S minuter, och sedan kommer vädret som var tillbaka. Det går inte där modulen har låst vädret.
 - **NEDKALLA ÅSKVIGG:** som BLIXT (1T6 per E, rustningen skyddar inte), men bara när det regnar, och både magikern och målet måste stå under bar himmel.
-- **VIGGFÅNGARE (tolkning):** under åska slår en blixt (5T6) ned i magikern. Hälften, avrundat nedåt, blir PSY, upp till grundvärdet. Resten tar magikern i skada, fördelad över kroppsdelarna.
+- **VIGGFÅNGARE (Vidar):** under åska slår en blixt (5T6) ned i magikern, och hela blixten blir PSY utan att skada. Tolkning: PSY blir inte högre än grundvärdet.
 

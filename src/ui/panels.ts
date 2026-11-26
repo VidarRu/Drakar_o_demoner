@@ -32,7 +32,7 @@ import {
   spellTargets,
 } from '../engine/magic';
 import { herbProblem, herbsHere, searchHerb, useHerb } from '../engine/poison';
-import { herbChoices, lockChoices, SEEK_KINDS, telepathyTargets } from '../engine/worldspells';
+import { herbChoices, lockChoices, SEEK_KINDS } from '../engine/worldspells';
 import { spellCl } from '../engine/rules';
 import { buy, buyPrice, canHaggle, discount, haggle, sell, sellable, wares } from '../engine/trade';
 import type { Actor, AttrKey } from '../engine/types';
@@ -399,10 +399,6 @@ export class MagicUi {
     if (kind === 'växtkunskap') {
       const herbs = herbChoices(g, p);
       if (herbs.length) c.herb = pick('Ört', herbs.map((id) => [id, HERBS[id].name]), c.herb || herbs[0], (v) => (c.herb = v));
-    }
-    if (kind === 'tankar' && sp.effect?.kind === 'tankar' && sp.effect.mode === 'telepati') {
-      const known = telepathyTargets(g);
-      if (known.length) c.target = pick('Person', known.map((a) => [a.id, a.name]), known.some((a) => a.id === c.target) ? c.target : known[0].id, (v) => (c.target = v));
     }
     const suicide = el('label', '', 'Självmordsattack (CL = S, kostar mer PSY än du har, du dör) ');
     const cb = el('input');

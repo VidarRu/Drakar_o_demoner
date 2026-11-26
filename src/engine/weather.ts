@@ -32,7 +32,9 @@ export const raining = (g: Game) => weatherOf(g).sky >= 3;
 
 /** Brinner figurens fackla? Regnet släcker facklor utomhus. */
 export function torchBurns(g: Game, a: Actor): boolean {
-  return !a.torchOut && !(raining(g) && underSky(g, a));
+  // En oljelykta har glas och slocknar inte i regn (tolkning).
+  if (a.torchOut || !a.light || a.light.left <= 0) return false;
+  return a.light.kind === 'oljelykta' || !(raining(g) && underSky(g, a));
 }
 
 /** Avdraget för vädret på ett skott eller kast, när skytten eller målet står utomhus. */

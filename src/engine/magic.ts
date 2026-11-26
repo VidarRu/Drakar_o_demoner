@@ -358,9 +358,7 @@ export function castSpell(g: Game, id: string, o: CastOptions): string | null {
   const p = o.caster ?? g.player;
   const spell = SPELLS[id];
   const memorized = spellbook(g, p).memorized.includes(id);
-  // TELEPATI läggs på magikern själv men gäller den person som hen väljer.
-  const telepathy = spell.effect?.kind === 'tankar' && spell.effect.mode === 'telepati';
-  const target = spell.aim === 'själv' && !telepathy ? p.id : o.target;
+  const target = spell.aim === 'själv' ? p.id : o.target;
   const t = target ? g.actor(target) : undefined;
   const pending: PendingSpell = {
     caster: p.id,

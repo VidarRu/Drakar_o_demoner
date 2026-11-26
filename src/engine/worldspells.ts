@@ -16,7 +16,8 @@ import { commonFor, herbsHere, prepareDose } from './poison';
 import { advanceTime } from './time';
 import { holdWeather, raining, underSky, weatherOf, weatherText } from './weather';
 import { WEATHER } from './rules';
-import { wound as woundActor } from './combat';
+import { moraleCheck } from './combat';
+import { lightUp } from './light';
 import type { ActiveEffect, Actor, PendingSpell } from './types';
 
 /** Riktningen från en ruta till en annan, i väderstreck (norr är uppåt på kartan). */
@@ -52,11 +53,6 @@ export function herbChoices(g: Game, _a?: Actor): string[] {
   return herbsHere(g).map((h) => h.id);
 }
 
-/** Personer som magikern känner till namnet och kan nå med TELEPATI: de som gruppen har talat med. */
-export function telepathyTargets(g: Game): Actor[] {
-  return g.state.actors.filter((a) => a.alive && a.npc && NPCS[a.npc] && a.npc in (g.state.met ?? {}));
-}
-
 // ------------------------------------------------------------------ hinder
 
 /** Varför besvärjelsen utanför strid inte kan läggas, eller null. */
@@ -77,11 +73,6 @@ export function worldProblem(g: Game, caster: Actor, spell: SpellDef, o: { targe
     case 'växtkunskap':
       if (g.state.mode !== 'explore' || !g.canRest()) return 'Det går inte att leta örter med fiender i närheten.';
       return o.herb && herbChoices(g, caster).includes(o.herb) ? null : 'Välj en ört som växer här.';
-    case 'tankar': {
-      if (e.mode !== 'telepati') return null;
-      const t = o.target ? g.actor(o.target) : undefined;
-      return t && telepathyTargets(g).includes(t) ? null : 'Välj någon som du känner till namnet på.';
-    }
     case 'tillkalla':
       return g.state.mode === 'combat' ? 'Djuren hinner inte fram mitt i en strid.' : null;
     case 'vindkontroll':
@@ -152,9 +143,13 @@ export function applyWorld(g: Game, caster: Actor, t: Actor, s: PendingSpell, sp
       return true;
     }
     case 'tända': {
-      // Vidar: en kvist från marken tänds med magisk eld och brinner som en vanlig fackla.
+      // Vidar: en kvist från marken tänds med magisk eld och brinner som en vanlig fackla. Brinner
+      // inget ljus just nu tänds kvisten direkt, annars hamnar den i packningen.
       g.charOf(t)?.inventory.push('fackla');
-      t.torchOut = false;
+      if (t.torchOut || !t.light || t.light.left <= 0) {
+        t.light = undefined;
+        lightUp(g, t);
+      }
       if (e.glow) {
         t.effects = t.effects.filter((x) => x.kind !== 'ljus' || x.spell !== spell.id);
         t.effects.push({ ...effect, kind: 'ljus', mod: 1 });
@@ -200,14 +195,12 @@ export function applyWorld(g: Game, caster: Actor, t: Actor, s: PendingSpell, sp
       return true;
     }
     case 'viggfångare': {
-      // Tolkning: blixten gör 5T6. Hälften (nedåt) blir PSY, högst upp till grundvärdet, och resten
-      // tar magikern i skada.
+      // Vidar: hela blixten (5T6) blir PSY och skadar inte. Tolkning: högst upp till grundvärdet.
       const bolt = roll(WEATHER.lightning, g.rng);
-      const psy = Math.min(Math.floor(bolt / 2), caster.attrs.PSY - caster.psy);
+      const psy = Math.min(bolt, caster.attrs.PSY - caster.psy);
       caster.psy += psy;
-      g.log(`En blixt slår ned i ${caster.name} (${bolt}): ${psy} blir PSY och ${bolt - psy} skadar.`);
+      g.log(`En blixt slår ned i ${caster.name} (${bolt}) och blir till ${psy} PSY.`);
       g.emit(caster.id, `+${psy} PSY`, 'heal');
-      if (bolt - psy > 0) woundActor(g, caster, bolt - psy, null);
       return true;
     }
     default:
@@ -244,12 +237,11 @@ function seek(g: Game, a: Actor, kind: string, r: number): { name: string; x: nu
 }
 
 /**
- * TANKEÖVERFÖRING och TELEPATI: ett tyst samtal med en person, TELEPATI på vilket avstånd som helst.
- * Med någon annan än en person förmedlas bara känslorna. TANKELÄSNING: i nästa samtal med personen
- * får AI-spelledaren avslöja vad den tänker, utan att den märker något.
+ * TANKEÖVERFÖRING och TELEPATI är rollspel i modulernas scener (Vidar). Utöver det kan
+ * TANKEÖVERFÖRING skrämma en fiende i strid: den slår moral och kan fly (Vidar). TANKELÄSNING: i
+ * nästa samtal med personen får AI-spelledaren avslöja vad den tänker, utan att den märker något.
  */
-function thoughts(g: Game, caster: Actor, t: Actor, s: PendingSpell, mode: 'överföring' | 'telepati' | 'läsning', effect: Pick<ActiveEffect, 'label' | 'spell' | 'grade' | 'persist' | 'rounds' | 'days'>): boolean {
-  const target = mode === 'telepati' && s.target ? g.actor(s.target) ?? t : t;
+function thoughts(g: Game, caster: Actor, target: Actor, s: PendingSpell, mode: 'överföring' | 'telepati' | 'läsning', effect: Pick<ActiveEffect, 'label' | 'spell' | 'grade' | 'persist' | 'rounds' | 'days'>): boolean {
   if (mode === 'läsning') {
     if (!target.npc || !NPCS[target.npc]) {
       g.log(`${caster.name} läser ${target.name}s tankar: ${target.hostile ? 'fientliga och hungriga' : 'lugna och vaksamma'}.`);
@@ -260,14 +252,12 @@ function thoughts(g: Game, caster: Actor, t: Actor, s: PendingSpell, mode: 'öve
     g.log(`${caster.name} läser ${target.name}s tankar utan att ${target.name} märker något. I samtalet framgår vad ${target.name} egentligen tänker.`);
     return true;
   }
-  if (!target.npc || !NPCS[target.npc]) {
-    g.log(`${caster.name} når ${target.name}s känslor: ${target.hostile ? 'vrede och hunger' : 'lugn och nyfikenhet'}.`);
+  if (mode === 'överföring' && target !== caster && target.hostile && g.state.mode === 'combat' && !target.noMorale && !target.elemental) {
+    g.log(`${caster.name} fyller ${target.name}s tankar med skräckbilder.`);
+    moraleCheck(g, target, 'TANKEÖVERFÖRING');
     return true;
   }
-  caster.effects = caster.effects.filter((x) => x.kind !== 'tankekontakt');
-  caster.effects.push({ ...effect, kind: 'tankekontakt', by: target.npc });
-  g.log(`${caster.name} når ${target.name} med tanken.`);
-  if (g.state.mode === 'explore') g.openUi('talk', target.id);
+  if (!s.scene) g.log(mode === 'telepati' ? 'Ingen svarar i tanken.' : `${caster.name} når ${target.name}s tankar, men det finns inget särskilt att förmedla.`);
   return true;
 }
 

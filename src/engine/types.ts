@@ -203,9 +203,7 @@ export interface ActiveEffect {
     /** TALA MED VARELSE: kan tala med ointelligenta djur, FV `mod` i deras språk. */
     | 'talaMed'
     /** TANKELÄSNING: läser tankarna hos personen `by` (npc-id) i samtal. */
-    | 'tankeläsning'
-    /** TANKEÖVERFÖRING eller TELEPATI: tyst tankekontakt med personen `by` (npc-id). */
-    | 'tankekontakt';
+    | 'tankeläsning';
   /** Kort text till rollformuläret och loggen. */
   label: string;
   mod?: number;
@@ -459,6 +457,8 @@ export interface Actor {
   hidden?: boolean;
   /** Facklan är släckt (rollpersoner och följeslagare bär annars en tänd fackla). */
   torchOut?: boolean;
+  /** Ljuset som figuren bär: en fackla eller en oljelykta, och hur länge det brinner till. */
+  light?: { kind: 'fackla' | 'oljelykta'; left: number };
   /** Stridskonstens tekniker (från rollformuläret). */
   techniques?: string[];
   /** Skräck och moral: följeslagare som flytt och vägrar fortsätta. */
@@ -680,6 +680,8 @@ export interface Character {
   psyWin?: 'magiker' | 'motstånd';
   /** Gudarnas gunstling har räddat personen under det här äventyret. */
   favorUsed?: boolean;
+  /** Oljan som är kvar i oljelyktan (sekunder). Utan värde är den full. */
+  lanternOil?: number;
 }
 
 /** Valet till en särskild förmåga, som när rollpersonen skapas (engine/creation.ts). */

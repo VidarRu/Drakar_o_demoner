@@ -115,7 +115,7 @@ function allRounder(): Character {
   c.skills['magiskola:animism'] = 14;
   c.skills['magiskola:elementarmagi'] = 14;
   c.skills['magiskola:mentalism'] = 14;
-  c.spells = ['oka', 'minska', 'kamouflage', 'flammande_hand', 'virvelskold', 'ljus', 'morker', 'motstandskraft', 'magisk_syn', 'osynlighet', 'antimagi', 'eld', 'vindpil', 'astralvapen', 'sprang', 'levitation', 'flyga', 'lyft', 'teleportera', 'dimma', 'beskyddare', 'kontrollera_person', 'kontrollera_varelse', 'oppna', 'forsegla', 'finna_vatten', 'varseblivning', 'vaxtkunskap', 'traeld', 'laga', 'vattenandning', 'syn', 'tala_med_varelse', 'telepati', 'tankelasning', 'tillkalla_varelse'];
+  c.spells = ['oka', 'minska', 'kamouflage', 'flammande_hand', 'virvelskold', 'ljus', 'morker', 'motstandskraft', 'magisk_syn', 'osynlighet', 'antimagi', 'eld', 'vindpil', 'astralvapen', 'sprang', 'levitation', 'flyga', 'lyft', 'teleportera', 'dimma', 'beskyddare', 'kontrollera_person', 'kontrollera_varelse', 'oppna', 'forsegla', 'finna_vatten', 'varseblivning', 'vaxtkunskap', 'traeld', 'laga', 'vattenandning', 'syn', 'tala_med_varelse', 'telepati', 'tankelasning', 'tankeoverforing', 'tillkalla_varelse'];
   c.memorized = [...c.spells];
   c.inventory = ['trastav', 'harnesk_lader'];
   c.equipped = { weapon: 'trastav', armor: ['harnesk_lader'] };
@@ -576,11 +576,11 @@ describe('lås och besvärjelser utanför strid', () => {
   it('TRÄELD tänder facklan, och VATTENANDNING låter en gå ut i vattnet', () => {
     const { g, p } = explore();
     p.torchOut = true;
-    const torches = g.char.inventory.filter((x) => x === 'fackla').length;
     g.rng = queue(face(2));
     expect(castSpell(g, 'traeld', { grade: 1, target: p.id })).toBeNull();
+    // Kvisten tänds direkt eftersom inget ljus brann.
     expect(p.torchOut).toBe(false);
-    expect(g.char.inventory.filter((x) => x === 'fackla').length).toBe(torches + 1);
+    expect(p.light).toMatchObject({ kind: 'fackla', left: 3600 });
     p.x = 8;
     p.y = 13;
     expect(g.pathTo(9, 15)).toBeNull();
@@ -624,17 +624,32 @@ describe('lås och besvärjelser utanför strid', () => {
     for (const w of come) expect(distance(w.x, w.y, p.x, p.y)).toBeLessThanOrEqual(3);
   });
 
-  it('TELEPATI öppnar ett samtal med en känd person, och TANKELÄSNING läggs på magikern', () => {
-    const { g, p } = explore();
-    const asta = g.state.actors.find((a) => a.npc === 'gumma')!;
-    expect(castProblem(g, 'telepati', { grade: 1, target: asta.id })).toMatch(/känner till namnet/);
-    g.state.met = { gumma: false };
-    const opened: string[] = [];
-    g.onUi((name, arg) => name === 'talk' && arg && opened.push(arg));
-    g.rng = queue(face(2));
-    expect(castSpell(g, 'telepati', { grade: 1, target: asta.id })).toBeNull();
-    expect(opened).toEqual([asta.id]);
-    expect(p.effects.some((e) => e.kind === 'tankekontakt' && e.by === 'gumma')).toBe(true);
+  it('TANKEÖVERFÖRING får en fiende i strid att slå moral, och TELEPATI är bara rollspel i scener', () => {
+    const { g, p, witch } = witchFight(3);
+    g.char.spells = ['tankeoverforing', 'telepati'];
+    g.char.memorized = ['tankeoverforing', 'telepati'];
+    g.char.inventory = [];
+    p.skills['magiskola:mentalism'] = 14;
+    p.weapon = 'nave';
+    p.shield = undefined;
+    p.armor = [];
+    p.psy = 18;
+    const c = g.state.combat!;
+    c.order = [p.id, witch.id];
+    c.turn = 0;
+    expect(castSpell(g, 'tankeoverforing', { grade: 1, target: witch.id })).toBeNull();
+    // Slaget (2), och moralslaget 20 misslyckas.
+    g.rng = queue(face(2), face(20));
+    resolvePending(g);
+    expect(g.state.log.join('\n')).toMatch(/slår moral \(TANKEÖVERFÖRING/);
+    expect(combat.hasEffect(witch, 'flyr')).toBe(true);
+    const { g: g2 } = explore();
+    g2.char.spells.push('telepati');
+    g2.char.memorized.push('telepati');
+    g2.player.skills['magiskola:mentalism'] = 16;
+    g2.rng = queue(face(2));
+    expect(castSpell(g2, 'telepati', { grade: 1 })).toBeNull();
+    expect(g2.state.log.join('\n')).toMatch(/Ingen svarar i tanken/);
   });
 });
 

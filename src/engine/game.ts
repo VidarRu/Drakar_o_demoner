@@ -37,13 +37,13 @@ import type { Actor, Attrs, Character, CreatureDef, GameState } from './types';
 import { fogBlocks, passable } from './spelleffects';
 import { lockBlocks } from './locks';
 import { startWeather } from './weather';
+import { ensureLight, toggleLight } from './light';
 import { wardCheck } from './magic';
 
 export const FOV_RADIUS = 8;
 
 /** Vyer som spelmotorn kan be gränssnittet öppna. */
-/** Vyer som spelmotorn kan be gränssnittet öppna. 'talk' öppnar ett samtal med figuren `arg`. */
-export type UiView = 'training' | 'shop' | 'exit' | 'talk';
+export type UiView = 'training' | 'shop' | 'exit';
 const LOG_LIMIT = 300;
 
 /** Visuell effekt som gränssnittet kan visa (t.ex. skadesiffror). */
@@ -238,6 +238,11 @@ export class Game {
     public rng: Rng = Math.random,
   ) {
     this.map = parseMap(MAPS[state.mapId]);
+    // Den som bär en tänd fackla utan brinntid (nytt spel, äldre sparning) tänder en ur packningen.
+    for (const id of state.party) {
+      const a = state.actors.find((x) => x.id === id);
+      if (a) ensureLight(this, a);
+    }
     this.updateFov();
   }
 
@@ -617,9 +622,8 @@ export class Game {
 
   /** Tänder eller släcker facklan för den som styrs. */
   toggleTorch() {
-    const p = this.player;
-    p.torchOut = !p.torchOut;
-    this.log(p.torchOut ? `${p.name} släcker sin fackla.` : `${p.name} tänder sin fackla.`);
+    const r = toggleLight(this, this.player);
+    if (r) this.log(r);
     this.changed();
   }
 

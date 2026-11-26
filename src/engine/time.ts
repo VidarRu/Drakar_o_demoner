@@ -1,4 +1,5 @@
 import { updateWeather } from './weather';
+import { burnLight } from './light';
 import { RACES } from '../data/races';
 import { SKILLS } from '../data/skills';
 import { WEAPONS } from '../data/weapons';
@@ -129,6 +130,8 @@ function passTime(g: Game, a: Actor, seconds: number, activity: Activity, before
     });
   }
   if (seconds > 5) advancePoisons(g, a);
+  // Facklor och lyktor brinner, utom medan gruppen sover (tolkning).
+  if (activity !== 'sömn') burnLight(g, a, seconds);
   const race = RACES[(g.charOf(a) ?? g.state.character).race];
   if (activity === 'sömn' && seconds >= race.sleepHours * HOUR) {
     a.epBlocked = [];

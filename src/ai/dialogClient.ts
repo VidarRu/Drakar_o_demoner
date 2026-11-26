@@ -65,8 +65,6 @@ export async function requestTurn(game: Game, npc: Actor, history: DialogEntry[]
   // TALA MED VARELSE: magikern talar djurens språk med FV lika med E.
   const animalTalk = leader.effects.find((e) => e.kind === 'talaMed');
   if (!npc.npc && animalTalk) notes.push(`${leader.name} talar med djuret genom magi (TALA MED VARELSE) och behärskar dess språk med FV ${animalTalk.mod ?? 1} av 20: ju lägre, desto enklare och mer bristfälligt förstår de varandra.`);
-  // TANKEÖVERFÖRING och TELEPATI: ett tyst samtal genom tanken, kanske på långt avstånd.
-  if (npc.npc && leader.effects.some((e) => e.kind === 'tankekontakt' && e.by === npc.npc)) notes.push(`Samtalet sker tyst, tanke till tanke, genom magi. ${npc.name} hör ${leader.name}s röst inne i huvudet och svarar på samma sätt; ingen annan hör något.`);
   // TANKELÄSNING: personen märker inget, men spelaren får veta vad hen tänker.
   if (npc.npc && leader.effects.some((e) => e.kind === 'tankeläsning' && e.by === npc.npc)) notes.push(`${leader.name} läser ${npc.name}s tankar med magi utan att ${npc.name} märker det. Avsluta varje replik med vad ${npc.name} egentligen tänker och döljer, inom hakparentes.`);
   // Igenkänd som hjälte (steg 8): personen vet vem rollpersonen är och har hört om hens dåd.

@@ -589,6 +589,11 @@ export const PSY_RAISE = {
   potential: -5,
 };
 
+// ------------------------------------------------------------------ ljus (Bok III:s utrustningslista)
+
+/** Brinntid i sekunder: en fackla, en full oljelykta och en flaska lampolja. */
+export const LIGHT_SECONDS = { fackla: 3600, oljelykta: 6 * 3600, lampolja: 3600 } as const;
+
 // ------------------------------------------------------------------ vädret (Vidar, husregel)
 
 /** Himlen och vinden, fem steg var. Mittsteget är det vanligaste. */

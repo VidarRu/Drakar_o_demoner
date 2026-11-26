@@ -34,11 +34,6 @@ function launch(game: Game) {
     scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
     scene: [new WorldScene(game, (npc) => void dialog.open(npc))],
   });
-  // TANKEÖVERFÖRING och TELEPATI öppnar ett samtal på avstånd.
-  game.onUi((name, arg) => {
-    const who = name === 'talk' && arg ? game.actor(arg) : undefined;
-    if (who) void dialog.open(who);
-  });
   // Åtkomst för felsökning och automatiska tester.
   Object.assign(window, { game, phaser });
 }

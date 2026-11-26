@@ -268,7 +268,7 @@ const recruits: RecruitDef[] = [
       d.capitalDice = 12;
       d.profSkills = ['enhandsyxor', 'skoldar', 'bagar', 'dolkar', 'dra_vapen', 'avvapna', 'geografi', 'hasardspel', 'kulturkannedom:manniskor', 'simma', 'trastav', 'barsarkagang'];
       d.targets = { enhandsyxor: 13, skoldar: 12, dra_vapen: 10, avvapna: 8, upptacka_fara: 9, forsta_hjalpen: 7 };
-      d.bought_items = { stridsyxa: 1, vanlig_skold: 1, harnesk_nitlader: 1, nitladerhuva: 1 };
+      d.bought_items = { stridsyxa: 1, vanlig_skold: 1, harnesk_nitlader: 1, nitladerhuva: 1, fackla: 4 };
       d.equipped = { weapon: 'stridsyxa', shield: 'vanlig_skold', armor: ['harnesk_nitlader', 'nitladerhuva'] };
       d.appearance = 'Grånad legoknekt med ärrat ansikte och en yxa som sett många strider.';
     }),
@@ -290,7 +290,7 @@ const recruits: RecruitDef[] = [
       d.capitalDice = 9;
       d.profSkills = ['bagar', 'dolkar', 'stickvapen', 'djurhelning:hund', 'drogkunskap', 'geografi', 'knopar', 'orientering', 'simma', 'spa_vader', 'ortkunskap', 'overlevnad'];
       d.targets = { bagar: 13, dolkar: 9, smyga: 12, gomma_sig: 10, spara: 12, upptacka_fara: 11, forsta_hjalpen: 9 };
-      d.bought_items = { kortbage: 1, dolk: 1, pilar: 2, harnesk_lader: 1 };
+      d.bought_items = { kortbage: 1, dolk: 1, pilar: 2, harnesk_lader: 1, fackla: 4 };
       d.equipped = { weapon: 'kortbage', armor: ['harnesk_lader'] };
       d.appearance = 'Smidig och tystlåten jägarinna i grön kappa, med en båge över axeln.';
     }),
@@ -313,7 +313,7 @@ const recruits: RecruitDef[] = [
       d.capitalDice = 3;
       d.profSkills = ['dolkar', 'drogkunskap', 'geografi', 'kulturkannedom:manniskor', 'lakekonst', 'massage', 'orientering', 'simma', 'trastav', 'zoologi', 'ortkunskap', 'overlevnad'];
       d.targets = { trastav: 8, lakekonst: 11, ortkunskap: 10, forsta_hjalpen: 12 };
-      d.bought_items = { trastav: 1 };
+      d.bought_items = { trastav: 1, fackla: 4 };
       d.equipped = { weapon: 'trastav', armor: [] };
       d.appearance = 'Ung kvinna med flätat hår och örtpåsar i bältet. Svartalferna dödade hennes far.';
     }),

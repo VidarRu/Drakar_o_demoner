@@ -10,7 +10,7 @@ import { attackModes, maneuverProblem } from '../src/engine/maneuvers';
 import { payWages, shareLoot } from '../src/engine/party';
 import { DAY } from '../src/engine/rules';
 import type { Actor, Character } from '../src/engine/types';
-import { testCharacter } from './helpers';
+import { lit, testCharacter } from './helpers';
 
 /** Slumpkälla som ger talen i tur och ordning och sedan 0,5. */
 function queue(...values: number[]): Rng {
@@ -264,7 +264,7 @@ describe('smygarläge och anfall bakifrån', () => {
 
   it('tänd fackla i mörker ger −10 och klirrande rustning halverar', () => {
     const g = Game.create(testCharacter(), seededRng(2));
-    const p = g.leader;
+    const p = lit(g.leader);
     const foe = g.state.actors.find((a) => a.defId === 'svartalf')!;
     p.x = foe.x - 3;
     p.y = foe.y;
@@ -386,7 +386,7 @@ function mage(): Character {
 describe('elementarer', () => {
   it('åtta besvärjelser, en per sorts elementar, med elementet som krav', () => {
     const g = Game.create(mage(), seededRng(2));
-    const p = g.leader;
+    const p = lit(g.leader);
     p.x = 10;
     p.y = 12;
     expect(elementSourceProblem(g, p, 'luft')).toBeNull();
@@ -451,7 +451,7 @@ describe('elementarer', () => {
 describe('elementarernas förmågor', () => {
   it('sylfen blåser omkull, luminalen lyser upp och umbran släcker ljuset', () => {
     const g = Game.create(mage(), seededRng(2));
-    const p = g.leader;
+    const p = lit(g.leader);
     const foe = placeDuel(g, p);
     turnOf(g, p, foe);
     g.rng = () => 0.01;

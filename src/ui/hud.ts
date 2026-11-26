@@ -1,4 +1,5 @@
 import { underSky, weatherOf, weatherText } from '../engine/weather';
+import { lightText } from '../engine/light';
 import { forceLock, forceProblem, isLocked, locksNear, lootChest, lootProblem, pickLock, pickProblem, sealedAt } from '../engine/locks';
 import { dialogDef, requestTurn, scriptedTurn, type DialogEntry } from '../ai/dialogClient';
 import { actorHas, canArmHero, meet } from '../engine/hero';
@@ -233,6 +234,7 @@ export class Hud {
       kv('Silvermynt', String(p.silver)),
       kv('Tid', clockText(g.state.time)),
       kv('Väder', underSky(g, p) ? weatherText(weatherOf(g)) : 'inomhus'),
+      kv('Ljus', lightText(g, p)),
       ...(states.length ? [el('h3', '', 'Tillstånd'), ...states.map((s) => el('p', 'state', s))] : []),
       button('Rollformulär (R)', () => this.toggleSheet(true), 'primary sheet-btn'),
     );
@@ -471,8 +473,9 @@ export class Hud {
 
   private torchButton(): HTMLButtonElement {
     const p = this.g.player;
-    const b = button(p.torchOut ? 'Tänd facklan' : 'Släck facklan', () => this.g.toggleTorch());
-    b.title = 'Utan fackla syns du sämre i mörker, men du strider själv i mörker (−15) om du inte har mörkersyn.';
+    const lantern = p.light?.kind === 'oljelykta';
+    const b = button(p.torchOut ? (lantern ? 'Tänd lyktan' : 'Tänd en fackla') : lantern ? 'Släck lyktan' : 'Släck facklan', () => this.g.toggleTorch());
+    b.title = 'En fackla brinner en timme och en oljelykta sex timmar (fylls på med lampolja). Utan ljus syns du sämre i mörker, men du strider själv i mörker (−15) om du inte har mörkersyn.';
     return b;
   }
 
@@ -603,10 +606,7 @@ export class DialogUi {
       box.append(b);
     };
     for (const o of this.options) add(o, '', () => void this.say(o));
-    // Ett samtal genom TELEPATI eller TANKEÖVERFÖRING på avstånd: bara ord, inga handlingar.
-    const leader = this.g.leader;
-    const away = Math.max(Math.abs(leader.x - npc.x), Math.abs(leader.y - npc.y)) > 1;
-    for (const id of away ? [] : dialogDef(npc).intents) {
+    for (const id of dialogDef(npc).intents) {
       const intent = INTENTS[id];
       if (!intent.available(this.g, npc)) continue;
       add(`[${intent.label(this.g, npc)}]`, id === 'anfall' ? 'act danger' : 'act', () => void this.act(id));

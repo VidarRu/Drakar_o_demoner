@@ -5,7 +5,8 @@ import { castProblem, castSpell } from '../src/engine/magic';
 import { HOUR } from '../src/engine/rules';
 import type { Character } from '../src/engine/types';
 import { stepMeter, torchBurns, underSky, updateWeather, weatherOf, weatherRanged } from '../src/engine/weather';
-import { testCharacter } from './helpers';
+import { lit, testCharacter } from './helpers';
+import { advanceTime } from '../src/engine/time';
 
 function queue(...values: number[]): Rng {
   return () => (values.length ? values.shift()! : 0.5);
@@ -73,6 +74,7 @@ describe('vädret', () => {
 
   it('regnet släcker facklor utomhus och ger −2 på skott; hård vind ger −2 till', () => {
     const { g, p } = outside();
+    lit(p);
     const alf = g.state.actors.find((a) => a.defId === 'svartalf')!;
     alf.x = 14;
     alf.y = 12;
@@ -124,16 +126,59 @@ describe('väderbesvärjelserna', () => {
     expect(alf.kp).toBe(kp - 7);
   });
 
-  it('VIGGFÅNGARE under åska: hälften av blixten blir PSY', () => {
+  it('VIGGFÅNGARE under åska: hela blixten blir PSY, upp till grundvärdet', () => {
     const { g, p } = outside();
     expect(castProblem(g, 'viggfangare', { grade: 1 })).toMatch(/åska/);
     weatherOf(g).sky = 4;
-    p.psy = 6;
+    p.psy = 4;
     const kp = p.kp;
-    // Slaget lyckas (2) och kostar 1 PSY; 5T6 blir 4 × 5.
-    g.rng = queue(face(2), ...Array(5).fill(face(4, 6)));
+    // Slaget lyckas (2) och kostar 1 PSY; 5T6 blir 2 × 5 = 10.
+    g.rng = queue(face(2), ...Array(5).fill(face(2, 6)));
     expect(castSpell(g, 'viggfangare', { grade: 1 })).toBeNull();
-    expect(p.psy).toBe(5 + 10);
-    expect(p.kp).toBe(kp - 10);
+    expect(p.psy).toBe(3 + 10);
+    expect(p.kp).toBe(kp);
+    g.rng = queue(face(2), ...Array(5).fill(face(6, 6)));
+    castSpell(g, 'viggfangare', { grade: 1 });
+    expect(p.psy).toBe(18);
   });
 });
+
+describe('facklor och lyktor', () => {
+  it('en fackla brinner en timme, och sedan tänds nästa tills de är slut', () => {
+    const ch = testCharacter();
+    ch.inventory.push('fackla', 'fackla', 'fackla');
+    const g = Game.create(ch, seededRng(2));
+    const p = g.player;
+    const n = g.char.inventory.filter((x) => x === 'fackla').length;
+    expect(p.light).toMatchObject({ kind: 'fackla', left: 3600 });
+    g.sleep(8);
+    expect(p.light!.left).toBe(3600);
+    advance(g, 3600);
+    expect(g.char.inventory.filter((x) => x === 'fackla').length).toBe(n - 1);
+    expect(p.light!.left).toBe(3600);
+    g.char.inventory = g.char.inventory.filter((x) => x !== 'fackla');
+    advance(g, 3600);
+    expect(p.torchOut).toBe(true);
+    expect(torchBurns(g, p)).toBe(false);
+    expect(g.state.log.join('\n')).toMatch(/har inget mer att tända/);
+  });
+
+  it('en oljelykta brinner sex timmar, fylls på med lampolja och slocknar inte i regn', () => {
+    const c = testCharacter();
+    c.inventory = c.inventory.filter((x) => x !== 'fackla');
+    c.inventory.push('oljelykta', 'lampolja');
+    const g = Game.create(c, seededRng(2));
+    const p = g.player;
+    expect(p.light).toMatchObject({ kind: 'oljelykta', left: 6 * 3600 });
+    weatherOf(g).sky = 3;
+    expect(torchBurns(g, p)).toBe(true);
+    advance(g, 6 * 3600);
+    expect(p.light).toMatchObject({ kind: 'oljelykta', left: 3600 });
+    expect(g.char.inventory).not.toContain('lampolja');
+  });
+});
+
+/** Låter tiden gå i aktivitet, utan att vädret eller annat stör (en timme i taget). */
+function advance(g: Game, seconds: number) {
+  for (let t = 0; t < seconds; t += 3600) advanceTime(g, Math.min(3600, seconds - t), 'aktiv');
+}
