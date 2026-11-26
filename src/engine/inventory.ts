@@ -100,7 +100,7 @@ export function ironProblem(g: Game, p: Actor = g.player): string | null {
   // Vidar: alla sköldar har metallbeslag och räknas som järn.
   if (p.shield && SHIELDS[p.shield]) return `${SHIELDS[p.shield].name} har metallbeslag.`;
   let iron = 0;
-  for (const id of (g.charOf(p) ?? g.char).inventory) {
+  for (const id of g.charOf(p)?.inventory ?? []) {
     if (id === p.weapon || id === p.offhand || id === p.shield || p.armor.includes(id)) continue;
     if ((WEAPONS[id] && !NON_IRON_WEAPONS.has(id)) || ARMOR[id]?.metal || SHIELDS[id] || IRON_ITEMS.has(id)) iron += weightOf(g, id, p);
   }

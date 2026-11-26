@@ -33,7 +33,7 @@ import {
   type Check,
   type HitLocation,
 } from './rules';
-import type { Actor, Attrs, Character, GameState } from './types';
+import type { Actor, Attrs, Character, CreatureDef, GameState } from './types';
 
 export const FOV_RADIUS = 8;
 
@@ -184,7 +184,7 @@ export function spawnActors(state: GameState, map: GameMap, rng: Rng) {
           x: s.x,
           y: s.y,
           attrs: { ...def.attrs },
-          skills: { ...def.skills },
+          skills: { ...def.skills, ...magicSkills(def) },
           weapon: def.weapon,
           armor: [...(def.armor ?? [])],
           naturalArmor: def.naturalArmor ?? 0,
@@ -204,10 +204,16 @@ export function spawnActors(state: GameState, map: GameMap, rng: Rng) {
           fear: def.fear,
           ...(def.ranged ? { ranged: def.ranged.weapon, rangedAmmo: def.ranged.ammo } : {}),
           ...(def.loot ? { loot: [...def.loot] } : {}),
+          ...(def.magic ? { spells: [...def.magic.spells] } : {}),
         },
       ),
     );
   }
+}
+
+/** Magiskolorna som färdigheter (`magiskola:<skola>`). */
+function magicSkills(def: CreatureDef): Record<string, number> {
+  return Object.fromEntries(Object.entries(def.magic?.schools ?? {}).map(([k, v]) => [`magiskola:${k}`, v as number]));
 }
 
 const slugName = (n: string) => n.toLowerCase().replace(/[^a-zåäö]+/g, '_');

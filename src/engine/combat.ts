@@ -4,7 +4,7 @@ import { SKILLS } from '../data/skills';
 import type { ArmorDef, MeleeWeaponDef, RangedWeaponDef } from '../data/types';
 import { WEAPONS, weaponSkill } from '../data/weapons';
 import { itemInfo, loadMod, loadPenalty, smiBlocked } from './inventory';
-import { breakConcentration, forgetOnKnockout, resolvePending } from './magic';
+import { breakConcentration, enemyCast, forgetOnKnockout, resolvePending } from './magic';
 import { poisonOnHit, updatePoisons } from './poison';
 import { die, maxRoll, roll } from './dice';
 import type { Game } from './game';
@@ -2023,6 +2023,9 @@ export function autoTurn(g: Game) {
     finishTurn(g);
     return;
   }
+
+  // Fiender som kan magi lägger besvärjelser efter samma regler som gruppen (Vidar).
+  if (!isPlayer && a.spells?.length && enemyCast(g, a)) return;
 
   // Varelser med avståndsvapen skjuter på håll så länge de har ammunition, och laddar om emellan.
   if (!isPlayer && a.ranged && (a.rangedAmmo ?? 0) > 0 && !inReach(g, a, t)) {

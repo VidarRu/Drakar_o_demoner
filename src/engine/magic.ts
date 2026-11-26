@@ -12,6 +12,7 @@ import {
   canAct,
   finishTurn,
   hasEffect,
+  isParty,
   kill,
   magicArmor,
   skillMod,
@@ -44,9 +45,18 @@ import { advanceTime } from './time';
 import { dissolve, spellVersusElemental, summonOrBanish, summonProblem } from './elementals';
 
 /**
- * Magi enligt Bok III s. 3–8 med Vidars husregler (docs/regelbeslut.md under Magi). Bara
- * rollpersonen lägger besvärjelser än så länge.
+ * Magi enligt Bok III s. 3–8 med Vidars husregler (docs/regelbeslut.md under Magi). Alla lägger
+ * besvärjelser efter samma regler: gruppen och fienderna (Vidar). Varelser utan rollformulär har
+ * sina besvärjelser i `Actor.spells` och har dem alltid i minnet.
  */
+
+/** Formelsamlingen och minnet för en magiker. */
+export function spellbook(g: Game, a: Actor): { spells: string[]; memorized: string[] } {
+  const ch = g.charOf(a);
+  if (ch) return { spells: ch.spells, memorized: ch.memorized };
+  const list = a.spells ?? [];
+  return { spells: list, memorized: list };
+}
 
 // ------------------------------------------------------------------ skolor och skicklighet
 
@@ -158,6 +168,8 @@ export interface CastOptions {
   target?: string;
   /** Självmordsattack: får kosta mer PSY än magikern har kvar, CL blir S, och magikern dör. */
   suicide?: boolean;
+  /** Magikern (som standard den som styrs). */
+  caster?: Actor;
 }
 
 /** Räckvidd i rutor (null = obegränsad inom synhåll, 0 = bara en själv). */
@@ -170,20 +182,32 @@ export function rangeSquares(g: Game, a: Actor, spell: SpellDef, extra = 0): num
   return r.unit === 'km' ? 9999 : r.value;
 }
 
+/** Ser magikern målet? Gruppen ser det som syns på skärmen, andra efter sitt synhåll. */
+function sees(g: Game, caster: Actor, t: Actor): boolean {
+  if (isParty(caster)) return g.isVisible(t.x, t.y);
+  return g.canSee(caster, t) && !t.hidden;
+}
+
+/** Hör målet till magikerns fiender? Fienderna går bara på gruppen, som i närstrid. */
+export function foeOf(caster: Actor, t: Actor): boolean {
+  if (isParty(caster)) return t.hostile || t.kind === 'npc';
+  return caster.hostile ? isParty(t) : t.hostile;
+}
+
 /** Möjliga mål för en besvärjelse. */
-export function spellTargets(g: Game, id: string, extraRange = 0): Actor[] {
-  const p = g.player;
+export function spellTargets(g: Game, id: string, extraRange = 0, caster: Actor = g.player): Actor[] {
+  const p = caster;
   const spell = SPELLS[id];
   if (!spell) return [];
   const range = rangeSquares(g, p, spell, extraRange);
   const near = g.state.actors.filter(
-    (a) => a.alive && !a.fled && a !== p && g.isVisible(a.x, a.y) && distance(p.x, p.y, a.x, a.y) <= range && lineOfSight(g.map, p.x, p.y, a.x, a.y),
+    (a) => a.alive && !a.fled && a !== p && sees(g, p, a) && distance(p.x, p.y, a.x, a.y) <= range && lineOfSight(g.map, p.x, p.y, a.x, a.y),
   );
   switch (spell.aim) {
     case 'själv':
       return [p];
     case 'fiende':
-      return near.filter((a) => a.hostile || a.kind === 'npc');
+      return near.filter((a) => foeOf(p, a));
     default:
       return [p, ...near];
   }
@@ -191,21 +215,21 @@ export function spellTargets(g: Game, id: string, extraRange = 0): Actor[] {
 
 /** Varför besvärjelsen inte kan läggas nu, eller null. */
 export function castProblem(g: Game, id: string, o: CastOptions): string | null {
-  const p = g.player;
-  const ch = g.char;
+  const p = o.caster ?? g.player;
+  const book = spellbook(g, p);
   const spell = SPELLS[id];
   if (p.elemental) return 'En elementar lägger inga besvärjelser.';
-  if (!spell || !ch.spells.includes(id)) return 'Du kan inte den besvärjelsen.';
+  if (!spell || !book.spells.includes(id)) return 'Du kan inte den besvärjelsen.';
   if (!spell.effect) return `${spell.name} verkar inte i spelet än.`;
   if (spell.ritual) return 'Ritualer tar timmar och kan inte läggas här.';
   if (!canAct(p) || p.down || p.kp <= 1 || hasEffect(p, 'håller')) return 'Du kan inte lägga besvärjelser nu.';
   if (hasEffect(p, 'stum')) return 'Du kan inte använda magi just nu.';
-  const iron = ironProblem(g);
+  const iron = ironProblem(g, p);
   if (iron) return `Järnet stör magin: ${iron}`;
-  const memorized = ch.memorized.includes(id);
+  const memorized = book.memorized.includes(id);
   if (g.state.mode === 'combat') {
     const c = g.state.combat!;
-    if (!g.isPlayerTurn() || c.acted[p.id]) return 'Det är inte din tur.';
+    if (c.order[c.turn] !== p.id || c.acted[p.id] || (isParty(p) && !g.isPlayerTurn())) return 'Det är inte din tur.';
     if ((p.movedLast ?? 0) > 0) return 'Att lägga en besvärjelse tar hela rundan; du har redan flyttat dig.';
     if (!memorized && !spell.quick) return 'Bara kvicka besvärjelser hinner läsas ur formelsamlingen i strid.';
   } else if (g.state.mode !== 'explore') return 'Du kan inte lägga besvärjelser nu.';
@@ -218,7 +242,7 @@ export function castProblem(g: Game, id: string, o: CastOptions): string | null 
   } else if (total >= p.psy) return `Du har bara ${p.psy} PSY kvar. Når PSY 0 dör du.`;
   if (spell.aim !== 'själv') {
     const t = o.target ? g.actor(o.target) : undefined;
-    if (!t || !spellTargets(g, id, o.extraRange).includes(t)) return 'Välj ett mål inom räckhåll som du ser.';
+    if (!t || !spellTargets(g, id, o.extraRange, p).includes(t)) return 'Välj ett mål inom räckhåll som du ser.';
     if (spell.effect.kind === 'elementar') return summonProblem(g, p, spell.effect.element, t);
   }
   return null;
@@ -231,10 +255,9 @@ export function castProblem(g: Game, id: string, o: CastOptions): string | null 
 export function castSpell(g: Game, id: string, o: CastOptions): string | null {
   const problem = castProblem(g, id, o);
   if (problem) return problem;
-  const p = g.player;
+  const p = o.caster ?? g.player;
   const spell = SPELLS[id];
-  const ch = g.char;
-  const memorized = ch.memorized.includes(id);
+  const memorized = spellbook(g, p).memorized.includes(id);
   const target = spell.aim === 'själv' ? p.id : o.target;
   const t = target ? g.actor(target) : undefined;
   const pending: PendingSpell = {
@@ -264,7 +287,11 @@ export function castSpell(g: Game, id: string, o: CastOptions): string | null {
       resolve(g, pending);
     } else {
       (c.pending ??= []).push(pending);
-      g.log(`${p.name} börjar lägga ${spell.name} E${totalGrade(pending)}. Den verkar i början av nästa runda.`);
+      g.log(
+        isParty(p)
+          ? `${p.name} börjar lägga ${spell.name} E${totalGrade(pending)}. Den verkar i början av nästa runda.`
+          : `${p.name} börjar mana ${spell.name} E${totalGrade(pending)}${t && t !== p ? ` mot ${t.name}` : ''}! Den verkar i början av nästa runda, om ingen hinner skada ${p.name} innan.`,
+      );
     }
     if (g.state.mode === 'combat') finishTurn(g);
   } else {
@@ -631,4 +658,69 @@ function isIntSkill(key: string): boolean {
 /** Är aktören upptagen med att lägga en besvärjelse? */
 export function isCasting(g: Game, a: Actor): boolean {
   return !!g.state.combat?.pending?.some((s) => s.caster === a.id);
+}
+
+// ------------------------------------------------------------------ fiender som lägger besvärjelser
+
+/**
+ * Effektgraden som en fiende väljer: högst `want`, inte högre än att CL blir minst 8, och alltid
+ * med PSY kvar till en E1 efteråt (förslaget, avsnitt 1.4).
+ */
+function aiGrade(a: Actor, id: string, want: number): number {
+  return Math.min(want, maxGrade(a, id), a.psy - 2, Math.max(1, spellS(a, id) - 7));
+}
+
+/**
+ * Fiendens val av besvärjelse på sin tur, i den här ordningen:
+ * 1. HELA på en svårt skadad vän (hälften av KP eller mindre), också sig själv.
+ * 2. Skydda sig själv: SKYDD, LÄDERHUD och FÖRTROLLA VAPEN när de inte redan verkar, och SKÖLD en
+ *    gång per strid när någon står intill.
+ * 3. En skadebesvärjelse mot den närmaste som syns, när ingen står intill.
+ * Returnerar true om en besvärjelse lades (då är turen slut). Annars strider fienden som vanligt.
+ */
+export function enemyCast(g: Game, a: Actor): boolean {
+  if (isParty(a) || !a.spells?.length || g.state.mode !== 'combat') return false;
+  const c = g.state.combat!;
+  const cast = (c.cast ??= {});
+  const done = cast[a.id] ?? [];
+  const known = a.spells.filter((id) => SPELLS[id]?.effect && !SPELLS[id].ritual);
+  const attempt = (id: string, grade: number, target: Actor): boolean => {
+    if (grade < 1) return false;
+    const o: CastOptions = { grade, target: target.id, caster: a };
+    if (castProblem(g, id, o)) return false;
+    cast[a.id] = [...done, id];
+    castSpell(g, id, o);
+    return true;
+  };
+  const allies = g.state.actors.filter((x) => x.alive && !x.fled && !isParty(x) && !x.elemental && x.hostile === a.hostile && (x === a || g.canSee(a, x)));
+  const foes = g.state.actors
+    .filter((x) => x.alive && !x.fled && isParty(x) && !x.hidden && !x.unconscious && g.canSee(a, x))
+    .sort((l, r) => distance(a.x, a.y, l.x, l.y) - distance(a.x, a.y, r.x, r.y));
+  if (!foes.length) return false;
+  const adjacent = distance(a.x, a.y, foes[0].x, foes[0].y) <= 1;
+
+  for (const id of known.filter((x) => SPELLS[x].effect!.kind === 'läka')) {
+    const hurt = allies.filter((x) => x.kp <= x.maxKp / 2).sort((l, r) => l.kp / l.maxKp - r.kp / r.maxKp)[0];
+    if (hurt && attempt(id, aiGrade(a, id, Math.ceil((hurt.maxKp - hurt.kp) / 3.5)), hurt)) return true;
+  }
+
+  for (const id of known) {
+    const e = SPELLS[id].effect!;
+    if (e.kind === 'skydd' && !hasEffect(a, 'skydd') && attempt(id, e.fixed ? 1 : aiGrade(a, id, 2), a)) return true;
+    if (e.kind === 'vapen' && e.sign > 0 && !hasEffect(a, 'vapenMagi') && attempt(id, aiGrade(a, id, 2), a)) return true;
+    if (e.kind === 'luftsköld' && adjacent && !hasEffect(a, 'luftsköld') && !done.includes(id) && attempt(id, 1, a)) return true;
+  }
+
+  if (!adjacent) {
+    const order = ['skada', 'köld', 'rankor'];
+    const harmful = known.filter((x) => order.includes(SPELLS[x].effect!.kind)).sort((l, r) => order.indexOf(SPELLS[l].effect!.kind) - order.indexOf(SPELLS[r].effect!.kind));
+    for (const id of harmful) {
+      const targets = spellTargets(g, id, 0, a);
+      const t = foes.find((f) => targets.includes(f));
+      const kind = SPELLS[id].effect!.kind;
+      const want = kind === 'skada' ? 3 : kind === 'rankor' ? (t ? Math.ceil(t.attrs.STO / 10) : 1) : 1;
+      if (t && attempt(id, aiGrade(a, id, want), t)) return true;
+    }
+  }
+  return false;
 }

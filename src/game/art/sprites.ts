@@ -515,6 +515,19 @@ const LOOKS: Record<string, Look> = {
     shield: { color: '#4a2f1c', rim: '#3a3840', emblem: '#c8c0a8' },
     size: 'big',
   },
+  haxkonstnar: {
+    skin: '#6a8a46',
+    ears: true,
+    eyes: '#c070ff',
+    hood: '#2a2236',
+    tunic: '#3a2e4a',
+    legs: '#2a2236',
+    boots: '#1a1620',
+    belt: '#8a6a30',
+    robe: true,
+    weapon: 'staff',
+    size: 'small',
+  },
   // Följeslagarna i Gråvad.
   knekt: {
     skin: '#d8a67e',

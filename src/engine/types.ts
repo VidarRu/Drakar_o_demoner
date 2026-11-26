@@ -57,6 +57,11 @@ export interface CreatureDef {
   npc?: string;
   /** Föremål som varelsen bär och som blir kvar på marken när den dör (t.ex. en bok). */
   loot?: string[];
+  /**
+   * Magi (Vidar: samma regler som för gruppen). FV per magiskola och besvärjelserna, som alla
+   * räknas som memorerade. PSY-poängen är varelsens PSY.
+   */
+  magic?: { schools: Partial<Record<'animism' | 'elementarmagi' | 'mentalism', number>>; spells: string[] };
 }
 
 /** Varor som en handlare säljer: vapen, rustningar, sköldar, droger eller en kategori ur utrustningslistan. */
@@ -372,6 +377,8 @@ export interface Actor {
   provokedBy?: string[];
   /** Föremål som varelsen bär och som blir kvar när den dör. */
   loot?: string[];
+  /** Besvärjelser som en varelse utan rollformulär kan (alltid i minnet). */
+  spells?: string[];
 }
 
 /** Hur en följeslagare följer med: dagslön, en del av bytet eller gratis (husregel). */
@@ -430,6 +437,8 @@ export interface CombatState {
   attackMode?: string;
   /** Fint tillsammans med nästa anfall (stridskonsttekniken Fint). */
   feint?: boolean;
+  /** Besvärjelser som varje fiende har lagt i striden (för fiendens val av besvärjelse). */
+  cast?: Record<string, string[]>;
 }
 
 /** Ett föremål som ligger på marken (tappat i strid). */
