@@ -307,8 +307,9 @@ export type SpellEffect =
       detailedDice?: string;
       armor: 'ingen' | 'full' | 'halvMetall';
       loc: boolean;
-      /** Skadan är `dice` hur hög E än är (VINDPIL). */
+      /** Skadan är `dice` hur hög E än är, plus `perGrade` per E (VINDPIL). */
       fixed?: boolean;
+      perGrade?: number;
       /** En projektil: VIRVELSKÖLD stöter bort den. */
       projectile?: boolean;
     }

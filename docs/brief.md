@@ -175,7 +175,7 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 221 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 222 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
 `tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/spells.test.ts` prövar fiendernas magi och besvärjelserna i strid. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen.
 
@@ -188,5 +188,3 @@ importera moduler direkt, till exempel `await import('/src/engine/game.ts')` och
 
 - Chanserna för vädret (tolkning i `docs/regelbeslut.md`) och vindens verkan på skott och båtar, när vädret byggs.
 - Tolkningarna för besvärjelserna i strid och fiendens val av effektgrad (`docs/regelbeslut.md` under Fiendernas magi och Besvärjelser i strid).
-- ASTRALVAPEN: E2 för ett enhandsvapen och E4 för ett tvåhandsvapen är en tolkning av "en E per kg", och skadebonusen likaså.
-- Fördelningen av skada utan kroppsdel: resten går till de kroppsdelar som har flest KP kvar, och blödningen fördelas inte.

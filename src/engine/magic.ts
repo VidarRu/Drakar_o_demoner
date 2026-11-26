@@ -467,7 +467,7 @@ function apply(g: Game, caster: Actor, s: PendingSpell, grade: number, check: Ch
       }
       const detailed = t.detailed && e.detailedDice ? e.detailedDice : e.dice;
       const n = e.fixed ? 1 : grade;
-      const dmg = perfect ? maxDice(detailed, n) : sumDice(detailed, n, g);
+      const dmg = (perfect ? maxDice(detailed, n) : sumDice(detailed, n, g)) + (e.perGrade ?? 0) * grade;
       let loc: HitLocation | null = null;
       let abs = 0;
       if (e.armor !== 'ingen') {

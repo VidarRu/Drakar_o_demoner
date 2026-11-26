@@ -291,25 +291,30 @@ describe('skada på totala KP och de nya värdena', () => {
     expect(p.kp).toBeLessThan(p.maxKp);
   });
 
-  it('blödningen fördelas inte', () => {
+  it('blödningen fördelas inte, och fördelad skada ger ingen blödning', () => {
     const { g, p } = explore();
     const before = { ...p.locKp };
     combat.wound(g, p, 2, null, false);
     expect(p.locKp).toEqual(before);
+    // Så mycket att huvudet går till 0: det blöder inte.
+    p.kp = 200;
+    combat.wound(g, p, before.huvud * 7, null);
+    expect(p.locKp.huvud).toBeLessThanOrEqual(0);
+    expect(p.bleeding).toEqual([]);
   });
 
-  it('VINDPIL gör 1T10 hur hög E än är, och VIRVELSKÖLD stöter bort den', () => {
+  it('VINDPIL gör 1T10 + 1 per E, och VIRVELSKÖLD stöter bort den', () => {
     const { g, p, foe } = explore('svartalf', 3);
     foe.hostile = true;
     const kp = foe.kp;
-    // VINDPIL E3 lyckas (2), skadan 1T10 blir 7 och träffområdet slås (10). Svartalfen har ingen rustning.
+    // VINDPIL E3 lyckas (2), skadan 1T10 + 3 blir 7 + 3 och träffområdet slås (10). Svartalfen har ingen rustning.
     g.rng = queue(face(2), face(7, 10), face(10));
     expect(castSpell(g, 'vindpil', { grade: 3, target: foe.id })).toBeNull();
-    expect(foe.kp).toBe(kp - 7);
+    expect(foe.kp).toBe(kp - 10);
     foe.effects.push({ kind: 'virvelsköld', label: 'VIRVELSKÖLD', rounds: 10 });
     g.rng = queue(face(2));
     castSpell(g, 'vindpil', { grade: 1, target: foe.id });
-    expect(foe.kp).toBe(kp - 7);
+    expect(foe.kp).toBe(kp - 10);
     expect(g.state.log.join('\n')).toContain('Virvelskölden stöter bort VINDPIL');
     expect(p.alive).toBe(true);
   });

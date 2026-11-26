@@ -138,3 +138,27 @@ describe('besvärjelser och utrustning', () => {
     for (const t of Object.values(TREASURES)) for (const e of [t.gm, t.sm, t.km, t.magic, t.jewels]) if (e) parses(e);
   });
 });
+
+describe('magi i modulerna', () => {
+  // Vidar: ingen, varken rollperson, följeslagare eller person i en modul, kan en besvärjelse utan
+  // FV i magiskolan (minst skolvärdet, som när man lär sig den).
+  it('varelser och följeslagare kan bara besvärjelser ur skolor där de har FV', async () => {
+    const { CREATURES, RECRUITS } = await import('../src/content');
+    const { SPELLS } = await import('../src/data/spells');
+    const fvIn = (skills: Record<string, number>, school: string) =>
+      school === 'allmän' ? Math.max(0, ...Object.entries(skills).filter(([k]) => k.startsWith('magiskola:')).map(([, v]) => v)) : (skills[`magiskola:${school}`] ?? 0);
+    for (const c of Object.values(CREATURES)) {
+      if (!c.magic) continue;
+      const skills = Object.fromEntries(Object.entries(c.magic.schools).map(([k, v]) => [`magiskola:${k}`, v as number]));
+      for (const id of c.magic.spells) {
+        const sp = SPELLS[id];
+        expect(sp, `${c.id}: ${id}`).toBeDefined();
+        expect(fvIn(skills, sp.school), `${c.id}: ${id}`).toBeGreaterThanOrEqual(sp.sv);
+      }
+    }
+    for (const r of Object.values(RECRUITS)) {
+      const ch = r.character();
+      for (const id of ch.spells) expect(fvIn(ch.skills, SPELLS[id].school), `${r.id}: ${id}`).toBeGreaterThanOrEqual(SPELLS[id].sv);
+    }
+  });
+});

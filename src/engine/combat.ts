@@ -1160,7 +1160,8 @@ export function wound(g: Game, a: Actor, dmg: number, loc: HitLocation | null, s
   } else if (a.detailed && spread) {
     const shares = spreadDamage(a, dmg);
     for (const [l, d] of shares) a.locKp[l] -= d;
-    for (const [l] of shares) if (a.alive) checkLocation(g, a, l);
+    // Skada på totala KP ger ingen blödning (Vidar).
+    for (const [l] of shares) if (a.alive) checkLocation(g, a, l, false);
   }
   if (a.alive) checkTotal(g, a);
   if (awake && a.unconscious && a.alive) forgetOnKnockout(g, a);
@@ -1178,8 +1179,8 @@ export function spreadDamage(a: Actor, dmg: number): [HitLocation, number][] {
   return locs.map((l) => [l, base + (extra.includes(l) ? 1 : 0)] as [HitLocation, number]).filter(([, d]) => d > 0);
 }
 
-function checkLocation(g: Game, a: Actor, loc: HitLocation) {
-  if (a.locKp[loc] <= 0 && !a.bleeding.includes(loc)) {
+function checkLocation(g: Game, a: Actor, loc: HitLocation, bleed = true) {
+  if (bleed && a.locKp[loc] <= 0 && !a.bleeding.includes(loc)) {
     a.bleeding.push(loc);
     g.log(`${a.name}s ${loc} blöder.`);
   }

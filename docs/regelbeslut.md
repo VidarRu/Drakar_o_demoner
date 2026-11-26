@@ -54,7 +54,7 @@ Regelvärdena finns i koden:
 - **Magiker får automatiskt** Känna magi (som primär färdighet) och Kunskap om magi med samma FV som magiskolan.
 - **Utrustning köps för startkapitalet** till Bok III:s priser. Äventyrets priser och belöningar följer samma nivå: sovsal 10 sm, ringbrynjeskjorta 1 500 sm och uppdraget 500 sm (750 om man prutar upp det).
 - **Rustningens abs gäller kroppsdelen som träffas.** Skadan dras både från kroppsdelens KP och från totala KP (steg 4).
-- **Skada utan kroppsdel fördelas (Vidar):** skada som bara drabbar totala KP, till exempel BLIXT, ELD, EXPLOSION, fall, gift och snedtändning, fördelas jämnt över alla kroppsdelar i detaljerad strid (`spreadDamage` i `combat.ts`). Det som inte går jämnt ut går till de kroppsdelar som har flest KP kvar (tolkning), och förlorade kroppsdelar räknas inte. En kroppsdel som når 0 får samma följder som vid en träff. Blödningen fördelas inte (tolkning), eftersom den redan kommer från en kroppsdel. Skadan står alltså kvar tills kroppsdelarna har läkt.
+- **Skada utan kroppsdel fördelas (Vidar):** skada som bara drabbar totala KP, till exempel BLIXT, ELD, EXPLOSION, fall, gift och snedtändning, fördelas jämnt över alla kroppsdelar i detaljerad strid (`spreadDamage` i `combat.ts`). Det som inte går jämnt ut går till de kroppsdelar som har flest KP kvar (Vidar), och förlorade kroppsdelar räknas inte. En kroppsdel som når 0 går inte att använda som vid en träff, men den blöder inte (Vidar). Blödningen fördelas inte heller (Vidar), eftersom den redan kommer från en kroppsdel. Skadan står alltså kvar tills kroppsdelarna har läkt.
 
 ## Vapenfärdigheter (husregel)
 
@@ -417,6 +417,7 @@ Regelvärdena står i `ABILITY_RULES` i `src/engine/rules/tables.ts`, och det me
 
 ### Fiendernas magi (byggt)
 
+- **Bara med FV i skolan (Vidar):** ingen kan lära sig en besvärjelse utan FV i magiskolan, varken rollpersonen, följeslagare eller personer i modulerna. Alla sätt att lära sig (när rollpersonen skapas, lärare, bibliotek, kodex och `learnSpell`) kräver FV i skolan minst lika högt som besvärjelsens skolvärde, och `tests/data.test.ts` prövar att varelser och följeslagare i modulerna följer det.
 - **Samma regler för alla (Vidar):** `castSpell`, `castProblem` och `spellTargets` i `src/engine/magic.ts` tar magikern som argument (`CastOptions.caster`). Fienden har FV i sina skolor, S per besvärjelse, PSY-poäng, högsta E, järnregeln, snedtändning och bruten koncentration som gruppen.
 - **Data:** en varelse får magi med `CreatureDef.magic` (FV per skola och besvärjelserna). Besvärjelserna står i `Actor.spells` och räknas alla som memorerade. PSY-poängen är varelsens PSY.
 - **Fiendens val** (`enemyCast`), i den här ordningen:
@@ -455,11 +456,11 @@ Koden står i `apply` i `src/engine/magic.ts`, och det som striden behöver i `s
   - Den bryts när hen anfaller, skjuter, lägger magi, springer (mer än halva förflyttningen) eller skadas.
   - Tolkning: den som anfaller osynlig behöver inte slå Smyga, men försvararen slår Upptäcka fara. Misslyckas det är försvararen omedveten, som vid anfall från smygarläge.
 - **KAMOUFLAGE:** bara utomhus (gräs och stig). Magikern är oupptäckt tills hen lämnar rutan, anfaller, skjuter, lägger magi eller skadas.
-- **VINDPIL (Vidar):** 1T10 i skada, hur hög E än är. Pilen skjuts direkt när besvärjelsen lyckas och träffar en kroppsdel efter avståndstabellen. Rustningen skyddar, och VIRVELSKÖLD stöter bort den. Tolkning: högre E ger bara längre räckvidd.
-- **ASTRALVAPEN (Vidar och tolkning):**
+- **VINDPIL (Vidar):** 1T10 + 1 per E i skada. Pilen skjuts direkt när besvärjelsen lyckas och träffar en kroppsdel efter avståndstabellen. Rustningen skyddar, och VIRVELSKÖLD stöter bort den.
+- **ASTRALVAPEN (Vidar):**
   - Ett eggvapen av magisk energi i magikerns hand: 1T10 som enhandsvapen och 2T10 som tvåhandsvapen (Vidar).
-  - FV är magikerns S när besvärjelsen läggs, och skadebonus läggs till (tolkning).
-  - Tolkning av "en E per kg": ett enhandsvapen kräver E2 och ett tvåhandsvapen E4.
+  - FV är magikerns S när besvärjelsen läggs, och skadebonus läggs till.
+  - "En E per kg": ett enhandsvapen kräver E2 och ett tvåhandsvapen E4.
   - Vapnet tar platsen av det magikern håller i handen så länge det varar, går inte sönder och räknas som magiskt vapen, så det biter på elementarer som bara skadas av magi. Det räknas inte som järn.
 - **Kvar:**
   - NEDKALLA ÅSKVIGG behöver vädret.

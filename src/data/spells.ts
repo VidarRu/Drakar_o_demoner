@@ -58,7 +58,7 @@ export const SPELL_LIST: SpellDef[] = [
   spell('animism', 5, 'VÄXTKUNSKAP', '', 'beröring', 'omedelbar', 'All kunskap om den växt man rör vid.'),
   spell('animism', 6, 'MINSKA', '', 'beröring', Tdiv(4, 'minuter'), 'Sänker STY, FYS, STO, KAR eller SMI med 1 per E, lägst till 1.', { effect: { kind: 'egenskap', sign: -1 }, aim: 'valfri' }),
   spell('animism', 6, 'NEDKALLA ÅSKVIGG', 'F', S(10, 'rutor'), 'omedelbar', 'Blixt ur ett regnmoln som regnar över både magikern och målet. Skadar som BLIXT.'),
-  spell('animism', 6, 'VINDPIL', 'F', S(2, 'rutor'), T(1, 'SR'), 'En träpil utan järnspets svävar framför ansiktet och skjuts iväg dit magikern tittar. 1T10 i skada (Vidar).', { effect: { kind: 'skada', dice: '1T10', armor: 'full', loc: true, fixed: true, projectile: true }, aim: 'fiende' }),
+  spell('animism', 6, 'VINDPIL', 'F', S(2, 'rutor'), T(1, 'SR'), 'En träpil utan järnspets svävar framför ansiktet och skjuts iväg dit magikern tittar. 1T10 + 1 per E i skada (Vidar).', { effect: { kind: 'skada', dice: '1T10', armor: 'full', loc: true, fixed: true, perGrade: 1, projectile: true }, aim: 'fiende' }),
   spell('animism', 6, 'ÖKA', '', 'beröring', Tdiv(4, 'minuter'), 'Höjer STY, FYS, STO, KAR eller SMI med 1 per E.', { effect: { kind: 'egenskap', sign: 1 }, aim: 'valfri' }),
   spell('animism', 6, 'ÖRTRANKOR', 'F', 'särskild', T(1, 'SR'), 'Frön kastade (STY+SMI)/2 rutor snärjer offret. En E per 10 STO.', { effect: { kind: 'rankor' }, aim: 'fiende' }),
   spell('animism', 7, 'KAMOUFLAGE', '', 'personlig', Tdiv(4, 'minuter'), 'Magikern smälter in i naturen och kan inte upptäckas så länge hen står still.', { effect: { kind: 'kamouflage' }, aim: 'själv' }),
