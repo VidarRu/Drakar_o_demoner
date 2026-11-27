@@ -9,62 +9,70 @@ import type { Actor } from '../engine/types';
 
 /**
  * Ljudtabellen: vilket ljud som hör till vilken ljudsignal. Det är den här filen som ändras när
- * nya ljud kommer. Filerna ligger under public/audio/flare/sfx/ och skrivs utan .mp3.
+ * nya ljud kommer. Filerna skrivs som sökvägar under public/audio/, utan .mp3.
  */
 
-/** Ett ljud att spela: filen, volymen (0–1) och tonhöjden (1 = som inspelat). */
+/** Ett ljud att spela: filen (under public/audio/, utan .mp3), volymen (0–1) och tonhöjden (1 = som inspelat). */
 export interface SoundPick {
   file: string;
   volume: number;
   rate: number;
 }
 
-const steps = (kind: string) => [1, 2, 3, 4].map((n) => `steps/step_${kind}${n}`);
+/** Flares ljud under public/audio/flare/sfx/. */
+const fl = (...names: string[]) => names.map((n) => `flare/sfx/${n}`);
+/** Ljud från OpenGameArt under public/audio/oga/ (tools/oga_audio.py), numrerade från 1. */
+const oga = (name: string, count: number) => Array.from({ length: count }, (_, i) => `oga/${name}${i + 1}`);
 
 /** Namngivna grupper av ljud. Ett av ljuden i gruppen väljs varje gång. */
 export const SFX = {
-  hugg: ['melee_attack', 'melee_attack_2', 'melee_attack_3'],
-  parera: ['powers/block'],
-  skott: ['powers/shoot'],
-  fummel: ['no_mana'],
-  manTraff: ['male_hit'],
-  kvinnaTraff: ['female_hit'],
-  manDor: ['male_die'],
-  kvinnaDor: ['female_die'],
-  svartalfTraff: ['enemies/goblin_hit'],
-  svartalfDor: ['enemies/goblin_die'],
-  skelettTraff: ['enemies/skeleton_hit'],
-  skelettDor: ['enemies/skeleton_die'],
-  zombieTraff: ['enemies/zombie_hit'],
-  zombieDor: ['enemies/zombie_die'],
-  storTraff: ['enemies/minotaur_hit'],
-  storDor: ['enemies/minotaur_die'],
-  eld: ['powers/fireball', 'powers/burn'],
-  blixt: ['powers/shock', 'powers/thunder'],
-  kold: ['powers/freeze'],
-  lak: ['powers/heal'],
-  skydd: ['powers/shield'],
-  flytt: ['powers/teleport'],
-  jord: ['powers/spikes', 'powers/quake'],
-  sinne: ['powers/timestop'],
-  misslyckad: ['no_mana'],
-  stridsrop: ['powers/warcry'],
-  steg_tyg: steps('cloth'),
-  steg_lader: steps('leather'),
-  steg_metall: steps('metal'),
-  steg_eko: steps('echo'),
-  dorr: ['door_open'],
-  kista: ['wood_open'],
-  eld_tand: ['environment/open_fire'],
-  metall: ['inventory/inventory_metal'],
-  lader: ['inventory/inventory_leather'],
-  tyg: ['inventory/inventory_cloth'],
-  dryck: ['inventory/inventory_potion'],
-  bok: ['inventory/inventory_book'],
-  mynt: ['inventory/inventory_coins'],
-  foremal: ['inventory/inventory_object'],
-  niva: ['level_up'],
-  knapp: ['widget_activate'],
+  hugg: fl('melee_attack', 'melee_attack_2', 'melee_attack_3'),
+  parera: fl('powers/block'),
+  skott: fl('powers/shoot'),
+  fummel: fl('no_mana'),
+  manTraff: fl('male_hit'),
+  kvinnaTraff: fl('female_hit'),
+  manDor: fl('male_die'),
+  kvinnaDor: fl('female_die'),
+  svartalfTraff: fl('enemies/goblin_hit'),
+  svartalfDor: fl('enemies/goblin_die'),
+  skelettTraff: fl('enemies/skeleton_hit'),
+  skelettDor: fl('enemies/skeleton_die'),
+  zombieTraff: fl('enemies/zombie_hit'),
+  zombieDor: fl('enemies/zombie_die'),
+  storTraff: fl('enemies/minotaur_hit'),
+  storDor: fl('enemies/minotaur_die'),
+  eld: fl('powers/fireball', 'powers/burn'),
+  blixt: fl('powers/shock', 'powers/thunder'),
+  kold: fl('powers/freeze'),
+  lak: fl('powers/heal'),
+  skydd: fl('powers/shield'),
+  flytt: fl('powers/teleport'),
+  jord: fl('powers/spikes', 'powers/quake'),
+  sinne: fl('powers/timestop'),
+  misslyckad: fl('no_mana'),
+  stridsrop: fl('powers/warcry'),
+  steg_gras: oga('steg/gras', 9),
+  steg_lov: oga('steg/lov', 2),
+  steg_grus: oga('steg/grus', 10),
+  steg_tra: oga('steg/tra', 9),
+  steg_sten: oga('steg/sten', 9),
+  steg_grotta: oga('steg/grotta', 9),
+  steg_vatten: oga('steg/vatten', 5),
+  svard: oga('strid/svard', 5),
+  ringbrynja: oga('strid/ringbrynja', 2),
+  dorr: fl('door_open'),
+  kista: fl('wood_open'),
+  eld_tand: fl('environment/open_fire'),
+  metall: fl('inventory/inventory_metal'),
+  lader: fl('inventory/inventory_leather'),
+  tyg: fl('inventory/inventory_cloth'),
+  dryck: fl('inventory/inventory_potion'),
+  bok: fl('inventory/inventory_book'),
+  mynt: fl('inventory/inventory_coins'),
+  foremal: fl('inventory/inventory_object'),
+  niva: fl('level_up'),
+  knapp: fl('widget_activate'),
 } satisfies Record<string, string[]>;
 
 export type SfxGroup = keyof typeof SFX;
@@ -138,12 +146,22 @@ function voiceOf(g: Game, a: Actor): { voice: keyof typeof VOICE_GROUPS; rate: n
   return CREATURE_VOICE[a.sprite] ?? { voice: 'svartalf', rate: 0.8 };
 }
 
-function stepGroup(g: Game, a: Actor): SfxGroup {
-  if (tileName(g, a) === 'grottgolv') return 'steg_eko';
-  const armor = a.armor.map((id) => ARMOR[id]).filter(Boolean);
-  if (armor.some((p) => p.metal)) return 'steg_metall';
-  return armor.length ? 'steg_lader' : 'steg_tyg';
-}
+/** Stegen låter efter marken, inte efter rustningen (Vidar). */
+const STEP_SOUND: Record<string, SfxGroup> = {
+  gräs: 'steg_gras',
+  'öppen skog': 'steg_gras',
+  kullar: 'steg_gras',
+  'tät skog': 'steg_lov',
+  stig: 'steg_grus',
+  trägolv: 'steg_tra',
+  bro: 'steg_tra',
+  dörr: 'steg_tra',
+  berg: 'steg_sten',
+  grottgolv: 'steg_grotta',
+  vadställe: 'steg_vatten',
+};
+
+const stepGroup = (g: Game, a: Actor): SfxGroup => STEP_SOUND[tileName(g, a) ?? ''] ?? 'steg_gras';
 
 function spellGroup(id: string): SfxGroup {
   const s = SPELLS[id];
@@ -196,7 +214,7 @@ export function soundFor(g: Game, cue: Cue, rng: () => number = Math.random): So
     case 'vila':
       return [pick('eld_tand', rng, 0.9, 0.6)];
     case 'strid':
-      return cue.phase === 'börjar' ? [pick('stridsrop', rng), pick('metall', rng)] : [];
+      return cue.phase === 'börjar' ? [pick('svard', rng), pick('ringbrynja', rng)] : [];
     case 'lås':
       if (cue.how === 'misslyckat') return [pick('metall', rng, 1.2, 0.5)];
       return [pick(cue.kind === 'kista' ? 'kista' : 'dorr', rng)];

@@ -62,7 +62,7 @@ describe('ljudtabellen', () => {
 
   it('varje ljudfil finns', () => {
     expect(SFX_FILES.length).toBeGreaterThan(30);
-    for (const f of SFX_FILES) expect(existsSync(`public/audio/flare/sfx/${f}.mp3`), f).toBe(true);
+    for (const f of SFX_FILES) expect(existsSync(`public/audio/${f}.mp3`), f).toBe(true);
   });
 
   it('ett anfall med stridshammare låter lägre än med dolk', () => {
@@ -78,46 +78,73 @@ describe('ljudtabellen', () => {
     const f = files(g, { type: 'anfall', actorId: g.player.id, targetId: foe(g).id, weapon: 'bredsvard', natural: false, result: 'parerat' });
     expect(f).toHaveLength(2);
     expect(SFX.hugg).toContain(f[0]);
-    expect(f[1]).toBe('powers/block');
+    expect(f[1]).toBe('flare/sfx/powers/block');
   });
 
   it('ELD ger eld, FROST köld, HELA läkning och en mentalistisk besvärjelse sinne', () => {
     const g = gravad();
     const spell = (id: string) => files(g, { type: 'besvärjelse', actorId: g.player.id, spell: id, result: 'lyckas' });
     expect(SFX.eld).toEqual(expect.arrayContaining(spell('eld')));
-    expect(spell('frost')).toEqual(['powers/freeze']);
-    expect(spell('hela')).toEqual(['powers/heal']);
-    expect(spell('telepati')).toEqual(['powers/timestop']);
-    expect(files(g, { type: 'besvärjelse', actorId: g.player.id, spell: 'eld', result: 'misslyckas' })).toEqual(['no_mana']);
+    expect(spell('frost')).toEqual(['flare/sfx/powers/freeze']);
+    expect(spell('hela')).toEqual(['flare/sfx/powers/heal']);
+    expect(spell('telepati')).toEqual(['flare/sfx/powers/timestop']);
+    expect(files(g, { type: 'besvärjelse', actorId: g.player.id, spell: 'eld', result: 'misslyckas' })).toEqual(['flare/sfx/no_mana']);
   });
 
-  it('stegen följer rustningen och grottan', () => {
+  it('stegen följer marken, inte rustningen', () => {
     const g = gravad();
     const p = g.leader;
-    const step = () => soundFor(g, { type: 'steg', actorId: p.id }, mid);
-    p.armor = [];
-    expect(SFX.steg_tyg).toContain(step()[0].file);
-    expect(step()[0].volume).toBe(0.35);
-    p.armor = ['harnesk_lader'];
-    expect(SFX.steg_lader).toContain(step()[0].file);
+    const on = (tile: string) => {
+      const i = g.map.tiles.indexOf(tile);
+      expect(i, tile).toBeGreaterThanOrEqual(0);
+      p.x = i % g.map.w;
+      p.y = Math.floor(i / g.map.w);
+      return soundFor(g, { type: 'steg', actorId: p.id }, mid);
+    };
+    expect(SFX.steg_gras).toContain(on('.')[0].file);
+    expect(on('.')[0].volume).toBe(0.35);
+    expect(SFX.steg_grus).toContain(on(',')[0].file);
+    expect(SFX.steg_tra).toContain(on('_')[0].file);
+    expect(SFX.steg_grotta).toContain(on(':')[0].file);
+    const door = on('+');
+    expect(SFX.steg_tra).toContain(door[0].file);
+    expect(door[1].file).toBe('flare/sfx/door_open');
+    // Rustningen ändrar inget.
     p.armor = ['ringbrynjeskjorta'];
-    expect(SFX.steg_metall).toContain(step()[0].file);
-    p.x = 31;
-    p.y = 4;
-    expect(SFX.steg_eko).toContain(step()[0].file);
+    expect(SFX.steg_gras).toContain(on('.')[0].file);
+  });
+
+  it('världskartans terräng: skog, tät skog, berg och vadställe', () => {
+    const g = Game.create(testCharacter(), seededRng(1), 'provfard');
+    const p = g.leader;
+    const on = (tile: string) => {
+      const i = g.map.tiles.indexOf(tile);
+      expect(i, tile).toBeGreaterThanOrEqual(0);
+      p.x = i % g.map.w;
+      p.y = Math.floor(i / g.map.w);
+      return soundFor(g, { type: 'steg', actorId: p.id }, mid)[0].file;
+    };
+    expect(SFX.steg_gras).toContain(on('f'));
+    expect(SFX.steg_lov).toContain(on('F'));
+    expect(SFX.steg_sten).toContain(on('M'));
+    expect(SFX.steg_vatten).toContain(on('v'));
+    expect(SFX.steg_tra).toContain(on('='));
   });
 
   it('en kvinnlig rollperson låter som en kvinna, en svartalf som en svartalf', () => {
     const ch = testCharacter();
     ch.gender = 'kvinna';
     const g = Game.create(ch, seededRng(1));
-    expect(files(g, { type: 'skada', actorId: g.player.id })).toEqual(['female_hit']);
-    expect(files(g, { type: 'död', actorId: foe(g).id })).toEqual(['enemies/goblin_die']);
+    expect(files(g, { type: 'skada', actorId: g.player.id })).toEqual(['flare/sfx/female_hit']);
+    expect(files(g, { type: 'död', actorId: foe(g).id })).toEqual(['flare/sfx/enemies/goblin_die']);
   });
 
-  it('striden börjar med stridsrop och metall', () => {
+  it('striden börjar med vapenskrammel: ett svärd som dras och ringbrynja', () => {
     const g = gravad();
-    expect(files(g, { type: 'strid', phase: 'börjar' })).toEqual(['powers/warcry', 'inventory/inventory_metal']);
+    const f = files(g, { type: 'strid', phase: 'börjar' });
+    expect(f).toHaveLength(2);
+    expect(SFX.svard).toContain(f[0]);
+    expect(SFX.ringbrynja).toContain(f[1]);
   });
 
   it('alla signaler ger minst ett ljud', () => {

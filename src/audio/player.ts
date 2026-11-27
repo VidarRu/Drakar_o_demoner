@@ -85,7 +85,7 @@ export class AudioEngine {
   private tracks: Track[] = [];
   private timer: ReturnType<typeof setInterval> | null = null;
 
-  constructor(private base = '/audio/flare/') {}
+  constructor(private base = '/audio/') {}
 
   /** Musiken som ska spela just nu (även innan ljudet är upplåst). */
   get musicId(): MusicId | null {
@@ -162,7 +162,7 @@ export class AudioEngine {
     let p = this.buffers.get(file);
     if (!p) {
       const ctx = this.ctx!;
-      p = fetch(`${this.base}sfx/${file}.mp3`)
+      p = fetch(`${this.base}${file}.mp3`)
         .then((r) => {
           if (!r.ok) throw new Error(`${r.status}`);
           return r.arrayBuffer();
@@ -191,7 +191,7 @@ export class AudioEngine {
     if (back) back.fading = 'in';
     else {
       try {
-        const el = new Audio(`${this.base}music/${MUSIC[id]}.mp3`);
+        const el = new Audio(`${this.base}flare/music/${MUSIC[id]}.mp3`);
         el.loop = true;
         el.preload = 'auto';
         const t: Track = { id, el, level: 0, fading: 'in' };
