@@ -22,6 +22,9 @@ const CAVE_DARK = 0.78;
 const TORCH_RADIUS = 4.2;
 /** Flares träd är ritade för större rutor än våra; de skalas ned så att en figur når till ungefär en tredjedel. */
 const TREE_SCALE = 0.62;
+/** Bubblans storlek i halva rutor: bredd och höjd på skärmen. */
+const BUBBLE_X = 3;
+const BUBBLE_Y = 4.5;
 const FX_COLOR: Record<Fx['kind'], string> = { damage: '#ff5a4a', miss: '#d8d4c8', heal: '#6fe08a', info: '#f0d070' };
 const BASE = import.meta.env.BASE_URL + 'art/flare/';
 
@@ -33,13 +36,16 @@ const FLARE_CHARS = [
 const COLS = 16;
 const ANIM = { stance: [0, 4], run: [4, 8], swing: [12, 4] } as const;
 
-/** Tangenterna för att gå: W/↑ uppåt på skärmen, och så vidare. Q, E, Z och C går längs rutnätet. */
+/**
+ * Tangenterna för att gå. Alla går längs rutnätet (Vidar): W/↑ norrut, S/↓ söderut,
+ * A/← västerut och D/→ österut; Q, E, Z och C snett mellan dem.
+ */
 const KEY_STEPS: Record<string, [number, number]> = {
-  w: [-1, -1], arrowup: [-1, -1],
-  s: [1, 1], arrowdown: [1, 1],
-  a: [-1, 1], arrowleft: [-1, 1],
-  d: [1, -1], arrowright: [1, -1],
-  q: [-1, 0], e: [0, -1], z: [0, 1], c: [1, 0],
+  w: [0, -1], arrowup: [0, -1],
+  s: [0, 1], arrowdown: [0, 1],
+  a: [-1, 0], arrowleft: [-1, 0],
+  d: [1, 0], arrowright: [1, 0],
+  q: [-1, -1], e: [1, -1], z: [-1, 1], c: [1, 1],
 };
 
 interface Tall {
@@ -271,7 +277,7 @@ export class IsoScene extends Phaser.Scene {
           const img = this.blockAt(x, y, `rock-${hgt}-${left}-${right}`, [
             { x0: -0.5, y0: -0.5, x1: 0.5, y1: 0.5, z0: 0, z1: hgt, side: 'rock', top: 'rock', left, right, topShade: 0.55 },
           ], hgt);
-          this.addTall(x, y, img, 0.4);
+          this.addTall(x, y, img, 0.22);
         } else if (c === '#') {
           const wall = (cc: string) => cc === '#';
           const left = !wall(ch(g, x, y + 1));
@@ -279,7 +285,7 @@ export class IsoScene extends Phaser.Scene {
           const img = this.blockAt(x, y, `wall-${left}-${right}`, [
             { x0: -0.5, y0: -0.5, x1: 0.5, y1: 0.5, z0: 0, z1: WALL_H, side: 'stone', top: 'stone', left, right, topShade: 0.25 },
           ], WALL_H);
-          this.addTall(x, y, img, 0.35);
+          this.addTall(x, y, img, 0.25);
         } else if (c === '+') {
           const alongX = ch(g, x - 1, y) === '#' || ch(g, x + 1, y) === '#';
           const post = 0.18;
@@ -393,7 +399,8 @@ export class IsoScene extends Phaser.Scene {
         g.setFocus(target.id);
         return;
       }
-      if (fromKey && !target) {
+      // Ett steg in i en kamrat byter plats med den (husregel, Vidar).
+      if (fromKey && (!target || target.kind === 'player')) {
         await this.walk([t], (step) => g.stepPlayer(step));
         return;
       }
@@ -415,7 +422,7 @@ export class IsoScene extends Phaser.Scene {
           if (path) await this.walk(path, (step) => g.combatStep(step));
         }
         if (g.canAttack(target.id)) this.attack(target);
-      } else if (!target) {
+      } else if (!target || target.kind === 'player') {
         const path = fromKey ? [t] : g.pathTo(t.x, t.y);
         if (path) await this.walk(path, (step) => g.combatStep(step));
       }
@@ -542,17 +549,37 @@ export class IsoScene extends Phaser.Scene {
     if (!this.enemiesActing && g.state.mode === 'combat' && !g.isPlayerTurn()) void this.runEnemies();
   }
 
-  /** Träd och murar framför gruppen blir genomskinliga, och det som inte är utforskat syns inte. */
+  /** Det som inte är utforskat syns inte. Genomskinligheten runt gruppen sköts i update(). */
   private fadeTall() {
     const { g } = this;
-    const near = new Set<string>();
+    for (const t of this.tall) t.img.setVisible(!!g.state.explored[idx(g.map, t.x, t.y)]);
+  }
+
+  /**
+   * En genomskinlig bubbla runt varje figur i gruppen (Vidar): träd, murar och berg som står
+   * framför figuren tonas ut, mest närmast figuren och mjukt mot kanten av bubblan.
+   */
+  private bubble() {
+    const { g } = this;
+    const eyes: { s: Phaser.GameObjects.Sprite | Phaser.GameObjects.Image; d: number }[] = [];
     for (const a of g.state.actors) {
       if (!a.alive || a.kind !== 'player') continue;
-      for (const [dx, dy] of [[1, 0], [0, 1], [1, 1], [2, 1], [1, 2], [2, 2]]) near.add(`${a.x + dx},${a.y + dy}`);
+      const s = this.sprites.get(a.id);
+      if (s?.visible) eyes.push({ s, d: a.x + a.y });
     }
     for (const t of this.tall) {
-      t.img.setVisible(!!g.state.explored[idx(g.map, t.x, t.y)]);
-      t.img.setAlpha(near.has(`${t.x},${t.y}`) ? t.fade : 1);
+      if (!t.img.visible) continue;
+      let alpha = 1;
+      for (const e of eyes) {
+        if (t.x + t.y <= e.d) continue;
+        const dx = (t.img.x - e.s.x) / (HW * BUBBLE_X);
+        const dy = (t.img.y - e.s.y) / (HH * BUBBLE_Y);
+        const d = Math.hypot(dx, dy);
+        if (d >= 1) continue;
+        const k = d < 0.5 ? 0 : (d - 0.5) / 0.5;
+        alpha = Math.min(alpha, t.fade + (1 - t.fade) * k * k * (3 - 2 * k));
+      }
+      t.img.setAlpha(alpha);
     }
   }
 
@@ -653,6 +680,7 @@ export class IsoScene extends Phaser.Scene {
 
   update(time: number) {
     const { g } = this;
+    this.bubble();
     const o = this.overlay;
     o.clear();
     const b = this.bars;

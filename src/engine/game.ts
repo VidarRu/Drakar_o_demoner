@@ -415,19 +415,36 @@ export class Game {
   blocked(x: number, y: number): boolean {
     return this.occupied(x, y);
   }
+  /**
+   * Som `occupied`, men gruppens egna (rollpersoner, följeslagare och elementarer) stänger
+   * inte vägen för den som går: man går igenom varandra genom att byta plats (husregel, Vidar).
+   */
+  private blockedFor = (who: Actor) => (x: number, y: number) => {
+    const a = this.actorAt(x, y);
+    if (a && !(a.kind === 'player' && who.kind === 'player' && a.id !== who.id)) return true;
+    return lockBlocks(this, x, y) || !!this.bandAt(x, y);
+  };
+  /** Byter plats med en kamrat på rutan `to`, om det står någon där. */
+  private swapWith(who: Actor, to: Point) {
+    const a = this.actorAt(to.x, to.y);
+    if (!a || a.id === who.id) return;
+    combat.face(a, who.x, who.y);
+    a.x = who.x;
+    a.y = who.y;
+  }
 
   /** Väg för den som går (ledaren utanför strid) till en ruta, eller till en ruta intill om `adjacentOk`. */
   pathTo(x: number, y: number, adjacentOk = false): Point[] | null {
     const who = this.state.mode === 'combat' ? this.player : this.leader;
     if (this.map.kind === 'värld') return worldmap.travelPath(this, { x, y }, adjacentOk);
-    return findPath(this.map, who, { x, y }, this.occupied, adjacentOk, (px, py) => passable(this, who, px, py));
+    return findPath(this.map, who, { x, y }, this.blockedFor(who), adjacentOk, (px, py) => passable(this, who, px, py));
   }
 
   /** Rutor som den som har turen kan nå med sin återstående förflyttning i strid. */
   reachableTiles(): Point[] {
     if (!this.isPlayerTurn()) return [];
     const p = this.player;
-    return reachable(this.map, p, this.state.combat!.movesLeft, this.occupied, (x, y) => passable(this, p, x, y));
+    return reachable(this.map, p, this.state.combat!.movesLeft, this.blockedFor(p), (x, y) => passable(this, p, x, y));
   }
 
   /** Gruppen ser tillsammans: synfälten för alla som är vid medvetande läggs ihop. */
@@ -456,10 +473,11 @@ export class Game {
     // Världskartan: en ruta är en kvart, och gruppen går som en figur.
     if (this.map.kind === 'värld') return worldmap.travelStep(this, to);
     const p = this.leader;
-    if (!combat.canAct(p) || distance(p.x, p.y, to.x, to.y) !== 1 || this.occupied(to.x, to.y)) return false;
+    if (!combat.canAct(p) || distance(p.x, p.y, to.x, to.y) !== 1 || this.blockedFor(p)(to.x, to.y)) return false;
     const members = this.partyMembers();
     const before = members.map((m) => ({ x: m.x, y: m.y }));
     combat.face(p, to.x, to.y);
+    this.swapWith(p, to);
     p.x = to.x;
     p.y = to.y;
     // Följeslagarna går i ledarens spår. Den som inte kan gå bärs av de andra (tolkning).
@@ -563,8 +581,9 @@ export class Game {
     if (!this.isPlayerTurn()) return false;
     const c = this.state.combat!;
     const p = this.player;
-    if (c.movesLeft <= 0 || distance(p.x, p.y, to.x, to.y) !== 1 || this.occupied(to.x, to.y)) return false;
+    if (c.movesLeft <= 0 || distance(p.x, p.y, to.x, to.y) !== 1 || this.blockedFor(p)(to.x, to.y)) return false;
     combat.face(p, to.x, to.y);
+    this.swapWith(p, to);
     p.x = to.x;
     p.y = to.y;
     c.movesLeft--;

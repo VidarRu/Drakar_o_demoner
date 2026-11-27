@@ -234,6 +234,7 @@ Vidar bestämde upplägget i steg 7 och godkände efteråt tolkningarna i avsnit
 - **Hjälpa en kamrat:** den som står intill kan lägga förband (Första hjälpen), hjälpa den som kvävs, resa upp den som ligger, ge en läkeört och utanför strid använda Läkekonst. I strid tar det handlingen.
 - **Efter striden** lägger kamraterna förband på dem som ligger medvetslösa och blöder: ett slag i Första hjälpen per runda och hjälpare, i högst 20 rundor, medan blödningen fortsätter (tolkning). Den som blöder när ingen kan hjälpa dör, som tidigare.
 - **Samtal** förs av rollpersonen, och det är rollpersonen som betalar (tolkning).
+- **Gå igenom varandra (husregel, Vidar):** gruppens egna (rollpersonen, följeslagarna och elementarerna) stänger inte vägen för varandra. Den som går in i en kamrats ruta byter plats med kamraten, både utanför och i strid. I strid kostar det ett steg för den som går och inget för kamraten. Fiender stänger vägen som förut.
 
 ## Smygarläge och anfall bakifrån (byggt i steg 7)
 
