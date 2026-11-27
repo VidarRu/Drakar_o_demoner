@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { AMBIENCE, ambienceFor } from '../src/audio/ambience';
 import { MUSIC, musicFor } from '../src/audio/music';
 import { SFX, SFX_FILES, soundFor } from '../src/audio/sounds';
 import * as combat from '../src/engine/combat';
@@ -274,5 +275,69 @@ describe('ljudtabellen', () => {
     for (const c of all) expect(soundFor(g, c, mid).length, c.type).toBeGreaterThan(0);
     // När striden slutar byter musiken, och det räcker.
     expect(soundFor(g, { type: 'strid', phase: 'slutar' }, mid)).toEqual([]);
+  });
+});
+
+describe('miljöljudet', () => {
+  const at = (g: Game, tile: string) => {
+    const i = g.map.tiles.indexOf(tile);
+    expect(i, tile).toBeGreaterThanOrEqual(0);
+    g.leader.x = i % g.map.w;
+    g.leader.y = Math.floor(i / g.map.w);
+  };
+  const NIGHT = 23 * 3600;
+  /** En ruta av slaget minst fyra rutor från vatten. */
+  const atDry = (g: Game, tile: string) => {
+    const wet = (x: number, y: number) =>
+      g.map.tiles.some((t, i) => (t === '~' || t === 'v') && Math.max(Math.abs((i % g.map.w) - x), Math.abs(Math.floor(i / g.map.w) - y)) <= 3);
+    const i = g.map.tiles.findIndex((t, i) => t === tile && !wet(i % g.map.w, Math.floor(i / g.map.w)));
+    expect(i, tile).toBeGreaterThanOrEqual(0);
+    g.leader.x = i % g.map.w;
+    g.leader.y = Math.floor(i / g.map.w);
+  };
+
+  it('inget miljöljud på startskärmen, i strid eller efter döden', () => {
+    expect(ambienceFor(null)).toBe(null);
+    const g = gravad();
+    combat.startCombat(g, [g.state.actors.find((a) => a.defId === 'svartalf')!]);
+    expect(ambienceFor(g)).toBe(null);
+    const h = gravad();
+    h.state.mode = 'dead';
+    expect(ambienceFor(h)).toBe(null);
+  });
+
+  it('grottan droppar, inomhus knastrar härden', () => {
+    const g = gravad();
+    at(g, ':');
+    expect(ambienceFor(g)).toBe('grotta');
+    at(g, '_');
+    expect(ambienceFor(g)).toBe('hard');
+  });
+
+  it('ute: fåglar på dagen, uggla på natten, och floden nära vatten', () => {
+    const g = gravad();
+    g.leader.x = 3;
+    g.leader.y = 7;
+    expect(ambienceFor(g)).toBe('faglar');
+    g.state.time = NIGHT;
+    expect(ambienceFor(g)).toBe('uggla');
+    // Dammen i sydväst (src/content/speltest).
+    g.leader.x = 8;
+    g.leader.y = 13;
+    expect(ambienceFor(g)).toBe('flod');
+  });
+
+  it('världskartan: vind på öppen mark, fåglar i skogen', () => {
+    const g = Game.create(testCharacter(), seededRng(1), 'provfard');
+    atDry(g, 'h');
+    expect(ambienceFor(g)).toBe('vind');
+    atDry(g, 'F');
+    expect(ambienceFor(g)).toBe('faglar');
+    g.state.time = NIGHT;
+    expect(ambienceFor(g)).toBe('uggla');
+  });
+
+  it('varje slinga finns', () => {
+    for (const f of Object.values(AMBIENCE)) expect(existsSync(`public/audio/flare/sfx/slinga/${f}.mp3`), f).toBe(true);
   });
 });

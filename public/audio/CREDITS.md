@@ -16,7 +16,8 @@ Bearbetningarna i `public/audio/flare/` delas under samma licens.
 
 **Ljudeffekter:** Flares upphovspersoner (se `public/art/CREDITS.md`). Utdragen i `sfx/utdrag/`
 (uggla, fågelkvitter och lägereld när man sover och slår läger) är klippta ur Flares miljöslingor,
-med in- och uttoning. Enligt Flares
+med in- och uttoning. Miljöljudet i `sfx/slinga/` (fåglar, uggla, flod, vind, droppar i grottan
+och en härd) är Flares miljöslingor med jämnad nivå, upprepade till minst 20 sekunder. Enligt Flares
 `CREDITS.txt` bygger ljuden också på fritt licensierat material av bland andra Ljudbank och
 Mike Koenig.
 

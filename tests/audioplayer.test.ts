@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { attachAudio } from '../src/audio';
-import { AudioEngine, Settle, VoiceLimit } from '../src/audio/player';
+import { AMBIENCE_LEVEL, AudioEngine, Settle, VoiceLimit } from '../src/audio/player';
 import { DEFAULT_SETTINGS, loadSettings, saveSettings } from '../src/audio/settings';
 
 describe('ljudinställningarna', () => {
@@ -235,5 +235,72 @@ describe('kopplingen till spelet', () => {
     expect(() => listeners[0]()).not.toThrow();
     vi.advanceTimersByTime(2000);
     vi.useRealTimers();
+  });
+});
+
+describe('miljöljudet i AudioEngine', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
+
+  function ambientBrowser() {
+    const sources: { loop: boolean; started: boolean; stopped: boolean; url?: string }[] = [];
+    const gains: { gain: { value: number } }[] = [];
+    class FakeContext {
+      state = 'running';
+      currentTime = 0;
+      destination = {};
+      resume = () => Promise.resolve();
+      createGain = () => {
+        const g = { gain: { value: 1 }, connect: () => {} };
+        gains.push(g);
+        return g;
+      };
+      createBufferSource = () => {
+        const s = { buffer: null, loop: false, started: false, stopped: false, playbackRate: { value: 1 }, connect: () => {}, start() { s.started = true; }, stop() { s.stopped = true; }, onended: null };
+        sources.push(s);
+        return s;
+      };
+      decodeAudioData = () => Promise.resolve({ duration: 20 });
+    }
+    const fetch = vi.fn((url: string) => Promise.resolve({ ok: true, url, arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)) }));
+    vi.stubGlobal('AudioContext', FakeContext);
+    vi.stubGlobal('fetch', fetch);
+    return { sources, gains, fetch };
+  }
+  const flush = () => new Promise((r) => setTimeout(r, 0));
+
+  it('spelas som en slinga från rätt fil, tonar in och följer ljudreglaget och Tyst', async () => {
+    const b = ambientBrowser();
+    const e = new AudioEngine();
+    e.apply({ sfx: 0.8, music: 0.5, muted: false });
+    e.playAmbience('faglar');
+    e.unlock();
+    await flush();
+    await flush();
+    expect(b.fetch).toHaveBeenCalledWith('/audio/flare/sfx/slinga/bird_twitter_loop.mp3');
+    const src = b.sources.at(-1)!;
+    expect(src.loop).toBe(true);
+    expect(src.started).toBe(true);
+    expect(e.ambienceId).toBe('faglar');
+    await new Promise((r) => setTimeout(r, 2300));
+    const gain = b.gains.at(-1)!;
+    expect(gain.gain.value).toBeCloseTo(0.8 * AMBIENCE_LEVEL);
+    e.apply({ sfx: 0.8, music: 0.5, muted: true });
+    expect(gain.gain.value).toBe(0);
+  });
+
+  it('stannar när det inte ska höras något', async () => {
+    const b = ambientBrowser();
+    const e = new AudioEngine();
+    e.unlock();
+    e.playAmbience('grotta');
+    await flush();
+    await flush();
+    e.playAmbience(null);
+    await new Promise((r) => setTimeout(r, 2300));
+    expect(b.sources.at(-1)!.stopped).toBe(true);
+    expect(e.ambienceId).toBe(null);
   });
 });

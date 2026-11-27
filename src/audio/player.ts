@@ -1,3 +1,4 @@
+import { AMBIENCE, type AmbienceId } from './ambience';
 import { MUSIC, type MusicId } from './music';
 import { DEFAULT_SETTINGS, type AudioSettings } from './settings';
 import type { SoundPick } from './sounds';
@@ -58,6 +59,18 @@ type Ctor = new () => AudioContext;
 const audioContextClass = (): Ctor | undefined =>
   (globalThis as { AudioContext?: Ctor; webkitAudioContext?: Ctor }).AudioContext ?? (globalThis as { webkitAudioContext?: Ctor }).webkitAudioContext;
 
+/** Miljöljudet spelas så här starkt i förhållande till ljudreglaget, under musiken. */
+export const AMBIENCE_LEVEL = 0.5;
+
+/** En miljöslinga: avkodad och loopad i Web Audio. */
+interface AmbientTrack {
+  id: AmbienceId;
+  src?: AudioBufferSourceNode;
+  gain: GainNode;
+  level: number;
+  fading: 'in' | 'out';
+}
+
 interface Track {
   id: MusicId;
   el: HTMLAudioElement;
@@ -69,8 +82,8 @@ interface Track {
 }
 
 /**
- * Spelar upp ljudeffekter (Web Audio, avkodade en gång) och musik (ett strömmat <audio> per
- * stycke, som tonar över). Rör inte webbläsarens ljud förrän det behövs, och gör ingenting
+ * Spelar upp ljudeffekter (Web Audio, avkodade en gång), musik (ett strömmat <audio> per
+ * stycke, som tonar över) och miljöljud (en loopad slinga i Web Audio, som också tonar över). Rör inte webbläsarens ljud förrän det behövs, och gör ingenting
  * där ljud saknas (till exempel i testerna).
  */
 export class AudioEngine {
@@ -83,6 +96,8 @@ export class AudioEngine {
   private unlocked = false;
   private wanted: MusicId | null = null;
   private tracks: Track[] = [];
+  private wantedAmbience: AmbienceId | null = null;
+  private ambient: AmbientTrack[] = [];
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private base = '/audio/') {}
@@ -90,6 +105,11 @@ export class AudioEngine {
   /** Musiken som ska spela just nu (även innan ljudet är upplåst). */
   get musicId(): MusicId | null {
     return this.wanted;
+  }
+
+  /** Miljöljudet som ska höras just nu, eller inget. */
+  get ambienceId(): AmbienceId | null {
+    return this.wantedAmbience;
   }
 
   /** Låser upp ljudet. Anropas vid ett klick eller tangenttryck. */
@@ -109,6 +129,7 @@ export class AudioEngine {
     if (!this.unlocked) {
       this.unlocked = true;
       if (this.wanted) this.startMusic(this.wanted);
+      if (this.wantedAmbience) this.startAmbience(this.wantedAmbience);
       return;
     }
     // Musik som webbläsaren stoppade (ljud före ett riktigt klick) får försöka igen.
@@ -141,10 +162,55 @@ export class AudioEngine {
     if (this.unlocked) this.startMusic(id);
   }
 
+  /** Byter miljöslinga (null: ingen). Den gamla tonas ut och den nya in. */
+  playAmbience(id: AmbienceId | null) {
+    this.wantedAmbience = id;
+    if (this.unlocked) this.startAmbience(id);
+  }
+
   apply(s: AudioSettings) {
     this.settings = { ...s };
     this.applyGain();
     for (const t of this.tracks) this.setVolume(t);
+    for (const t of this.ambient) t.gain.gain.value = this.ambientVolume(t);
+  }
+
+  private ambientVolume(t: AmbientTrack): number {
+    return this.settings.muted ? 0 : this.settings.sfx * AMBIENCE_LEVEL * t.level;
+  }
+
+  private startAmbience(id: AmbienceId | null) {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const live = this.ambient.find((t) => t.fading === 'in');
+    if (live?.id === id) return;
+    for (const t of this.ambient) t.fading = 'out';
+    const back = id && this.ambient.find((t) => t.id === id);
+    if (back) back.fading = 'in';
+    else if (id) {
+      try {
+        const gain = ctx.createGain();
+        gain.gain.value = 0;
+        gain.connect(ctx.destination);
+        const t: AmbientTrack = { id, gain, level: 0, fading: 'in' };
+        this.ambient.push(t);
+        this.load(`flare/sfx/slinga/${AMBIENCE[id]}`)
+          .then((buffer) => {
+            // Bytt eller borttonad medan filen laddades: spela inte.
+            if (!buffer || !this.ambient.includes(t)) return;
+            const src = ctx.createBufferSource();
+            src.buffer = buffer;
+            src.loop = true;
+            src.connect(gain);
+            src.start();
+            t.src = src;
+          })
+          .catch(() => {});
+      } catch {
+        return;
+      }
+    }
+    this.timer ??= setInterval(() => this.fadeStep(), FADE_STEP_MS);
   }
 
   private setVolume(t: Track) {
@@ -227,7 +293,19 @@ export class AudioEngine {
     }
     for (const t of this.tracks.filter((x) => x.fading === 'out' && x.level <= 0)) t.el.pause();
     this.tracks = this.tracks.filter((t) => !(t.fading === 'out' && t.level <= 0));
-    if (this.tracks.every((t) => t.level >= 1) && this.timer) {
+    for (const t of this.ambient) {
+      t.level = Math.min(1, Math.max(0, t.level + (t.fading === 'in' ? step : -step)));
+      t.gain.gain.value = this.ambientVolume(t);
+    }
+    for (const t of this.ambient.filter((x) => x.fading === 'out' && x.level <= 0)) {
+      try {
+        t.src?.stop();
+      } catch {
+        // Redan stoppad.
+      }
+    }
+    this.ambient = this.ambient.filter((t) => !(t.fading === 'out' && t.level <= 0));
+    if ([...this.tracks, ...this.ambient].every((t) => t.fading === 'in' && t.level >= 1) && this.timer) {
       clearInterval(this.timer);
       this.timer = null;
     }

@@ -8,7 +8,9 @@ Ljudeffekterna (soundfx/ utom npcs/) blir mono med 64 kbit/s, och tystnaden i b�
 slutet klipps bort. Musiken (music/ utom wind_ambient) blir stereo med 96 kbit/s.
 Katalogerna behålls: soundfx/steps/step_cloth1.ogg blir sfx/steps/step_cloth1.mp3.
 Korta utdrag ur miljöslingorna (uggla, fågelkvitter, lägereld) läggs i sfx/utdrag/, med
-in- och uttoning och toppvolymen −6 dB. Kräver ffmpeg.
+in- och uttoning och toppvolymen −6 dB. Miljöslingorna (fåglar, uggla, flod, vind, grotta, härd)
+läggs hela i sfx/slinga/: utan bortklippt tystnad, med samma medelnivå och upprepade till minst
+20 sekunder, så att skarven hörs sällan. Kräver ffmpeg.
 """
 import os
 import re
@@ -72,6 +74,30 @@ for name, rel, start, length, fade_in, fade_out in EXCERPTS:
     gain = EXCERPT_PEAK_DB - peak(cut)
     encode(cut, dst, ['-ac', '1', '-b:a', '64k', '-af', f'volume={gain:.1f}dB'])
     os.remove(cut)
+    count += 1
+
+# Miljöslingorna: medelnivån −30 dB (toppen högst −1 dB) och minst 20 sekunder långa.
+LOOPS = ['bird_twitter_loop', 'forest_owl_loop', 'river_loop', 'wind_loop', 'cave_droplets_loop', 'open_fire_loop']
+LOOP_MEAN_DB = -30.0
+LOOP_MIN_S = 20.0
+
+
+def levels(path: str) -> tuple[float, float]:
+    r = subprocess.run(['ffmpeg', '-i', path, '-af', 'volumedetect', '-f', 'null', '-'], capture_output=True, text=True)
+    mean = float(re.search(r'mean_volume: (-?[\d.]+) dB', r.stderr).group(1))
+    top = float(re.search(r'max_volume: (-?[\d.]+) dB', r.stderr).group(1))
+    return mean, top
+
+
+for name in LOOPS:
+    src = os.path.join(sfx_root, 'environment', name + '.ogg')
+    dur = float(subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', src], capture_output=True, text=True).stdout)
+    repeats = max(0, int(LOOP_MIN_S // dur))
+    mean, top = levels(src)
+    gain = min(LOOP_MEAN_DB - mean, -1.0 - top)
+    dst = os.path.join(OUT, 'sfx', 'slinga', name + '.mp3')
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-stream_loop', str(repeats), '-i', src, '-ac', '1', '-b:a', '64k', '-af', f'volume={gain:.1f}dB', dst], check=True)
     count += 1
 
 total = sum(os.path.getsize(os.path.join(r, f)) for r, _, fs in os.walk(OUT) for f in fs)
