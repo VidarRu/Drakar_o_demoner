@@ -3,6 +3,7 @@ import { Game } from '../src/engine/game';
 import { testCharacter } from './helpers';
 import {
   ability,
+  allErrors,
   availableSpells,
   startSpellCount,
   startSpellSkill,
@@ -24,6 +25,7 @@ import {
   type Draft,
 } from '../src/engine/creation';
 import { movement } from '../src/engine/rules';
+import { PREGENS } from '../src/content/forgenererade';
 
 /**
  * Teval Ailindurbom, bokens exempel (Bok I s. 9–33): alvisk utbygdsjägare.
@@ -230,5 +232,45 @@ describe('förhandsvisning av ett utkast', () => {
     d.bought.STY = 14;
     d.race = 'anka';
     expect(previewCharacter(d).attrs.STY).toBe(10);
+  });
+});
+
+describe('färdiga rollpersoner', () => {
+  it('har id:na krigare, tjuv och magiker i den ordningen', () => {
+    expect(PREGENS.map((p) => p.id)).toEqual(['krigare', 'tjuv', 'magiker']);
+  });
+
+  it.each(PREGENS.map((p) => [p.id, p] as const))('%s är en giltig rollperson som går att göra färdig', (_id, p) => {
+    expect(p.title).not.toBe('');
+    expect(p.blurb).not.toBe('');
+    const d = p.draft();
+    expect(allErrors(d)).toEqual([]);
+    expect(() => finalize(d)).not.toThrow();
+  });
+
+  it('har fasta raser och medelvärden som slag', () => {
+    const races = PREGENS.map((p) => p.draft().race);
+    expect(races).toEqual(['manniska', 'halvlangdsman', 'alv']);
+    for (const p of PREGENS) {
+      const d = p.draft();
+      expect([undefined, 21]).toContain(d.abilityDice);
+      expect(d.swordDice).toBe(7);
+      expect(d.socialDice).toBe(7);
+      expect(d.capitalDice).toBe(7);
+      for (const bp of [d.abilityBp, d.swordBp, d.socialBp, d.capitalBp]) expect([0, 1]).toContain(bp);
+    }
+  });
+
+  it('ger ett nytt utkast vid varje anrop', () => {
+    const p = PREGENS[0];
+    const a = p.draft();
+    const b = p.draft();
+    expect(a).not.toBe(b);
+    a.name = 'Ändrad';
+    a.bought.STY = 3;
+    a.profSkills.push('x');
+    expect(b.name).not.toBe('Ändrad');
+    expect(b.bought.STY).not.toBe(3);
+    expect(b.profSkills).not.toContain('x');
   });
 });
