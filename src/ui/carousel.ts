@@ -122,7 +122,10 @@ export class Carousel<T> {
     this.stage.addEventListener('keydown', (e) => {
       if (e.key === 'ArrowLeft') this.go(this.at - 1);
       else if (e.key === 'ArrowRight') this.go(this.at + 1);
-      else if (e.key === 'Enter' && e.target === this.stage) this.choose();
+      // Ett nedhållet Enter väljer en gång. Upprepningarna skulle annars välja i nästa karusell.
+      else if (e.key === 'Enter' && e.target === this.stage) {
+        if (!e.repeat) this.choose();
+      }
       else return;
       e.preventDefault();
     });

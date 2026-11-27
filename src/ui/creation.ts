@@ -76,6 +76,19 @@ function button(text: string, onclick: () => void, cls = '', disabled = false) {
   return b;
 }
 
+/**
+ * En knapp som byter kapitel eller gör ett val. Bara första klicket i ett dubbelklick räknas:
+ * det andra skulle annars landa på knappen som står på samma plats i nästa kapitel (utan
+ * sidvändning, med prefers-reduced-motion, eller i nästa karusell).
+ */
+function stepButton(text: string, onclick: () => void, cls = '', disabled = false) {
+  const b = button(text, onclick, cls, disabled);
+  b.onclick = (e) => {
+    if (e.detail <= 1) onclick();
+  };
+  return b;
+}
+
 function stepper(value: string, dec: () => void, inc: () => void, canDec: boolean, canInc: boolean) {
   const box = el('span', 'stepper');
   box.append(button('−', dec, '', !canDec), el('b', '', value), button('+', inc, '', !canInc));
@@ -328,9 +341,9 @@ export class CreatorUi {
     const errors = chapterErrors(d, c);
     const nav = el('div', 'kapitel-nav');
     const prev = CHAPTERS[at - 1];
-    nav.append(button(`← ${CHAPTER_NAMES[prev]}`, () => this.go(prev), 'tillbaka'));
-    if (c === 'utrustning') this.nextButton = button('Börja äventyret', () => this.start(), 'band nasta', errors.length > 0 || this.asking);
-    else this.nextButton = button(`${CHAPTER_NAMES[CHAPTERS[at + 1]]} →`, () => this.go(CHAPTERS[at + 1]), 'band nasta', errors.length > 0);
+    nav.append(stepButton(`← ${CHAPTER_NAMES[prev]}`, () => this.go(prev), 'tillbaka'));
+    if (c === 'utrustning') this.nextButton = stepButton('Börja äventyret', () => this.start(), 'band nasta', errors.length > 0 || this.asking);
+    else this.nextButton = stepButton(`${CHAPTER_NAMES[CHAPTERS[at + 1]]} →`, () => this.go(CHAPTERS[at + 1]), 'band nasta', errors.length > 0);
     nav.append(this.nextButton);
     this.errorList = el('ul', 'errors');
     for (const e of errors) this.errorList.append(el('li', '', e));
@@ -361,9 +374,9 @@ export class CreatorUi {
       el('p', 'note', 'Rollformuläret är ifyllt. Vänd det för att se vapnen och utrustningen. Med "Ändra" kan du ändra allt utom tärningsslagen, som redan är slagna.'),
     );
     const nav = el('div', 'kapitel-nav');
-    const back = button('← Tillbaka', () => this.back(), 'tillbaka');
-    const edit = button('Ändra', () => this.edit(), 'band ljus');
-    this.nextButton = button('Börja äventyret', () => this.start(), 'band nasta', this.asking);
+    const back = stepButton('← Tillbaka', () => this.back(), 'tillbaka');
+    const edit = stepButton('Ändra', () => this.edit(), 'band ljus');
+    this.nextButton = stepButton('Börja äventyret', () => this.start(), 'band nasta', this.asking);
     const right = el('span', 'kapitel-nav-hoger');
     right.append(edit, this.nextButton);
     nav.append(back, right);
@@ -406,8 +419,8 @@ export class CreatorUi {
       : 'Ett nytt äventyr skriver över det sparade.';
     const buttons = el('div', 'fraga-knappar');
     buttons.append(
-      button('Skriv över', () => void this.finish(), 'band skriv-over'),
-      button(
+      stepButton('Skriv över', () => void this.finish(), 'band skriv-over'),
+      stepButton(
         'Avbryt',
         () => {
           this.asking = false;
@@ -466,16 +479,16 @@ export class CreatorUi {
       });
     }
     const nav = this.carouselNav;
-    nav.replaceChildren(folk ? button('← Tillbaka', () => this.back(), 'tillbaka') : button(`← ${CHAPTER_NAMES.folk}`, () => this.go('folk'), 'tillbaka'));
+    nav.replaceChildren(folk ? stepButton('← Tillbaka', () => this.back(), 'tillbaka') : stepButton(`← ${CHAPTER_NAMES.folk}`, () => this.go('folk'), 'tillbaka'));
     const next: Chapter = folk ? 'yrke' : 'namn';
-    if (this.chosen[folk ? 'folk' : 'yrke']) nav.append(button(`${CHAPTER_NAMES[next]} →`, () => this.go(next), 'band nasta'));
+    if (this.chosen[folk ? 'folk' : 'yrke']) nav.append(stepButton(`${CHAPTER_NAMES[next]} →`, () => this.go(next), 'band nasta'));
     this.root.scrollIntoView({ block: 'start' });
     this.holder.querySelector<HTMLElement>('.karusell-scen')?.focus({ preventScroll: true });
   }
 
   /** Knappen som väljer kortet i mitten, eller att det redan är valt. */
   private choice(name: string, isChosen: boolean, choose: () => void, chosenText: string) {
-    return isChosen ? el('div', 'vald', `✓ ${chosenText} – skrivet i formuläret`) : button(`Välj ${name.toLowerCase()}`, choose, 'band');
+    return isChosen ? el('div', 'vald', `✓ ${chosenText} – skrivet i formuläret`) : stepButton(`Välj ${name.toLowerCase()}`, choose, 'band');
   }
 
   private raceInfo(r: RaceDef, choose: () => void): HTMLElement[] {
