@@ -6,7 +6,7 @@ import { PROFESSION_LIST } from '../data/professions';
 import { RACE_LIST } from '../data/races';
 import { MARTIAL_TECHNIQUES, SKILL_LIST, SKILLS } from '../data/skills';
 import { SPELLS } from '../data/spells';
-import type { SkillOption } from '../data/types';
+import type { ProfessionDef, RaceDef, SkillOption } from '../data/types';
 import { MELEE_WEAPONS, RANGED_WEAPONS, WEAPONS } from '../data/weapons';
 import {
   ability,
@@ -48,37 +48,45 @@ import {
   startSpellSkill,
   startCapital,
   startingSkills,
-  stepErrors,
-  STEPS,
   swordHand,
   type Draft,
-  type Step,
 } from '../engine/creation';
 import { AGE, AGE_GROUPS, attrPrice, damageBonus, grip, maxKp, movement, stoPrice } from '../engine/rules';
+import { listSaves } from '../engine/save';
 import type { Character } from '../engine/types';
 import { PLAYER_SPRITES, PROFESSION_SPRITES } from '../content';
 import { portraitUrl } from '../game/art';
-import { $, el } from './hud';
-
-const STEP_NAMES: Record<Step, string> = {
-  grund: 'Ras och yrke',
-  egenskaper: 'Grundegenskaper',
-  bakgrund: 'Bakgrund',
-  yrkesfardigheter: 'Yrkesfärdigheter',
-  fardigheter: 'Startfärdigheter',
-  utrustning: 'Utrustning',
-};
+import { BookUi, renderChapterStrip } from './book';
+import { bookArt, Carousel } from './carousel';
+import { CHAPTER_NAMES, CHAPTERS, chapterErrors, inCarousel, sheetSideOnEntering, type Chapter } from './chapters';
+import { el } from './hud';
+import { changedInk, readInk } from './ink';
+import { ATTR_NAMES, sheetFromDraft } from './sheet';
 
 const LANGUAGES = ['Alviska', 'Dvärgiska', 'Svartiska'];
 const INSTRUMENTS = ['Luta', 'Harpa', 'Lyra', 'Flöjt', 'Trumma'];
 const AGE_NAMES = { ung: 'Ung', mogen: 'Mogen', medelålders: 'Medelålders', gammal: 'Gammal' };
 const sign = (n: number) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '±0');
+const GENDER_NAMES: Record<Draft['gender'], string> = { man: 'Man', kvinna: 'Kvinna' };
 
 function button(text: string, onclick: () => void, cls = '', disabled = false) {
   const b = el('button', cls, text);
   b.type = 'button';
   b.disabled = disabled;
   b.onclick = onclick;
+  return b;
+}
+
+/**
+ * En knapp som byter kapitel eller gör ett val. Bara första klicket i ett dubbelklick räknas:
+ * det andra skulle annars landa på knappen som står på samma plats i nästa kapitel (utan
+ * sidvändning, med prefers-reduced-motion, eller i nästa karusell).
+ */
+function stepButton(text: string, onclick: () => void, cls = '', disabled = false) {
+  const b = button(text, onclick, cls, disabled);
+  b.onclick = (e) => {
+    if (e.detail <= 1) onclick();
+  };
   return b;
 }
 
@@ -115,94 +123,462 @@ function textInput(value: string, onchange: (v: string) => void, placeholder = '
   return i;
 }
 
-/** Guiden för att skapa en rollperson med bakgrundspoäng, steg för steg enligt Bok I. */
+/** En rad i rutan under karusellen: namnet till vänster, värdet med blyerts till höger. */
+function factRow(label: string, value: string) {
+  const row = el('div', 'rad');
+  row.append(el('span', '', label), el('span', '', value));
+  return row;
+}
+
 const portraits: Record<string, string> = {};
 const portrait = (id: string) => (portraits[id] ??= portraitUrl(id));
 
+export interface CreatorOptions {
+  /** Utkastet att börja med, t.ex. en färdig rollperson. Utan det börjar guiden med ett nytt. */
+  draft?: Draft;
+  /** Kapitlet att börja i. Förval: folk för ett nytt utkast, namn för ett givet. */
+  chapter?: Chapter;
+  /** Visar utkastet som en färdig rollperson med knapparna "Börja äventyret" och "Ändra". */
+  preview?: boolean;
+  /** "Tillbaka" från folket eller från förhandsvisningen: tillbaka till menyn. */
+  onBack?: () => void;
+}
+
+/**
+ * Guiden för att skapa en rollperson med bakgrundspoäng enligt Bok I, som kapitel i
+ * rollpersonsboken. Folk och yrke väljs i en karusell över hela skärmen, med ett hörn av
+ * rollformuläret uppe till höger. Resten av kapitlen ritas på vänster sida av uppslaget, och
+ * rollformuläret på höger sida fylls i medan man väljer.
+ */
 export class CreatorUi {
-  private d: Draft = newDraft();
-  private step = 0;
+  private readonly d: Draft;
+  private chapter: Chapter;
+  private preview: boolean;
+  /** Om folket och yrket har valts. Ett nytt utkast har förval, men de skrivs inte in förrän man väljer. */
+  private readonly chosen: { folk: boolean; yrke: boolean };
+  /** Frågan om sparningen ska skrivas över visas. */
+  private asking = false;
+  private done = false;
+  /** Formulärets sida när ett kapitel öppnas (se `sheetSideOnEntering`). */
+  private side: 'front' | 'back' | undefined;
+
+  private readonly book: BookUi;
+  private readonly bookRoot = el('div', 'skapa-bok');
+  private readonly screen = el('div', 'skapa-karusell');
+  private readonly strip = el('ol', 'kapitelremsa');
+  private readonly corner = el('div', 'horn');
+  private readonly holder = el('div', 'skapa-plats');
+  private readonly carouselNav = el('div', 'skapa-nav');
+  private carousel: { destroy(): void } | null = null;
+  /** Räknas upp när boken stängs för en karusell, så att ett senare kapitelbyte vinner. */
+  private closing = 0;
+
+  /** Knappen "Nästa" och felen under den, som namnfältet uppdaterar medan man skriver. */
+  private nextButton: HTMLButtonElement | null = null;
+  private errorList: HTMLElement | null = null;
+  /** Utrustningens avsnitt som är uppfällda, så att de förblir det när sidan ritas om. */
+  private readonly openSections = new Set<string>();
+
+  /** En musknapp eller ett finger är nedtryckt i guiden. */
+  private pressing = false;
+  /** Ändringen kom från ett textfält som just lämnades. */
+  private textChange = false;
+  /** En omritning väntar på att knappen släpps (se `update`). */
+  private pending = false;
 
   constructor(
-    private root: HTMLElement,
-    private onDone: (c: Character) => void,
+    private readonly root: HTMLElement,
+    private readonly onDone: (c: Character) => void,
+    private readonly opts: CreatorOptions = {},
   ) {
-    this.d.name = 'Halvar';
-    this.render();
+    if (opts.draft) this.d = opts.draft;
+    else {
+      this.d = newDraft();
+      this.d.name = 'Halvar';
+    }
+    const known = opts.draft !== undefined;
+    this.chosen = { folk: known, yrke: known };
+    this.preview = !!opts.preview;
+    // Förhandsvisningen ligger efter sista kapitlet, så att "Ändra" vänder sidan bakåt.
+    this.chapter = this.preview ? 'utrustning' : (opts.chapter ?? (known ? 'namn' : 'folk'));
+    this.book = new BookUi(this.bookRoot, { onChapter: (c) => this.go(c) });
+
+    this.corner.setAttribute('aria-label', 'Rollformuläret');
+    const top = el('div', 'skapa-topp');
+    top.append(this.strip, this.corner);
+    this.screen.append(top, this.holder, this.carouselNav);
+    root.replaceChildren(this.screen, this.bookRoot);
+    this.listen();
+
+    if (!this.preview && inCarousel(this.chapter)) this.showCarousel();
+    else this.render();
   }
 
+  /**
+   * Ändrar utkastet och ritar om. När ändringen kommer från ett textfält som lämnas, t.ex.
+   * för att knappen "Nästa" trycks ned, väntar omritningen tills knappen har släppts. Annars
+   * skulle knappen bytas ut under musen, och klicket skulle inte nå fram.
+   */
   private update = (fn: () => void) => {
     fn();
-    this.render();
+    // Frågan om att skriva över gällde utkastet som det var: en ändring stänger den.
+    this.asking = false;
+    if (!this.textChange) {
+      this.render();
+      return;
+    }
+    this.textChange = false;
+    this.pending = true;
+    // Musknappen kan vara nedtryckt utanför sidan (t.ex. i en lista som fälls ut): vänta högst en stund.
+    setTimeout(() => this.flush(), this.pressing ? 1000 : 0);
   };
 
-  private render() {
-    const d = this.d;
-    const step = STEPS[this.step];
-    // På sista steget visas allt som återstår, så att knappen aldrig är spärrad utan förklaring.
-    const errors = this.step === STEPS.length - 1 ? allErrors(d) : stepErrors(d, step);
-    const root = this.root;
-    root.replaceChildren();
-
-    const tabs = el('ol', 'steps');
-    STEPS.forEach((s, i) => {
-      const li = el('li', i === this.step ? 'on' : i < this.step ? 'done' : '', `${i + 1}. ${STEP_NAMES[s]}`);
-      if (i < this.step) li.onclick = () => this.update(() => (this.step = i));
-      tabs.append(li);
-    });
-
-    const budget = el('div', 'budget');
-    budget.append(el('span', bpLeft(d) < 0 ? 'bad' : '', `BP kvar: ${bpLeft(d)}`));
-    if (this.step >= 4) budget.append(el('span', epBudget(d) - epSpent(d) < 0 ? 'bad' : '', `EP kvar: ${epBudget(d) - epSpent(d)}`));
-    if (this.step >= 5) budget.append(el('span', '', `Silver kvar: ${(startCapital(d) ?? 0) - equipmentCost(d)}`));
-
-    const body = el('div', 'step-body');
-    this[step](body);
-
-    const nav = el('div', 'row');
-    nav.append(button('← Tillbaka', () => this.update(() => this.step--), '', this.step === 0));
-    if (this.step < STEPS.length - 1) {
-      nav.append(button('Nästa →', () => this.update(() => this.step++), 'primary', errors.length > 0));
-    } else {
-      const all = allErrors(d);
-      nav.append(button('Börja äventyret', () => this.onDone(finalize(this.d)), 'primary', all.length > 0));
-    }
-
-    const err = el('ul', 'errors');
-    for (const e of errors) err.append(el('li', '', e));
-    root.append(tabs, budget, body, err, nav);
+  private flush() {
+    if (this.pending) this.render();
   }
 
-  // ---------------------------------------------------------------- 1. ras och yrke
+  private listen() {
+    const root = this.root;
+    root.addEventListener('pointerdown', () => (this.pressing = true), true);
+    const release = () => {
+      this.pressing = false;
+      if (this.pending) setTimeout(() => this.flush());
+    };
+    root.addEventListener('pointerup', release, true);
+    root.addEventListener('pointercancel', release, true);
+    root.addEventListener(
+      'change',
+      (e) => {
+        const t = e.target as HTMLElement;
+        // En utfälld lista släpper musknappen utanför sidan.
+        if (t instanceof HTMLSelectElement) this.pressing = false;
+        this.textChange = t instanceof HTMLTextAreaElement || (t instanceof HTMLInputElement && t.type !== 'checkbox');
+      },
+      true,
+    );
+    root.addEventListener('change', () => (this.textChange = false));
+  }
 
-  private grund(body: HTMLElement) {
+  /** Slutar följa karusellens storlek. Görs när guiden lämnas. */
+  private destroy() {
+    this.carousel?.destroy();
+    this.carousel = null;
+    this.holder.replaceChildren();
+    this.carouselNav.replaceChildren();
+  }
+
+  // ---------------------------------------------------------------- kapitlen
+
+  /** Går till ett kapitel. Folk och yrke stänger boken och visar karusellen. */
+  private go(c: Chapter) {
+    const from = this.chapter;
+    this.chapter = c;
+    this.asking = false;
+    if (!inCarousel(c)) {
+      this.side = sheetSideOnEntering(from, c);
+      this.render();
+      return;
+    }
+    if (this.bookRoot.hidden) {
+      this.showCarousel();
+      return;
+    }
+    const n = ++this.closing;
+    void this.book.close().then(() => {
+      if (n === this.closing && inCarousel(this.chapter)) this.showCarousel();
+    });
+  }
+
+  /** Ritar kapitlet i uppslaget (eller förhandsvisningen) och rollformuläret. */
+  private render() {
+    this.pending = false;
+    // Boken stängs redan för att spelet ska börja, eller kapitlet ligger i en karusell.
+    if (this.done || (inCarousel(this.chapter) && !this.preview)) return;
+    this.closing++;
+    if (!this.screen.hidden) {
+      this.destroy();
+      this.screen.hidden = true;
+      this.bookRoot.hidden = false;
+      this.root.scrollIntoView({ block: 'start' });
+    }
+    const d = this.d;
+    if (this.preview) {
+      this.book.show({
+        chapter: this.chapter,
+        left: this.previewPage(),
+        sheet: sheetFromDraft(d),
+        head: { label: 'Färdig rollperson', title: d.name },
+        strip: false,
+      });
+      return;
+    }
+    this.book.show({ chapter: this.chapter, left: this.chapterPage(), sheet: sheetFromDraft(d), side: this.side });
+    this.side = undefined;
+  }
+
+  /** Vänster sida i ett kapitel: det som är kvar att lägga, kapitlets innehåll, knapparna och felen. */
+  private chapterPage(): HTMLElement {
+    const d = this.d;
+    const c = this.chapter;
+    const page = el('div', 'kapitel');
+    const budget = el('div', 'budget');
+    budget.append(el('span', bpLeft(d) < 0 ? 'bad' : '', `BP kvar: ${bpLeft(d)}`));
+    if (c === 'fardigheter' || c === 'utrustning') budget.append(el('span', epBudget(d) - epSpent(d) < 0 ? 'bad' : '', `EP kvar: ${epBudget(d) - epSpent(d)}`));
+    if (c === 'utrustning') budget.append(el('span', '', `Silver kvar: ${(startCapital(d) ?? 0) - equipmentCost(d)}`));
+
+    const body = el('div', 'step-body');
+    switch (c) {
+      case 'namn':
+        this.namn(body);
+        break;
+      case 'egenskaper':
+      case 'bakgrund':
+      case 'yrkesfardigheter':
+      case 'fardigheter':
+      case 'utrustning':
+        this[c](body);
+        break;
+    }
+
+    const at = CHAPTERS.indexOf(c);
+    const errors = chapterErrors(d, c);
+    const nav = el('div', 'kapitel-nav');
+    const prev = CHAPTERS[at - 1];
+    nav.append(stepButton(`← ${CHAPTER_NAMES[prev]}`, () => this.go(prev), 'tillbaka'));
+    if (c === 'utrustning') this.nextButton = stepButton('Börja äventyret', () => this.start(), 'band nasta', errors.length > 0 || this.asking);
+    else this.nextButton = stepButton(`${CHAPTER_NAMES[CHAPTERS[at + 1]]} →`, () => this.go(CHAPTERS[at + 1]), 'band nasta', errors.length > 0);
+    nav.append(this.nextButton);
+    this.errorList = el('ul', 'errors');
+    for (const e of errors) this.errorList.append(el('li', '', e));
+    page.append(budget, body, nav, this.errorList);
+    if (this.asking) page.append(this.overwriteQuestion());
+    return page;
+  }
+
+  /** Uppdaterar knappen "Nästa" och felen under den utan att rita om sidan (medan man skriver). */
+  private refreshNav() {
+    if (!this.nextButton || !this.errorList) return;
+    const errors = chapterErrors(this.d, this.chapter);
+    this.nextButton.disabled = errors.length > 0;
+    this.errorList.replaceChildren(...errors.map((e) => el('li', '', e)));
+  }
+
+  // ---------------------------------------------------------------- färdig rollperson och start
+
+  /** Vänster sida för en färdig rollperson: vem det är och knapparna "Börja äventyret" och "Ändra". */
+  private previewPage(): HTMLElement {
+    const d = this.d;
+    const page = el('div', 'kapitel forhandsvisning');
+    const a = ability(d);
+    page.append(
+      el('p', 'forh-vem', `${race(d).name}, ${profession(d).name.toLowerCase()}, ${socialClass(d)?.toLowerCase()}.`),
+      el('p', 'forh-utseende hand', d.appearance),
+      el('p', 'note', `${a ? `Särskild förmåga: ${ABILITY_BY_ID[a.id].name}. ` : ''}KP ${maxKp(finalAttrs(d))}. Startkapitalet är ${startCapital(d)} sm, och ${(startCapital(d) ?? 0) - equipmentCost(d)} sm är kvar i börsen.`),
+      el('p', 'note', 'Rollformuläret är ifyllt. Vänd det för att se vapnen och utrustningen. Med "Ändra" kan du ändra allt utom tärningsslagen, som redan är slagna.'),
+    );
+    const nav = el('div', 'kapitel-nav');
+    const back = stepButton('← Tillbaka', () => this.back(), 'tillbaka');
+    const edit = stepButton('Ändra', () => this.edit(), 'band ljus');
+    this.nextButton = stepButton('Börja äventyret', () => this.start(), 'band nasta', this.asking);
+    const right = el('span', 'kapitel-nav-hoger');
+    right.append(edit, this.nextButton);
+    nav.append(back, right);
+    page.append(nav);
+    if (this.asking) page.append(this.overwriteQuestion());
+    return page;
+  }
+
+  /** "Ändra" på en färdig rollperson: utkastet öppnas i kapitlet namn. Tärningsslagen är låsta. */
+  private edit() {
+    this.preview = false;
+    this.asking = false;
+    this.go('namn');
+  }
+
+  private back() {
+    this.destroy();
+    this.opts.onBack?.();
+  }
+
+  /** "Börja äventyret". Finns det en sparning frågar boken först om den ska skrivas över. */
+  private start() {
+    if (this.done || this.asking) return;
+    if (listSaves().length > 0) {
+      this.asking = true;
+      this.render();
+      this.root.querySelector<HTMLElement>('.fraga .avbryt')?.focus();
+      return;
+    }
+    void this.finish();
+  }
+
+  private overwriteQuestion(): HTMLElement {
+    const box = el('section', 'blad-ruta fraga');
+    box.setAttribute('role', 'alertdialog');
+    box.setAttribute('aria-label', 'Skriva över sparningen?');
+    const save = listSaves()[0]?.summary;
+    const text = save
+      ? `Det finns ett sparat äventyr med ${save.name} (${save.race.toLowerCase()}, ${save.profession.toLowerCase()}) i ${save.module}. Ett nytt äventyr skriver över det.`
+      : 'Ett nytt äventyr skriver över det sparade.';
+    const buttons = el('div', 'fraga-knappar');
+    buttons.append(
+      stepButton('Skriv över', () => void this.finish(), 'band skriv-over'),
+      stepButton(
+        'Avbryt',
+        () => {
+          this.asking = false;
+          this.render();
+          this.nextButton?.focus();
+        },
+        'band ljus avbryt',
+      ),
+    );
+    box.append(el('header', '', 'Skriva över sparningen?'), el('p', '', text), buttons);
+    return box;
+  }
+
+  /** Stänger boken och startar spelet med rollpersonen. */
+  private async finish() {
+    if (this.done) return;
+    // Utkastet kan ha blivit ofullständigt medan frågan var öppen: stäng frågan och visa felen.
+    if (allErrors(this.d).length > 0) {
+      this.asking = false;
+      this.render();
+      return;
+    }
+    this.done = true;
+    const c = finalize(this.d);
+    this.destroy();
+    await this.book.close();
+    this.onDone(c);
+  }
+
+  // ---------------------------------------------------------------- 1–2. folk och yrke
+
+  /** Folk eller yrke: karusellen över hela skärmen och hörnet av rollformuläret. */
+  private showCarousel() {
+    this.destroy();
+    this.bookRoot.hidden = true;
+    this.screen.hidden = false;
+    renderChapterStrip(this.strip, this.chapter, (c) => this.go(c));
+    this.writeCorner();
+    const d = this.d;
+    const folk = this.chapter === 'folk';
+    if (folk) {
+      this.carousel = new Carousel<RaceDef>(this.holder, RACE_LIST, {
+        start: RACE_LIST.findIndex((r) => r.id === d.race),
+        card: (r) => ({ name: r.name, img: bookArt('raser', r.id), badge: `${r.bp} BP` }),
+        info: (r, choose) => this.raceInfo(r, choose),
+        onChoose: (r) => {
+          this.setRace(r.id);
+          this.chosen.folk = true;
+          this.go('yrke');
+        },
+      });
+    } else {
+      this.carousel = new Carousel<ProfessionDef>(this.holder, PROFESSION_LIST, {
+        start: PROFESSION_LIST.findIndex((p) => p.id === d.profession),
+        card: (p) => ({ name: p.name, img: bookArt('yrken', p.id) }),
+        info: (p, choose) => this.professionInfo(p, choose),
+        onChoose: (p) => {
+          this.setProfession(p.id);
+          this.chosen.yrke = true;
+          this.go('namn');
+        },
+      });
+    }
+    const nav = this.carouselNav;
+    nav.replaceChildren(folk ? stepButton('← Tillbaka', () => this.back(), 'tillbaka') : stepButton(`← ${CHAPTER_NAMES.folk}`, () => this.go('folk'), 'tillbaka'));
+    const next: Chapter = folk ? 'yrke' : 'namn';
+    if (this.chosen[folk ? 'folk' : 'yrke']) nav.append(stepButton(`${CHAPTER_NAMES[next]} →`, () => this.go(next), 'band nasta'));
+    this.root.scrollIntoView({ block: 'start' });
+    this.holder.querySelector<HTMLElement>('.karusell-scen')?.focus({ preventScroll: true });
+  }
+
+  /** Knappen som väljer kortet i mitten, eller att det redan är valt. */
+  private choice(name: string, isChosen: boolean, choose: () => void, chosenText: string) {
+    return isChosen ? el('div', 'vald', `✓ ${chosenText} – skrivet i formuläret`) : stepButton(`Välj ${name.toLowerCase()}`, choose, 'band');
+  }
+
+  private raceInfo(r: RaceDef, choose: () => void): HTMLElement[] {
+    const head = el('div', 'rubrik');
+    head.append(el('span', '', r.name), el('span', '', `${r.bp} BP`));
+    const desc = el('div', 'beskr');
+    desc.append(el('p', '', r.desc));
+    if (r.traits.length) {
+      const traits = el('p', 'formaga');
+      traits.append(el('b', '', 'Särdrag:'), ` ${r.traits.join(' ')}`);
+      desc.append(traits);
+    }
+    const mods = el('div', 'mods');
+    for (const k of RAISABLE) {
+      const v = r.mods[k];
+      const cell = el('div');
+      cell.append(el('i', '', k), el('b', v < 0 ? 'minus' : '', v ? sign(v) : '–'));
+      mods.append(cell);
+    }
+    const facts = el('div', 'fakta');
+    facts.append(
+      el('div', '', 'Modifikationer'),
+      mods,
+      factRow('Storlek (STO)', `${r.sto.min}–${r.sto.max}`),
+      this.choice(r.name, this.chosen.folk && this.d.race === r.id, choose, 'Vald'),
+    );
+    return [head, desc, facts];
+  }
+
+  private professionInfo(p: ProfessionDef, choose: () => void): HTMLElement[] {
+    const head = el('div', 'rubrik');
+    head.append(el('span', '', p.name), el('span', '', 'Yrke'));
+    const desc = el('div', 'beskr');
+    const ab = el('p', 'formaga');
+    ab.append(el('b', '', `Yrkesförmåga – ${p.ability.name}:`), ` ${p.ability.desc}`);
+    desc.append(el('p', '', p.desc), ab);
+    const facts = el('div', 'fakta');
+    facts.append(el('div', '', 'Krav på grundegenskaper'));
+    for (const [k, v] of Object.entries(p.requirements)) facts.append(factRow(`${ATTR_NAMES[k as RaisableAttr]} (${k})`, `minst ${v}`));
+    facts.append(this.choice(p.name, this.chosen.yrke && this.d.profession === p.id, choose, 'Valt'));
+    return [head, desc, facts];
+  }
+
+  /** Hörnet av rollformuläret: namn, kön, folk och yrke. Det som just skrevs in skrivs fram med blyerts. */
+  private writeCorner() {
+    const d = this.d;
+    const fields: [string, string, string][] = [
+      ['namn', 'Namn', d.name],
+      ['kon', 'Kön', GENDER_NAMES[d.gender]],
+      ['ras', 'Ras', this.chosen.folk ? race(d).name : ''],
+      ['yrke', 'Yrke', this.chosen.yrke ? profession(d).name : ''],
+    ];
+    const grid = el('div', 'horn-falt');
+    for (const [key, label, value] of fields) {
+      const cell = el('div');
+      const v = el('span', 'hand', value);
+      v.dataset.ink = key;
+      cell.append(label, v);
+      grid.append(cell);
+    }
+    const before = this.corner.isConnected ? readInk(this.corner) : new Map<string, string>();
+    const changed = new Set(before.size ? changedInk(before, readInk(grid)) : []);
+    for (const e of grid.querySelectorAll<HTMLElement>('[data-ink]')) if (changed.has(e.dataset.ink!)) e.classList.add('ink-new', 'ink-hot');
+    this.corner.replaceChildren(el('div', 'horn-titel', 'Rollformulär'), grid);
+  }
+
+  // ---------------------------------------------------------------- 3. namn, kön och figur
+
+  private namn(body: HTMLElement) {
     const d = this.d;
     const name = el('label', '', 'Namn ');
-    name.append(textInput(d.name, (v) => this.update(() => (d.name = v))));
+    const input = textInput(d.name, (v) => this.update(() => (d.name = v))) as HTMLInputElement;
+    // Felet "namn saknas" och knappen följer med medan man skriver.
+    input.oninput = () => {
+      d.name = input.value;
+      this.refreshNav();
+    };
+    name.append(input);
     const gender = el('label', '', 'Kön ');
     gender.append(select([['man', 'Man'], ['kvinna', 'Kvinna']], d.gender, (v) => this.update(() => (d.gender = v as Draft['gender']))));
-
-    const races = el('div', 'choices');
-    for (const r of RACE_LIST) {
-      const mods = RAISABLE.filter((k) => r.mods[k]).map((k) => `${k} ${sign(r.mods[k])}`).join(', ') || 'inga modifikationer';
-      const b = button('', () => this.update(() => this.setRace(r.id)), d.race === r.id ? 'sel' : '');
-      b.append(el('b', '', r.name), el('small', '', `${r.bp} BP · ${mods} · STO ${r.sto.min}–${r.sto.max}`));
-      races.append(b);
-    }
-
-    const profs = el('div', 'choices');
-    for (const p of PROFESSION_LIST) {
-      const req = Object.entries(p.requirements).map(([k, v]) => `${k} ${v}`).join(', ');
-      const b = button('', () => this.update(() => this.setProfession(p.id)), d.profession === p.id ? 'sel' : '');
-      b.title = `${p.desc}\n\n${p.ability.name}: ${p.ability.desc}`;
-      b.append(el('b', '', p.name), el('small', '', `Krav: ${req}`));
-      profs.append(b);
-    }
-    const p = profession(d);
-    const info = el('p', 'note', `${p.desc} Yrkesförmåga – ${p.ability.name}: ${p.ability.desc}`);
-    const r = race(d);
-    const raceInfo = el('p', 'note', r.traits.join(' ') || 'Människor passar till alla yrken.');
-    body.append(name, gender, el('h3', '', 'Ras'), races, raceInfo, el('h3', '', 'Yrke'), profs, info, el('h3', '', 'Figur'), this.figures());
+    body.append(name, gender, el('h3', '', 'Figur'), el('p', 'note', 'Figuren som visar rollpersonen på kartan.'), this.figures());
   }
 
   /** Figuren på kartan. Utan eget val används den som hör till yrket. */
@@ -222,6 +598,7 @@ export class CreatorUi {
   }
 
   private setRace(id: string) {
+    if (this.d.race === id) return;
     this.d.race = id;
     this.d.stoSteps = 0;
     this.d.reads = undefined;
@@ -401,7 +778,7 @@ export class CreatorUi {
                 : e.filter === 'alla'
                   ? SKILL_LIST.filter((s) => !s.specialized && !isForbidden(d, s.id)).map((s) => s.id)
                   : secondary;
-        if (e.filter === 'tva_vapen' && !keys.length) box.append(el('p', 'note', 'Välj Två vapen bland yrkesfärdigheterna för att få nytta av förmågan (kommer i steg 4).'));
+        if (e.filter === 'tva_vapen' && !keys.length) box.append(el('p', 'note', 'Välj Två vapen bland yrkesfärdigheterna för att få nytta av förmågan (kommer i kapitlet Yrkesfärdigheter).'));
         box.append(skillSelect(keys.length ? keys : secondary));
         break;
       }
@@ -666,6 +1043,8 @@ export class CreatorUi {
     };
     const section = (title: string, rows: HTMLElement[]) => {
       const det = el('details');
+      det.open = this.openSections.has(title);
+      det.ontoggle = () => (det.open ? this.openSections.add(title) : this.openSections.delete(title));
       det.append(el('summary', '', title), ...rows);
       return det;
     };
@@ -704,7 +1083,7 @@ export class CreatorUi {
     ta.value = d.appearance;
     ta.rows = 3;
     ta.placeholder = 'Hår, ögon, klädsel, var rollpersonen kommer ifrån och varför hen är äventyrare …';
-    ta.onchange = () => (d.appearance = ta.value);
+    ta.onchange = () => this.update(() => (d.appearance = ta.value));
     looks.append(ta);
 
     const a = ability(d);
@@ -720,9 +1099,3 @@ export class CreatorUi {
     e.armor = e.armor.filter((x) => x !== id);
   }
 }
-
-/** Startskärmen med guiden. */
-export function mountCreator(onDone: (c: Character) => void) {
-  return new CreatorUi($('creator'), onDone);
-}
-

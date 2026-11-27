@@ -1,7 +1,6 @@
 import { BANDS, CREATURES, MAPS, MODULES, PROFESSION_SPRITES, RECRUITS, type BandDef } from '../content';
 import { ARMOR } from '../data/armor';
 import { RACES } from '../data/races';
-import { SKILLS } from '../data/skills';
 import * as combat from './combat';
 import * as time from './time';
 import * as stealth from './stealth';
@@ -41,7 +40,7 @@ import { lockBlocks } from './locks';
 import { startWeather } from './weather';
 import { ensureLight, toggleLight } from './light';
 import { syncItemEffects } from './magicitems';
-import { shapeAttack, shapeshift as shapeshiftActor } from './shapeshift';
+import { shapeshift as shapeshiftActor } from './shapeshift';
 import { wardCheck } from './magic';
 
 export const FOV_RADIUS = 8;
@@ -852,16 +851,7 @@ export class Game {
    * av samma slag (husregel, se docs/regelbeslut.md).
    */
   skillFv(a: Actor, skill: string): number {
-    // Hamnbytare: djurets anfall har djurets FV.
-    if (skill === 'hamn') return shapeAttack(a)?.fv ?? 0;
-    // ASTRALVAPEN: FV är magikerns S när besvärjelsen lades.
-    if (skill === 'astralvapen') return a.effects.find((e) => e.kind === 'astralvapen')?.mod ?? 0;
-    const own = a.skills[skill];
-    const family = SKILLS[skill]?.weaponGroup;
-    if (!family || family === 'sköld' || family === 'piska') return own ?? 0;
-    let best = 0;
-    for (const [id, fv] of Object.entries(a.skills)) if (SKILLS[id]?.weaponGroup === family) best = Math.max(best, fv);
-    return Math.max(own ?? 0, Math.ceil(best / 2));
+    return combat.skillFvOf(a, skill);
   }
 
   /** Erfarenhetspoäng för en lyckad användning (se time.ts). */

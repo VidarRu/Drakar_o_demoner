@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   ARMOR_LIST,
@@ -37,6 +38,22 @@ describe('färdigheter', () => {
 });
 
 describe('raser', () => {
+  it('har en egen kort beskrivning', () => {
+    for (const r of RACE_LIST) {
+      expect(r.desc.length, r.id).toBeGreaterThanOrEqual(20);
+      expect(r.desc.length, r.id).toBeLessThanOrEqual(160);
+    }
+  });
+
+  it('har en bild för varje ras och yrke', () => {
+    for (const r of RACE_LIST) {
+      expect(fs.existsSync(`public/art/bok/raser/${r.id}.webp`), r.id).toBe(true);
+    }
+    for (const p of PROFESSION_LIST) {
+      expect(fs.existsSync(`public/art/bok/yrken/${p.id}.webp`), p.id).toBe(true);
+    }
+  });
+
   it('följer tabellerna i Bok I', () => {
     expect(RACE_LIST.map((r) => [r.id, r.bp])).toEqual([
       ['alv', 25],

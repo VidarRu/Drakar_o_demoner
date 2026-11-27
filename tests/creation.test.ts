@@ -3,6 +3,7 @@ import { Game } from '../src/engine/game';
 import { testCharacter } from './helpers';
 import {
   ability,
+  allErrors,
   availableSpells,
   startSpellCount,
   startSpellSkill,
@@ -11,6 +12,7 @@ import {
   epSpent,
   finalAttrs,
   finalize,
+  previewCharacter,
   maxPurchase,
   newDraft,
   profSkillErrors,
@@ -23,6 +25,7 @@ import {
   type Draft,
 } from '../src/engine/creation';
 import { movement } from '../src/engine/rules';
+import { PREGENS } from '../src/content/forgenererade';
 
 /**
  * Teval Ailindurbom, bokens exempel (Bok I s. 9–33): alvisk utbygdsjägare.
@@ -201,5 +204,73 @@ describe('figuren (Vidar)', () => {
     expect(Game.create(c).leader.sprite).toBe('krigare');
     c.sprite = 'dvarg';
     expect(Game.create(c).leader.sprite).toBe('dvarg');
+  });
+});
+
+describe('förhandsvisning av ett utkast', () => {
+  it('ger samma rollperson som finalize när utkastet är komplett', () => {
+    expect(previewCharacter(teval())).toEqual(finalize(teval()));
+  });
+
+  it('kastar inte för ett tomt utkast och lämnar det som saknas tomt', () => {
+    const c = previewCharacter(newDraft());
+    expect(c.social).toBe('');
+    expect(c.swordHand).toBe('');
+    expect(c.ability).toBeNull();
+    expect(c.silver).toBe(0);
+    expect(c.capital).toBe(0);
+  });
+
+  it('kastar inte för en magiker utan yrkesfärdigheter', () => {
+    const d = newDraft();
+    d.profession = 'magiker';
+    expect(() => previewCharacter(d)).not.toThrow();
+  });
+
+  it('räknar om köpta värden när rasen byts', () => {
+    const d = newDraft();
+    d.bought.STY = 14;
+    d.race = 'anka';
+    expect(previewCharacter(d).attrs.STY).toBe(10);
+  });
+});
+
+describe('färdiga rollpersoner', () => {
+  it('har id:na krigare, tjuv och magiker i den ordningen', () => {
+    expect(PREGENS.map((p) => p.id)).toEqual(['krigare', 'tjuv', 'magiker']);
+  });
+
+  it.each(PREGENS.map((p) => [p.id, p] as const))('%s är en giltig rollperson som går att göra färdig', (_id, p) => {
+    expect(p.title).not.toBe('');
+    expect(p.blurb).not.toBe('');
+    const d = p.draft();
+    expect(allErrors(d)).toEqual([]);
+    expect(() => finalize(d)).not.toThrow();
+  });
+
+  it('har fasta raser och medelvärden som slag', () => {
+    const races = PREGENS.map((p) => p.draft().race);
+    expect(races).toEqual(['manniska', 'halvlangdsman', 'alv']);
+    for (const p of PREGENS) {
+      const d = p.draft();
+      expect([undefined, 21]).toContain(d.abilityDice);
+      expect(d.swordDice).toBe(7);
+      expect(d.socialDice).toBe(7);
+      expect(d.capitalDice).toBe(7);
+      for (const bp of [d.abilityBp, d.swordBp, d.socialBp, d.capitalBp]) expect([0, 1]).toContain(bp);
+    }
+  });
+
+  it('ger ett nytt utkast vid varje anrop', () => {
+    const p = PREGENS[0];
+    const a = p.draft();
+    const b = p.draft();
+    expect(a).not.toBe(b);
+    a.name = 'Ändrad';
+    a.bought.STY = 3;
+    a.profSkills.push('x');
+    expect(b.name).not.toBe('Ändrad');
+    expect(b.bought.STY).not.toBe(3);
+    expect(b.profSkills).not.toContain('x');
   });
 });

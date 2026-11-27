@@ -1,11 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import { CREATURES, MAPS, NATURAL_WEAPONS, NPCS } from '../src/content';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { CREATURES, MAPS, MODULES, NATURAL_WEAPONS, NPCS } from '../src/content';
 import { WEAPONS } from '../src/data/weapons';
 import { roll, seededRng } from '../src/engine/dice';
 import { Game } from '../src/engine/game';
 import { INTENTS } from '../src/engine/intents';
 import { findPath, lineOfSight, parseMap } from '../src/engine/map';
 import { damageBonus, maxKp, rollAttrs, skillCheck } from '../src/engine/rules';
+import { listSaves, saveSummary } from '../src/engine/save';
 import { testCharacter } from './helpers';
 
 const attrs = { STY: 13, STO: 12, FYS: 13, SMI: 12, INT: 10, PSY: 10, KAR: 10 };
@@ -132,5 +133,47 @@ describe('spelmotor', () => {
     const copy = new Game(JSON.parse(JSON.stringify(g.state)));
     expect(copy.player.name).toBe('Test');
     expect(copy.visible.size).toBe(g.visible.size);
+  });
+});
+
+describe('sammanfattning av sparning', () => {
+  it('ger namn, ras, yrke, modul och klocka', () => {
+    const state = newGame().state;
+    const s = saveSummary(state);
+    expect(s.name).toBe('Test');
+    expect(s.race).toBe('Människa');
+    expect(s.profession).toBe('Krigare');
+    expect(s.module).toBe(MODULES[state.moduleId].name);
+    expect(s.clock.startsWith('Dag ')).toBe(true);
+  });
+
+  it('listan är tom utan lagring', () => {
+    expect(listSaves()).toEqual([]);
+  });
+
+  describe('med lagring', () => {
+    const store = new Map<string, string>();
+    beforeEach(() => {
+      store.clear();
+      Object.defineProperty(globalThis, 'localStorage', {
+        configurable: true,
+        value: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v), removeItem: (k: string) => store.delete(k) },
+      });
+    });
+    afterEach(() => {
+      delete (globalThis as { localStorage?: unknown }).localStorage;
+    });
+
+    it('en sparning ger en rad med sammanfattningen', () => {
+      const state = newGame().state;
+      store.set('dod-save-v7', JSON.stringify(state));
+      expect(listSaves()).toEqual([{ key: 'dod-save-v7', summary: saveSummary(state) }]);
+      expect(listSaves()[0].summary.name).toBe('Test');
+    });
+
+    it('en trasig sparning ger en tom lista i stället för att kasta', () => {
+      store.set('dod-save-v7', JSON.stringify({ version: 7 }));
+      expect(listSaves()).toEqual([]);
+    });
   });
 });
