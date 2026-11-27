@@ -1,4 +1,5 @@
 import type { Game } from '../engine/game';
+import { ambienceFor, type AmbienceId } from './ambience';
 import { musicFor, type MusicId } from './music';
 import { AudioEngine, Settle } from './player';
 import { loadSettings, saveSettings, type AudioSettings } from './settings';
@@ -31,14 +32,23 @@ export function mountAudio() {
 /** Spelet: ljudsignalerna blir ljud, och musiken följer läget och platsen. */
 export function attachAudio(game: Game) {
   game.onCue((c) => {
-    soundFor(game, c).forEach((p, i) => (i ? setTimeout(() => audio.play(p), LAYER_MS * i) : audio.play(p)));
+    soundFor(game, c).forEach((p, i) => {
+      const ms = p.delay ?? LAYER_MS * i;
+      if (ms) setTimeout(() => audio.play(p), ms);
+      else audio.play(p);
+    });
   });
   const settle = new Settle<MusicId>();
+  // Settle använder null för "inget byte", så "inget miljöljud" heter 'ingen' här.
+  const settleAmbience = new Settle<AmbienceId | 'ingen'>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const update = () => {
     try {
-      const next = settle.push(musicFor(game), performance.now());
+      const now = performance.now();
+      const next = settle.push(musicFor(game), now);
       if (next) audio.playMusic(next);
+      const ambience = settleAmbience.push(ambienceFor(game) ?? 'ingen', now);
+      if (ambience) audio.playAmbience(ambience === 'ingen' ? null : ambience);
     } catch {
       // Musiken får aldrig stoppa spelets andra lyssnare (gränssnittet, sparningen).
     }
