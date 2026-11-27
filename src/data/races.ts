@@ -8,6 +8,7 @@ export const RACE_LIST: RaceDef[] = [
   {
     id: 'alv',
     name: 'Alv',
+    desc: 'Långlivat folk från skogarna. Smidiga och kloka, men inte särskilt starka.',
     bp: 25,
     mods: { STY: -1, FYS: 0, SMI: 3, INT: 3, PSY: 0, KAR: 2 },
     sto: { min: 8, max: 14, normal: 11 },
@@ -31,6 +32,7 @@ export const RACE_LIST: RaceDef[] = [
   {
     id: 'anka',
     name: 'Anka',
+    desc: 'Små, envisa och stridslystna. Tåliga och snabba i vattnet, men sällan omtyckta.',
     bp: 0,
     mods: { STY: -4, FYS: 2, SMI: 2, INT: 0, PSY: 0, KAR: -3 },
     sto: { min: 3, max: 6, normal: 5 },
@@ -47,6 +49,7 @@ export const RACE_LIST: RaceDef[] = [
   {
     id: 'dvarg',
     name: 'Dvärg',
+    desc: 'Bergens folk: smeder och gruvbrytare, starka och sega.',
     bp: 25,
     mods: { STY: 3, FYS: 2, SMI: 0, INT: 0, PSY: 2, KAR: 0 },
     sto: { min: 4, max: 9, normal: 7 },
@@ -66,6 +69,7 @@ export const RACE_LIST: RaceDef[] = [
   {
     id: 'halvalv',
     name: 'Halvalv',
+    desc: 'Både alv och människa. Smidigare än människor och med skarpare sinnen.',
     bp: 15,
     mods: { STY: 0, FYS: 0, SMI: 2, INT: 0, PSY: 0, KAR: 1 },
     sto: { min: 7, max: 16, normal: 12 },
@@ -83,6 +87,7 @@ export const RACE_LIST: RaceDef[] = [
   {
     id: 'halvlangdsman',
     name: 'Halvlängdsman',
+    desc: 'Små och seglivade, med lätta fötter och god aptit.',
     bp: 15,
     mods: { STY: -4, FYS: 3, SMI: 3, INT: 0, PSY: 2, KAR: 0 },
     sto: { min: 3, max: 6, normal: 5 },
@@ -99,6 +104,7 @@ export const RACE_LIST: RaceDef[] = [
   {
     id: 'halvorch',
     name: 'Halvorch',
+    desc: 'Starka och tåliga, men kantiga i umgänget.',
     bp: 10,
     mods: { STY: 2, FYS: 2, SMI: -1, INT: 0, PSY: 0, KAR: -3 },
     sto: { min: 8, max: 18, normal: 13 },
@@ -115,6 +121,7 @@ export const RACE_LIST: RaceDef[] = [
   {
     id: 'manniska',
     name: 'Människa',
+    desc: 'Det vanligaste folket. Inga för- eller nackdelar, och de passar till alla yrken.',
     bp: 10,
     mods: { STY: 0, FYS: 0, SMI: 0, INT: 0, PSY: 0, KAR: 0 },
     sto: { min: 8, max: 18, normal: 13 },

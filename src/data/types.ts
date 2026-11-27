@@ -66,6 +66,8 @@ export type AttrMods = Record<Exclude<AttrKey, 'STO'>, number>;
 export interface RaceDef {
   id: string;
   name: string;
+  /** Egen kort beskrivning av folket, till rollpersonsboken. */
+  desc: string;
   bp: number;
   mods: AttrMods;
   sto: { min: number; max: number; normal: number };
