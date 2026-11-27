@@ -33,7 +33,7 @@
 
 ---
 
-### Uppgift 1: Omkodningen och upphovspersonerna
+### Task 1: Omkodningen och upphovspersonerna
 
 **Filer:**
 - Skapa: `tools/flare_audio.py`
@@ -82,7 +82,7 @@ git commit -m "Ljud och musik ur Flare, omkodade till MP3"
 
 ---
 
-### Uppgift 2: Motorns ljudsignaler
+### Task 2: Motorns ljudsignaler
 
 **Filer:**
 - Ändra: `src/engine/game.ts` (typen `Cue`, `onCue`, `cue`; `sleep`, `stepPlayer`, `combatStep`)
@@ -193,7 +193,7 @@ git commit -m "Ljudsignaler från motorn"
 
 ---
 
-### Uppgift 3: Musikvalet
+### Task 3: Musikvalet
 
 **Filer:**
 - Ändra: `src/engine/map.ts` (`MusicTheme`, `MapDef.music`, `GameMap.music`, `parseMap`)
@@ -263,7 +263,7 @@ git commit -m "Musiken väljs efter läge, ruta och karta"
 
 ---
 
-### Uppgift 4: Ljudtabellen
+### Task 4: Ljudtabellen
 
 **Filer:**
 - Skapa: `src/audio/sounds.ts`
@@ -351,7 +351,7 @@ git commit -m "Ljudtabellen: signal till Flare-ljud"
 
 ---
 
-### Uppgift 5: Uppspelningen, inställningarna och ljudknappen
+### Task 5: Uppspelningen, inställningarna och ljudknappen
 
 **Filer:**
 - Skapa: `src/audio/settings.ts`, `src/audio/player.ts`, `src/audio/index.ts`
@@ -458,7 +458,7 @@ git commit -m "Ljudmodulen: uppspelning, musikbyten och ljudknappen"
 
 ---
 
-### Uppgift 6: Briefen
+### Task 6: Briefen
 
 **Filer:**
 - Ändra: `docs/brief.md`
