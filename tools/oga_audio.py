@@ -13,6 +13,11 @@ Paketen (se public/audio/CREDITS.md), uppackade var och en i sin katalog:
              som TAKES nämner, ur medieval_sfx_textures_1_of_2.7z och 2_of_2.7z)
   fleshy/ https://opengameart.org/content/fleshy-fight-sounds (fleshy_fight_sounds.zip)
   clash/  https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes (sword_clash_-_starninjas_0.zip)
+  dog/    https://opengameart.org/content/dog-snarl-grunt-grumble (dog_0.7z, flac-filerna)
+  bear/   https://opengameart.org/content/bear-growls (bear.zip, flac-filerna)
+  creature/  https://opengameart.org/content/80-cc0-creature-sfx (howl.ogg)
+  water/  https://opengameart.org/content/40-cc0-water-splash-slime-sfx (splash_*.ogg)
+  (duck/ får också stones_01–04.ogg ur 80 CC0 RPG SFX)
 
 Alla blir mono med 64 kbit/s och toppvolymen −3 dB, så att underlagen låter lika starka.
 Grottstegen får ett eko, och facklans låga tonas ut efter en sekund. Vapenhuggen och skotten
@@ -30,6 +35,7 @@ PEAK_DB = -3.0
 CAVE_ECHO = 'apad=pad_dur=0.35,aecho=0.8:0.6:70|140:0.35|0.18'
 FLAME = 'atrim=0:1.1,afade=t=out:st=0.7:d=0.4'
 CLANG = 'atrim=0:0.8,afade=t=out:st=0.5:d=0.3'
+GROWL = 'atrim=0:0.7,afade=t=out:st=0.45:d=0.25'
 TRIM_END = 'areverse,silenceremove=start_periods=1:start_threshold=-55dB,areverse'
 
 
@@ -58,6 +64,16 @@ PICK = [
     ('traff/stick_rustning', ['fleshy/piercing-arm-2a.wav', 'fleshy/piercing-arm-2b.wav'], ''),
     ('traff/slag', ['fleshy/punch_1a.wav', 'fleshy/punch_1b.wav'], ''),
     ('parera/klang', [f'clash/sword_clash.{i}.ogg' for i in range(1, 11)], CLANG),
+    ('djur/varg_traff', ['dog/dog-growl.flac', 'dog/dog-grumble.flac', 'dog/dog-snarl.flac'], ''),
+    ('djur/varg_dor', ['creature/howl.ogg'], ''),
+    ('djur/bjorn_traff', ['bear/bear_01.flac', 'bear/bear_02.flac'], GROWL),
+    ('djur/bjorn_dor', ['bear/bear_01.flac', 'bear/bear_02.flac'], ''),
+    ('element/sten', ['duck/stones_01.ogg', 'duck/stones_02.ogg', 'duck/stones_04.ogg'], ''),
+    ('element/sten_dor', ['duck/stones_03.ogg'], ''),
+    ('element/plask', [f'water/splash_{i:02d}.ogg' for i in (6, 10, 14, 15)], ''),
+    ('element/plask_dor', ['water/splash_01.ogg'], ''),
+    ('element/skugga', [f'rpg/RPG Sound Pack/NPC/shade/shade{i}.wav' for i in (1, 2, 3, 14)], ''),
+    ('element/skugga_dor', ['rpg/RPG Sound Pack/NPC/shade/shade8.wav'], ''),
 ]
 
 # Tagningar i en lång fil: (mål, källa, brusgräns för tystnaden i dB, högst så många tagningar).

@@ -223,6 +223,36 @@ describe('ljudtabellen', () => {
     expect(delays[3]).toBeGreaterThan(delays[2]);
   });
 
+  it('vargen morrar och ylar, björnen brummar', () => {
+    const g = gravad();
+    const wolf = foe(g, 'varg');
+    expect(SFX.varg_traff).toContain(files(g, { type: 'skada', actorId: wolf.id })[0]);
+    expect(SFX.varg_dor).toContain(files(g, { type: 'död', actorId: wolf.id })[0]);
+    wolf.sprite = 'bjorn';
+    expect(SFX.bjorn_traff).toContain(files(g, { type: 'skada', actorId: wolf.id })[0]);
+    expect(SFX.bjorn_dor).toContain(files(g, { type: 'död', actorId: wolf.id })[0]);
+  });
+
+  it('elementarerna låter efter sitt element', () => {
+    const g = gravad();
+    const a = foe(g);
+    const expected: Record<string, [string[], string[]]> = {
+      eld: [SFX.brann, SFX.eld],
+      värme: [SFX.brann, SFX.eld],
+      jord: [SFX.sten, SFX.sten_dor],
+      vatten: [SFX.plask, SFX.plask_dor],
+      luft: [SFX.hugg_spjut, SFX.flytt],
+      köld: [SFX.kold, SFX.kold],
+      mörker: [SFX.skugga, SFX.skugga_dor],
+      ljus: [SFX.skydd, SFX.lak],
+    };
+    for (const [kind, [hit, die]] of Object.entries(expected)) {
+      a.elemental = { kind } as never;
+      expect(hit, kind).toContain(files(g, { type: 'skada', actorId: a.id })[0]);
+      expect(die, kind).toContain(files(g, { type: 'död', actorId: a.id })[0]);
+    }
+  });
+
   it('alla signaler ger minst ett ljud', () => {
     const g = gravad();
     const id = g.player.id;

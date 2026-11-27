@@ -75,3 +75,21 @@ Licens: [OGA-BY 3.0](https://static.opengameart.org/OGA-BY-3.0.txt).
 
 Ur [20 Sword Sound Effects (Attacks and Clashes)](https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes)
 av StarNinjas, avkortade till 0,8 sekunder. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+### Djur och elementarer (`oga/djur/`, `oga/element/`)
+
+- **Varg som morrar** (`varg_traff`): [Dog Snarl Grunt Grumble](https://opengameart.org/content/dog-snarl-grunt-grumble)
+  av qubodup. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+- **Varg som ylar** (`varg_dor`): howl ur [80 CC0 creature SFX](https://opengameart.org/content/80-cc0-creature-sfx)
+  av rubberduck. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+- **Björn** (`bjorn_traff`, `bjorn_dor`): [Bear Growls](https://opengameart.org/content/bear-growls),
+  inspelade av U.S. Fish & Wildlife Service och uppladdade av AntumDeluge. Licens:
+  [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+- **Jordelementar** (`sten`, `sten_dor`): stones_01–04 ur [80 CC0 RPG SFX](https://opengameart.org/content/80-cc0-rpg-sfx)
+  av rubberduck. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+- **Vattenelementar** (`plask`, `plask_dor`): splash ur [40 CC0 water / splash / slime SFX](https://opengameart.org/content/40-cc0-water-splash-slime-sfx)
+  av rubberduck. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+- **Mörkerelementar** (`skugga`, `skugga_dor`): shade ur [RPG Sound Pack](https://opengameart.org/content/rpg-sound-pack)
+  av artisticdude. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+Eld, värme, luft, köld och ljus använder Flares besvärjelseljud.

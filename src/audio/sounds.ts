@@ -59,6 +59,17 @@ export const SFX = {
   zombieDor: fl('enemies/zombie_die'),
   storTraff: fl('enemies/minotaur_hit'),
   storDor: fl('enemies/minotaur_die'),
+  varg_traff: oga('djur/varg_traff', 3),
+  varg_dor: oga('djur/varg_dor', 1),
+  bjorn_traff: oga('djur/bjorn_traff', 2),
+  bjorn_dor: oga('djur/bjorn_dor', 2),
+  brann: fl('powers/burn'),
+  sten: oga('element/sten', 3),
+  sten_dor: oga('element/sten_dor', 1),
+  plask: oga('element/plask', 4),
+  plask_dor: oga('element/plask_dor', 1),
+  skugga: oga('element/skugga', 4),
+  skugga_dor: oga('element/skugga_dor', 1),
   eld: fl('powers/fireball', 'powers/burn'),
   blixt: fl('powers/shock', 'powers/thunder'),
   kold: fl('powers/freeze'),
@@ -129,19 +140,17 @@ const EFFECT_SOUND: Record<string, SfxGroup> = {
 };
 const SCHOOL_SOUND: Record<string, SfxGroup> = { elementarmagi: 'eld', animism: 'jord', mentalism: 'sinne', allmän: 'sinne' };
 
-/** Varelser efter figur: ljudet och grundtonen. Figurer som inte står här låter som en svartalf, lite mörkare. */
-const CREATURE_VOICE: Record<string, { voice: 'svartalf' | 'skelett' | 'zombie' | 'stor' | 'man' | 'kvinna'; rate: number }> = {
-  svartalf: { voice: 'svartalf', rate: 1 },
-  hovding: { voice: 'svartalf', rate: 0.9 },
-  haxkonstnar: { voice: 'svartalf', rate: 1.1 },
-  varg: { voice: 'svartalf', rate: 0.8 },
-  bjorn: { voice: 'stor', rate: 0.8 },
-  knekt: { voice: 'man', rate: 1 },
-  vard: { voice: 'man', rate: 1 },
-  smed: { voice: 'man', rate: 1 },
-  gumma: { voice: 'kvinna', rate: 1 },
-};
+/** Ljuden när en figur träffas och dör: [träff, död]. */
 const VOICE_GROUPS = {
+  varg: ['varg_traff', 'varg_dor'],
+  bjorn: ['bjorn_traff', 'bjorn_dor'],
+  eld: ['brann', 'eld'],
+  jord: ['sten', 'sten_dor'],
+  vatten: ['plask', 'plask_dor'],
+  luft: ['hugg_spjut', 'flytt'],
+  kold: ['kold', 'kold'],
+  morker: ['skugga', 'skugga_dor'],
+  ljus: ['skydd', 'lak'],
   svartalf: ['svartalfTraff', 'svartalfDor'],
   skelett: ['skelettTraff', 'skelettDor'],
   zombie: ['zombieTraff', 'zombieDor'],
@@ -149,6 +158,34 @@ const VOICE_GROUPS = {
   man: ['manTraff', 'manDor'],
   kvinna: ['kvinnaTraff', 'kvinnaDor'],
 } as const satisfies Record<string, readonly [SfxGroup, SfxGroup]>;
+type Voice = { voice: keyof typeof VOICE_GROUPS; rate: number };
+
+/** Varelser efter figur: ljudet och grundtonen. Figurer som inte står här låter som en svartalf, lite mörkare. */
+const CREATURE_VOICE: Record<string, Voice> = {
+  svartalf: { voice: 'svartalf', rate: 1 },
+  hovding: { voice: 'svartalf', rate: 0.9 },
+  haxkonstnar: { voice: 'svartalf', rate: 1.1 },
+  varg: { voice: 'varg', rate: 0.9 },
+  bjorn: { voice: 'bjorn', rate: 1 },
+  knekt: { voice: 'man', rate: 1 },
+  vard: { voice: 'man', rate: 1 },
+  smed: { voice: 'man', rate: 1 },
+  gumma: { voice: 'kvinna', rate: 1 },
+  linnea: { voice: 'kvinna', rate: 1 },
+  jagarinna: { voice: 'kvinna', rate: 1 },
+};
+
+/** Elementarerna låter efter sitt element. */
+const ELEMENT_VOICE: Record<string, Voice> = {
+  eld: { voice: 'eld', rate: 1 },
+  värme: { voice: 'eld', rate: 0.85 },
+  jord: { voice: 'jord', rate: 0.9 },
+  vatten: { voice: 'vatten', rate: 1 },
+  luft: { voice: 'luft', rate: 0.7 },
+  köld: { voice: 'kold', rate: 1 },
+  mörker: { voice: 'morker', rate: 0.9 },
+  ljus: { voice: 'ljus', rate: 1.1 },
+};
 
 /** Vapengruppens hugg och grundton. Klubbor och hammare har inget eget hugg: yxans, tyngre. */
 const SWING: Record<string, { group: SfxGroup; rate: number }> = {
@@ -207,7 +244,9 @@ const pick = (group: SfxGroup, rng: () => number, base = 1, volume = 1): SoundPi
 const tileName = (g: Game, a: Actor) => (inBounds(g.map, a.x, a.y) ? tileAt(g.map, a.x, a.y)?.name : undefined);
 
 /** Vem som låter: en person efter kön, en varelse efter figur. */
-function voiceOf(g: Game, a: Actor): { voice: keyof typeof VOICE_GROUPS; rate: number } {
+function voiceOf(g: Game, a: Actor): Voice {
+  const element = a.elemental && ELEMENT_VOICE[a.elemental.kind];
+  if (element) return element;
   const ch = g.charOf(a);
   if (ch) return { voice: ch.gender === 'kvinna' ? 'kvinna' : 'man', rate: 1 };
   return CREATURE_VOICE[a.sprite] ?? { voice: 'svartalf', rate: 0.8 };
