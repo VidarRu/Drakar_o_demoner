@@ -708,8 +708,12 @@ for (const name of [...Object.keys(LOOKS), ...Object.keys(BEASTS), ...Object.key
   for (let i = 1; i < FRAMES; i++) SPRITES[`${name}_g${i}`] = build(name, i);
 }
 
+/** Slängprov: Flares målade porträtt i den snedställda vyn (se tools/flare_art.py). */
+const FLARE_PORTRAITS = ['krigare', 'krigarinna', 'jagare', 'tjuv', 'magiker', 'alv', 'dvarg', 'vard', 'smed', 'gumma', 'knekt', 'jagarinna', 'linnea'];
+
 /** Förstorat porträtt (huvud och axlar) som bild-URL för gränssnittet. */
 export function portraitUrl(sprite: string): string {
+  if (document.body.classList.contains('iso') && FLARE_PORTRAITS.includes(sprite)) return `${import.meta.env.BASE_URL}art/flare/portrait_${sprite}.png`;
   const el = document.createElement('canvas');
   el.width = 96;
   el.height = 96;
