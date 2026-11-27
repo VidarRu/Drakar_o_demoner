@@ -8,11 +8,11 @@ import { SPELLS } from '../data/spells';
 import { spellS } from '../engine/magic';
 import type { MeleeWeaponDef, RangedWeaponDef } from '../data/types';
 import { WEAPONS } from '../data/weapons';
-import { armorBv, armorPiece, damageExpr, effectiveMove } from '../engine/combat';
-import { skillName } from '../engine/creation';
-import type { Game } from '../engine/game';
+import { armorBv, armorPiece, damageExpr, effectiveMove, skillFvOf, weaponInfo, type WeaponInfo } from '../engine/combat';
+import { previewCharacter, skillName, type Draft } from '../engine/creation';
+import { actorFromCharacter, type Game } from '../engine/game';
 import { bLevel, damageBonus, type HitLocation } from '../engine/rules';
-import type { Actor, AttrKey } from '../engine/types';
+import type { Actor, AttrKey, Character } from '../engine/types';
 import { bodyFigure } from './figure';
 import { el } from './hud';
 
@@ -36,8 +36,47 @@ const ATTR_ORDER: AttrKey[] = ['STY', 'FYS', 'SMI', 'INT', 'PSY', 'KAR', 'STO'];
 const LANGUAGES = ['tala_frammande', 'las_skriv_frammande'];
 const isLanguage = (key: string) => LANGUAGES.includes(key.split(':')[0]);
 
-/** Ett handskrivet värde. */
-const hand = (text: string | number, cls = '') => el('span', `hand ${cls}`.trim(), String(text));
+/** Ett handskrivet värde. `ink` är nyckeln som följer värdet mellan ritningar (se ink.ts). */
+function hand(text: string | number, cls = '', ink?: string): HTMLElement {
+  const e = el('span', `hand ${cls}`.trim(), String(text));
+  if (ink !== undefined) e.dataset.ink = ink;
+  return e;
+}
+
+/** Det rollformuläret ritas från: aktören och rollpersonen, från ett spel eller från ett utkast. */
+export interface SheetSource {
+  actor: Actor;
+  char: Character;
+  fv: (skill: string) => number;
+  weapon: (slot: 'weapon' | 'offhand') => WeaponInfo;
+  move: number;
+  /** Falskt när ett utkast saknar ålder i år och rasen saknar åldersgrupper: fältet Ålder lämnas tomt. */
+  ageKnown?: boolean;
+}
+
+export function sheetFromGame(g: Game): SheetSource {
+  const actor = g.player;
+  return {
+    actor,
+    char: g.char,
+    fv: (skill) => g.skillFv(actor, skill),
+    weapon: (slot) => g.weaponOf(actor, slot),
+    move: effectiveMove(actor, g),
+  };
+}
+
+export function sheetFromDraft(d: Draft): SheetSource {
+  const char = previewCharacter(d);
+  const actor = actorFromCharacter(char, 'player', 0, 0);
+  return {
+    actor,
+    char,
+    fv: (skill) => skillFvOf(actor, skill),
+    weapon: (slot) => weaponInfo(actor, slot),
+    move: effectiveMove(actor),
+    ageKnown: d.years !== undefined || !!RACES[d.race]?.ages,
+  };
+}
 
 /** En ruta med röd rubrikrad och eventuella kolumnrubriker till höger. */
 function box(title: string, cols: string[], ...content: HTMLElement[]): HTMLElement {
@@ -65,7 +104,7 @@ function lined(rows: (string | HTMLElement)[][], cols: number, minRows = 0): HTM
       const td = el('td', i === 0 ? 'label' : 'val');
       const v = r[i];
       if (v instanceof HTMLElement) td.append(v);
-      else if (v) td.append(i === 0 ? document.createTextNode(v) : hand(v));
+      else if (v) td.append(i === 0 ? document.createTextNode(v) : hand(v, '', typeof r[0] === 'string' ? `${r[0]}|${i}` : undefined));
       tr.append(td);
     }
     body.append(tr);
@@ -85,7 +124,7 @@ function kpBoxes(max: number, current: number, perRow = 0): HTMLElement {
 
 function field(label: string, value: string, cls = ''): HTMLElement {
   const f = el('div', `rf-field ${cls}`.trim());
-  f.append(el('small', '', label), hand(value));
+  f.append(el('small', '', label), hand(value, '', label));
   return f;
 }
 
@@ -101,9 +140,9 @@ const kg = (n: number) => (n ? `${String(Math.round(n * 10) / 10).replace('.', '
 
 // ------------------------------------------------------------------ framsidan
 
-function front(g: Game): HTMLElement {
-  const p = g.player;
-  const ch = g.char;
+function front(src: SheetSource): HTMLElement {
+  const p = src.actor;
+  const ch = src.char;
   const race = RACES[ch.race];
   const prof = PROFESSIONS[ch.profession];
   const page = el('article', 'rf-page rf-front');
@@ -123,7 +162,7 @@ function front(g: Game): HTMLElement {
     field('Socialt stånd', ch.social),
     field('Yrke', prof.name),
     field('Svärdshand', ch.swordHand),
-    field('Ålder', `${ch.age.years} år (${ch.age.group})`),
+    field('Ålder', src.ageKnown === false ? '' : `${ch.age.years} år (${ch.age.group})`),
   );
   head.append(logo, fields);
 
@@ -153,20 +192,27 @@ function front(g: Game): HTMLElement {
     .sort((a, b) => skillName(a).localeCompare(skillName(b), 'sv'));
   const secRows = secondary.map((k) => [skillName(k), mark(k), fv(k)]);
 
+  const inkParagraph = (text: string, key: string, cls = 'hand'): HTMLElement => {
+    const p = el('p', cls, text);
+    p.dataset.ink = key;
+    return p;
+  };
+  /** Förmågor nycklas på rubriken före kolon. */
+  const ability = (text: string) => inkParagraph(text, `Särskilda förmågor|${text.split(':')[0]}`);
   const abilities = el('div', 'rf-text');
-  for (const { def } of abilitiesOf(ch)) abilities.append(el('p', 'hand', `${def.name}: ${def.desc}`));
-  abilities.append(el('p', 'hand', `${prof.ability.name}: ${prof.ability.desc}`));
-  if (ch.heroTotal) abilities.append(el('p', 'hand', `Hjältepoäng: ${ch.heroPoints ?? 0} (${ch.heroTotal} i livet)`));
-  if (ch.academy) abilities.append(el('p', 'hand', 'Medlem i magiakademin'));
-  for (const ph of ch.phobias ?? []) abilities.append(el('p', 'hand', `Fobi (${ph.level}): ${ph.source}`));
-  if (ch.techniques.length) abilities.append(el('p', 'hand', `Tekniker: ${ch.techniques.join(', ').replace(/_/g, ' ')}`));
+  for (const { def } of abilitiesOf(ch)) abilities.append(ability(`${def.name}: ${def.desc}`));
+  abilities.append(ability(`${prof.ability.name}: ${prof.ability.desc}`));
+  if (ch.heroTotal) abilities.append(ability(`Hjältepoäng: ${ch.heroPoints ?? 0} (${ch.heroTotal} i livet)`));
+  if (ch.academy) abilities.append(ability('Medlem i magiakademin'));
+  for (const ph of ch.phobias ?? []) abilities.append(ability(`Fobi (${ph.level}): ${ph.source}`));
+  if (ch.techniques.length) abilities.append(ability(`Tekniker: ${ch.techniques.join(', ').replace(/_/g, ' ')}`));
 
   const cols = el('div', 'rf-cols');
   const c1 = el('div', 'col');
   c1.append(box('Grundegenskap', ['Värde'], attrs), box('Primära färdigheter', ['erf', 'FV'], lined(primRows, 3)));
   const c2 = el('div', 'col');
   c2.append(
-    box('Utseende', [], el('p', 'hand rf-text', ch.appearance || '')),
+    box('Utseende', [], inkParagraph(ch.appearance || '', 'Utseende', 'hand rf-text')),
     box('Särskilda förmågor', [], abilities),
     box('Yrkesfärdigheter', ['erf', 'FV'], lined(profRows, 3, 12)),
     box('Språk (INT)', ['FV', 'B-FV'], lined(langRows, 3, 4)),
@@ -194,30 +240,30 @@ function locationBox(a: Actor, loc: HitLocation, title: string): HTMLElement {
   const b = el('div', 'rf-loc');
   b.dataset.loc = loc;
   const h = el('div', 'rf-loc-head');
-  h.append(document.createTextNode(`${title.toUpperCase()} (`), hand(a.locMax[loc]), document.createTextNode(')'));
+  h.append(document.createTextNode(`${title.toUpperCase()} (`), hand(a.locMax[loc], '', `${title}|1`), document.createTextNode(')'));
   const piece = armorPiece(a, loc) ?? a.armor.map((id) => ARMOR[id]).find((p) => p?.covers.includes(loc));
   const bv = piece ? a.bv[piece.id] : undefined;
   const rows = el('div', 'rf-loc-rows');
   const kp = el('div', 'rf-loc-kp');
   kp.append(kpBoxes(a.locMax[loc], a.locKp[loc], Math.min(a.locMax[loc], 6)));
-  if (a.locKp[loc] < 0) kp.append(hand(`(${a.locKp[loc]})`, 'red'));
+  if (a.locKp[loc] < 0) kp.append(hand(`(${a.locKp[loc]})`, 'red', `${title}|2`));
   const armor = el('div', 'rf-loc-armor');
-  armor.append(el('small', '', 'Rustning'), hand(piece ? piece.name : ''));
+  armor.append(el('small', '', 'Rustning'), hand(piece ? piece.name : '', '', `${title}|3`));
   const abs = el('div', 'rf-loc-armor');
-  abs.append(el('small', '', 'Abs'), hand(piece ? `${piece.abs}${bv !== undefined ? ` · BV ${bv}/${armorBv(piece.id)}` : ''}` : ''));
+  abs.append(el('small', '', 'Abs'), hand(piece ? `${piece.abs}${bv !== undefined ? ` · BV ${bv}/${armorBv(piece.id)}` : ''}` : '', '', `${title}|4`));
   rows.append(kp, armor, abs);
   b.append(h, rows);
   const notes: string[] = [];
   if (a.bleeding.includes(loc)) notes.push('blöder');
   if (a.disabled.includes(loc)) notes.push('obrukbar');
   for (const inj of a.injuries) if (inj.loc === loc) notes.push(inj.text);
-  if (notes.length) b.append(hand(notes.join('. '), 'red small'));
+  if (notes.length) b.append(hand(notes.join('. '), 'red small', `${title}|5`));
   return b;
 }
 
-function back(g: Game): HTMLElement {
-  const p = g.player;
-  const ch = g.char;
+function back(src: SheetSource): HTMLElement {
+  const p = src.actor;
+  const ch = src.char;
   const page = el('article', 'rf-page rf-back');
 
   // Kroppen med träffområdena runt figuren.
@@ -235,14 +281,14 @@ function back(g: Game): HTMLElement {
   const statRow = (label: string, ...vals: string[]) => {
     const r = el('div', 'rf-stat');
     r.append(el('span', 'rf-chip', label));
-    for (const v of vals) {
+    vals.forEach((v, i) => {
       const cell = el('span', 'rf-cell');
-      cell.append(hand(v));
+      cell.append(hand(v, '', `${label}|${i + 1}`));
       r.append(cell);
-    }
+    });
     return r;
   };
-  const move = effectiveMove(p, g);
+  const move = src.move;
   const nm = el('div', 'rf-stat rf-nm');
   nm.append(el('span', ''), el('small', '', 'Normal'), el('small', '', 'Maximal'));
   const left2 = el('div', 'col');
@@ -255,7 +301,7 @@ function back(g: Game): HTMLElement {
   const right2 = el('div', 'col');
   const tot = el('div', 'rf-stat rf-kp');
   tot.append(el('span', 'rf-chip', 'Tot. KP'), kpBoxes(p.maxKp, p.kp, 10));
-  if (p.kp < 0) tot.append(hand(`(${p.kp})`, 'red'));
+  if (p.kp < 0) tot.append(hand(`(${p.kp})`, 'red', 'Tot. KP|1'));
   const psy = el('div', 'rf-stat rf-kp');
   psy.append(el('span', 'rf-chip', 'PSY'), kpBoxes(p.attrs.PSY, p.psy, 10));
   right2.append(tot, psy);
@@ -266,12 +312,12 @@ function back(g: Game): HTMLElement {
   for (const slot of ['weapon', 'offhand'] as const) {
     const id = slot === 'weapon' ? p.weapon : p.offhand;
     if (!id) continue;
-    const w = g.weaponOf(p, slot);
+    const w = src.weapon(slot);
     const def = WEAPONS[id] as MeleeWeaponDef | RangedWeaponDef | undefined;
     const maxBv = def && def.kind === 'närstrid' ? def.bv : null;
     wrows.push([
       w.name,
-      String(g.skillFv(p, w.skill)),
+      String(src.fv(w.skill)),
       damageExpr(p, w),
       maxBv !== null && maxBv !== undefined ? `${p.bv[slot] ?? 0}/${maxBv}` : '—',
       def && def.kind === 'närstrid' ? String(def.length) : '—',
@@ -282,7 +328,7 @@ function back(g: Game): HTMLElement {
   }
   if (p.shield) {
     const s = SHIELDS[p.shield];
-    wrows.push([s.name, String(g.skillFv(p, 'skoldar')), '—', `${p.bv.shield ?? 0}/${s.bv}`, '—', '—', p.ep.skoldar ? String(p.ep.skoldar) : '', kg(s.weight)]);
+    wrows.push([s.name, String(src.fv('skoldar')), '—', `${p.bv.shield ?? 0}/${s.bv}`, '—', '—', p.ep.skoldar ? String(p.ep.skoldar) : '', kg(s.weight)]);
   }
   for (const id of ch.inventory) {
     const w = WEAPONS[id];
@@ -314,13 +360,13 @@ function back(g: Game): HTMLElement {
   const gearList = el('div', 'rf-gear');
   const all = [...gear];
   while (all.length < 18) all.push(['', '']);
-  for (const [name, w] of all) {
+  all.forEach(([name, w], n) => {
     const r = el('div', 'rf-gear-row');
     r.append(el('span', '', ''), el('span', '', ''));
-    if (name) r.firstElementChild!.append(hand(name));
-    if (w) r.lastElementChild!.append(hand(w));
+    if (name) r.firstElementChild!.append(hand(name, '', `Utrustning ${n + 1}|0`));
+    if (w) r.lastElementChild!.append(hand(w, '', `Utrustning ${n + 1}|1`));
     gearList.append(r);
-  }
+  });
   const gearBox = box('Utrustning', ['Vikt'], gearList);
   gearBox.classList.add('rf-gearbox');
 
@@ -330,7 +376,13 @@ function back(g: Game): HTMLElement {
 
 /** Hela rollformuläret, båda sidorna. */
 export function renderSheet(g: Game): HTMLElement {
+  const src = sheetFromGame(g);
   const wrap = el('div', 'rf');
-  wrap.append(front(g), back(g));
+  wrap.append(renderSide(src, 'front'), renderSide(src, 'back'));
   return wrap;
+}
+
+/** En sida av rollformuläret. */
+export function renderSide(src: SheetSource, side: 'front' | 'back'): HTMLElement {
+  return side === 'front' ? front(src) : back(src);
 }
