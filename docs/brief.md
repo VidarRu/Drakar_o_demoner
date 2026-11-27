@@ -139,20 +139,14 @@ Besluten står i `docs/regelbeslut.md` under Världskartan.
 
 Ordningen är Vidars. Varje punkt brainstormas när den är på tur.
 
-1. **Ljud och musik (nästa session).** Vidar gillar Flares ljudeffekter, så de används i första hand.
-   - Ljudeffekter för anfall av olika slag, förmågor, steg (olika för olika underlag), besvärjelser (olika för olika sorter), att tända en fackla, att lägga sig och sova, och en särskild signal när en strid börjar, till exempel vapenskrammel.
-   - Bakgrundsmusik i slingor, klassisk fantasy. Vidar har en egen ljudvision på sikt; till att börja med används musik under öppen licens.
-   - Källor att börja med:
-     - **Flare** (samma källa som grafiken, CC BY-SA). Kontrollera licensen och upphovspersonerna för ljudet och musiken innan det används. I `mods/fantasycore/` finns:
-       - steg på tyg, läder, metall och sten med eko (`soundfx/steps/`),
-       - ljud för besvärjelser (eldklot, blixt, frost, läkning, sköld, teleport med flera i `soundfx/powers/`),
-       - närstrid, träff och död, dörrar och packning,
-       - miljöslingor (fåglar, flod, eld, vind, grottdropp),
-       - tolv musikstycken: titel, stad, skog, grotta, fängelsehåla, strid, boss med flera.
-     - **OpenGameArt.org** och **Kenney** (mycket CC0) för det som saknas.
-     - **Freesound.org** är blandat (CC0, CC BY och CC BY-NC), så kontrollera licensen för varje ljud.
-     - Musik under CC BY finns till exempel hos Kevin MacLeod (incompetech).
-   - Allt som används förs in i `public/art/CREDITS.md`, eller i en motsvarande fil för ljudet.
+1. **Ljud och musik (klart, Vidar behöver lyssna).** Design: `docs/superpowers/specs/2026-11-27-ljud-och-musik-design.md`.
+   - Motorn skickar ljudsignaler (`Cue` i `src/engine/game.ts`, `Game.onCue` och `Game.cue`). De säger vad som hände: anfall, skott, skada, död, besvärjelse, förmåga, steg, ljus, vila, att striden börjar och slutar, lås, packning och träning. Motorn känner inte till ljud.
+   - `src/audio/sounds.ts` är ljudtabellen: vilket Flare-ljud som hör till vilken signal. Det är den fil som ändras när nya ljud kommer. `src/audio/music.ts` väljer musiken efter läget (strid, boss, död, mellan äventyren), rutan där ledaren står (grottgolv, trägolv) och kartan (`MapDef.music`). Bossar har `CreatureDef.boss` (Grukk).
+   - `src/audio/player.ts` spelar upp: ljudeffekter med Web Audio (högst 8 samtidigt), musik som tonar över på två sekunder och byter först när valet har varit detsamma en sekund. `src/audio/index.ts` kopplar ihop allt, och ljudknappen ♪ har reglage för ljud och musik och Tyst (sparas under `dod-ljud`).
+   - Ljuden är Flares, omkodade till MP3 av `tools/flare_audio.py` (`public/audio/flare/`). Upphovspersonerna står i `public/audio/CREDITS.md`.
+   - Stegen följer rustningen (tyg, läder, metall) och ekar i grottor (Vidar).
+   - **Vidar behöver lyssna** och säga vad som ska bytas. Kopplingen är gjord efter filnamnen.
+   - **Kvar (luckorna):** vapenskrammel när striden börjar (nu stridsrop och metallklirr), att tända en fackla (nu lägereldens knaster), att sova och slå läger (nu kort knaster), olika ljud för svärd, yxa och klubba (nu samma hugg med olika tonhöjd), steg efter underlag (gräs, grus, trä, vatten), djurljud för varg, björn och elementarer, båge och armborst var för sig, och miljöslingor (fåglar, flod, vind; Flare har dem). Källor: OpenGameArt och Kenney (CC0), Freesound (kontrollera licensen per ljud).
 2. **Fler figurer i samma stil som Flares.**
    - **Blender först (Vidar):** börja figurarbetet med att få tillgång till Blender, så att egna figurer och animationer kan renderas i samma stil som Flares. Pröva först om Blender går att köra utan skärm i molnmiljön (till exempel `apt-get install blender` eller Python-paketet `bpy`). Annars kan Vidar koppla in sin egen dator, där Blender är installerat.
    - **Monstren:** en figur för varje varelse i monsterlistan i Bok II. Flare har goblin, skelett (även skytt och magiker), zombie, minotaur, myrlejon, wyvern, eld- och ismyror och en förbannad grav. Resten byggs. Flares figurer är renderade i Blender (`art_src/` har .blend-filerna), så nya figurer kan renderas med samma kamera och ljus, till exempel från fria 3D-modeller (CC0). Bildmodeller via OpenRouter är ett alternativ, men det är svårt att få åtta riktningar som hänger ihop.
@@ -261,6 +255,7 @@ Vidar vill också göra en genomgång av hela regelsystemet när det är klart, 
 - `Actor` har `locKp`, `bleeding`, `effects`, `bv` och `injuries`. Effekterna (`ActiveEffect`) varar i rundor, dagar, ett antal slag eller tills något händer.
 - `GameState.dropped` är föremål som tappats på marken och `GameState.time` är speltiden i sekunder. Sparformatet är version 6; äldre sparningar läses inte.
 - **Rollformuläret** (`src/ui/sheet.ts`, öppnas med R) följer originalformulärets uppställning: framsida med grundegenskaper och färdigheter, baksida med kroppsfiguren och träffområdena, vapen, pengar och utrustning. Förlorade KP kryssas över. Kroppsfiguren (`src/ui/figure.ts`) används också i statuspanelen, färgad efter skadorna.
+- **Ljudet** (`src/audio/`) lyssnar på motorns ljudsignaler (`Game.onCue`) och på `onChange` för musiken. Se Plan för grafik och ljud.
 - `src/content/` innehåller äventyret Gråvad. Varelserna har `humanoid`, `darkvision`, `leader`, `noMorale`, `fear` och `ranged`, personerna `shop`, och kartan `habitats` (växtplatser för örter).
 - **Spelarfigurer:** spelaren väljer bland `PLAYER_SPRITES` (krigare, krigarinna, jägare, tjuv, magiker, alv och dvärg). `PROFESSION_SPRITES` ger förvalet för varje yrke.
 
@@ -280,9 +275,9 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 281 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 318 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
-`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/spells.test.ts` prövar fiendernas magi och besvärjelserna i strid. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen. `tests/worldmap.test.ts` prövar världskartans tider, bördan, lägret, mörkersynen, det passiva smygandet, snabba fiender, jakten, Spåra och SPÅRLÖS, stridsmötena, mötesplatserna och slumpmötena.
+`tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/spells.test.ts` prövar fiendernas magi och besvärjelserna i strid. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen. `tests/cues.test.ts` prövar motorns ljudsignaler, `tests/audio.test.ts` musikvalet och ljudtabellen och `tests/audioplayer.test.ts` uppspelningen och inställningarna. `tests/worldmap.test.ts` prövar världskartans tider, bördan, lägret, mörkersynen, det passiva smygandet, snabba fiender, jakten, Spåra och SPÅRLÖS, stridsmötena, mötesplatserna och slumpmötena.
 
 För att provköra gränssnittet: starta `npx vite` och styr sidan med Playwright. Ett snabbt sätt är
 att skapa ett spel med `Game.create(testCharacter())`, lägga `JSON.stringify(g.state)` i
