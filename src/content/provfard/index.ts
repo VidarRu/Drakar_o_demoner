@@ -82,6 +82,7 @@ const maps: MapDef[] = [
   {
     id: 'provfard_hagby',
     name: 'Hagby',
+    music: 'by',
     start: { char: '@', tile: ',' },
     habitats: ['överallt', 'ängar', 'åkerkanter'],
     exits: { X: { tile: ',', name: 'Ut på färden', to: WORLD } },
