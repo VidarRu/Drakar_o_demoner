@@ -558,6 +558,17 @@ export class DialogUi {
       input.value = '';
       void this.say(text);
     };
+    // Sifferknapparna väljer dialogvalen (1 är det första), utom när man skriver i textfältet.
+    document.addEventListener('keydown', (e) => {
+      if ($('dialog').hidden || this.waiting || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const n = /^[1-9]$/.test(e.key) ? Number(e.key) : e.code.startsWith('Numpad') ? Number(e.code.slice(6)) : NaN;
+      if (!(n >= 1 && n <= 9)) return;
+      const b = $('dialog-options').querySelectorAll('button')[n - 1];
+      if (!b) return;
+      e.preventDefault();
+      b.click();
+    });
   }
 
   async open(npc: Actor) {
