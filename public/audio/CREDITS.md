@@ -14,7 +14,9 @@ Bearbetningarna i `public/audio/flare/` delas under samma licens.
 
 **Musik:** Brandon Morris "Augmentality" ([youtube.com/brandon75689](https://www.youtube.com/brandon75689)).
 
-**Ljudeffekter:** Flares upphovspersoner (se `public/art/CREDITS.md`). Enligt Flares
+**Ljudeffekter:** Flares upphovspersoner (se `public/art/CREDITS.md`). Utdragen i `sfx/utdrag/`
+(uggla, fågelkvitter och lägereld när man sover och slår läger) är klippta ur Flares miljöslingor,
+med in- och uttoning. Enligt Flares
 `CREDITS.txt` bygger ljuden också på fritt licensierat material av bland andra Ljudbank och
 Mike Koenig.
 
@@ -41,9 +43,9 @@ sammanställt av congusbongus från ljud på freesound.org:
 Ur [Different steps on wood, stone, leaves, gravel and mud](https://opengameart.org/content/different-steps-on-wood-stone-leaves-gravel-and-mud)
 av TinyWorlds. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
 
-### Vapenskrammel när striden börjar (`oga/strid/`)
+### Vapenskrammel när striden börjar (`oga/strid/`) och att lägga sig (`oga/vila/`)
 
-Svärd som dras (`svard`) och ringbrynja (`ringbrynja`) ur
+Svärd som dras (`svard`), ringbrynja (`ringbrynja`) och tyg som prasslar när man lägger sig (`lagga`) ur
 [RPG Sound Pack](https://opengameart.org/content/rpg-sound-pack) av artisticdude.
 Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
 

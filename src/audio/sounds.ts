@@ -17,6 +17,8 @@ export interface SoundPick {
   file: string;
   volume: number;
   rate: number;
+  /** Hur många ms efter signalen ljudet börjar (utan värdet: efter ordningen, se src/audio/index.ts). */
+  delay?: number;
 }
 
 /** Flares ljud under public/audio/flare/sfx/. */
@@ -61,10 +63,13 @@ export const SFX = {
   steg_vatten: oga('steg/vatten', 5),
   svard: oga('strid/svard', 5),
   tanda: oga('ljus/tanda', 3),
+  lagga: oga('vila/lagga', 1),
+  kvitter: fl('utdrag/kvitter'),
+  uggla: fl('utdrag/uggla'),
+  lagereld: fl('utdrag/lagereld'),
   ringbrynja: oga('strid/ringbrynja', 2),
   dorr: fl('door_open'),
   kista: fl('wood_open'),
-  eld_tand: fl('environment/open_fire'),
   metall: fl('inventory/inventory_metal'),
   lader: fl('inventory/inventory_leather'),
   tyg: fl('inventory/inventory_cloth'),
@@ -212,8 +217,13 @@ export function soundFor(g: Game, cue: Cue, rng: () => number = Math.random): So
     }
     case 'ljus':
       return [cue.lit ? pick('tanda', rng) : pick('tyg', rng, 1, 0.6)];
-    case 'vila':
-      return [pick('eld_tand', rng, 0.9, 0.6)];
+    case 'vila': {
+      // Man lägger sig, natten går (lägereld och uggla ute i lägret) och man vaknar till fågelkvitter.
+      const lie = pick('lagga', rng, 1, 0.7);
+      const dawn = (delay: number) => ({ ...pick('kvitter', rng, 1, 0.6), delay });
+      if (cue.how === 'sömn') return [lie, dawn(1800)];
+      return [lie, { ...pick('lagereld', rng, 1, 0.6), delay: 200 }, { ...pick('uggla', rng, 1, 0.5), delay: 900 }, dawn(3200)];
+    }
     case 'strid':
       return cue.phase === 'börjar' ? [pick('svard', rng), pick('ringbrynja', rng)] : [];
     case 'lås':

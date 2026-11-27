@@ -156,6 +156,22 @@ describe('ljudtabellen', () => {
     expect(out[0].volume).toBeLessThan(1);
   });
 
+  it('att sova: man lägger sig och vaknar till fågelkvitter', () => {
+    const g = gravad();
+    const p = soundFor(g, { type: 'vila', how: 'sömn' }, mid);
+    expect(p.map((x) => x.file)).toEqual(['oga/vila/lagga1', 'flare/sfx/utdrag/kvitter']);
+    expect(p[1].delay).toBeGreaterThan(1000);
+  });
+
+  it('att slå läger: lägereld och uggla under natten, fågelkvitter sist', () => {
+    const g = gravad();
+    const p = soundFor(g, { type: 'vila', how: 'läger' }, mid);
+    expect(p.map((x) => x.file)).toEqual(['oga/vila/lagga1', 'flare/sfx/utdrag/lagereld', 'flare/sfx/utdrag/uggla', 'flare/sfx/utdrag/kvitter']);
+    const delays = p.map((x) => x.delay ?? 0);
+    expect(delays).toEqual([...delays].sort((x, y) => x - y));
+    expect(delays[3]).toBeGreaterThan(delays[2]);
+  });
+
   it('alla signaler ger minst ett ljud', () => {
     const g = gravad();
     const id = g.player.id;

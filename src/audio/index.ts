@@ -31,7 +31,11 @@ export function mountAudio() {
 /** Spelet: ljudsignalerna blir ljud, och musiken följer läget och platsen. */
 export function attachAudio(game: Game) {
   game.onCue((c) => {
-    soundFor(game, c).forEach((p, i) => (i ? setTimeout(() => audio.play(p), LAYER_MS * i) : audio.play(p)));
+    soundFor(game, c).forEach((p, i) => {
+      const ms = p.delay ?? LAYER_MS * i;
+      if (ms) setTimeout(() => audio.play(p), ms);
+      else audio.play(p);
+    });
   });
   const settle = new Settle<MusicId>();
   let timer: ReturnType<typeof setTimeout> | undefined;

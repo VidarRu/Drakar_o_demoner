@@ -41,6 +41,7 @@ PICK = [
     ('steg/lov', ['kdd/leaves01.ogg', 'kdd/leaves02.ogg'], ''),
     ('strid/svard', ['rpg/RPG Sound Pack/battle/sword-unsheathe.wav'] + [f'rpg/RPG Sound Pack/battle/sword-unsheathe{i}.wav' for i in range(2, 6)], ''),
     ('ljus/tanda', ['bartk/foom_0.wav', 'duck/spell_fire_06.ogg', 'duck/spell_fire_07.ogg'], FLAME),
+    ('vila/lagga', ['rpg/RPG Sound Pack/inventory/cloth-heavy.wav'], ''),
     ('strid/ringbrynja', [f'rpg/RPG Sound Pack/inventory/chainmail{i}.wav' for i in (1, 2)], ''),
 ]
 
