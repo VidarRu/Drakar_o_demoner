@@ -10,6 +10,7 @@ import type { ProfessionDef, RaceDef, SkillOption } from '../data/types';
 import { MELEE_WEAPONS, RANGED_WEAPONS, WEAPONS } from '../data/weapons';
 import {
   ability,
+  allErrors,
   availableSpells,
   baseCost,
   bpLeft,
@@ -220,6 +221,8 @@ export class CreatorUi {
    */
   private update = (fn: () => void) => {
     fn();
+    // Frågan om att skriva över gällde utkastet som det var: en ändring stänger den.
+    this.asking = false;
     if (!this.textChange) {
       this.render();
       return;
@@ -437,6 +440,12 @@ export class CreatorUi {
   /** Stänger boken och startar spelet med rollpersonen. */
   private async finish() {
     if (this.done) return;
+    // Utkastet kan ha blivit ofullständigt medan frågan var öppen: stäng frågan och visa felen.
+    if (allErrors(this.d).length > 0) {
+      this.asking = false;
+      this.render();
+      return;
+    }
     this.done = true;
     const c = finalize(this.d);
     this.destroy();
@@ -589,6 +598,7 @@ export class CreatorUi {
   }
 
   private setRace(id: string) {
+    if (this.d.race === id) return;
     this.d.race = id;
     this.d.stoSteps = 0;
     this.d.reads = undefined;
@@ -604,7 +614,6 @@ export class CreatorUi {
     d.techniques = [];
     if (d.abilityDice !== undefined && ability(d)?.magicianOnly) d.abilityChoice = undefined;
   }
-
 
   // ---------------------------------------------------------------- 2. grundegenskaper
 
