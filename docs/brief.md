@@ -118,8 +118,8 @@ Besluten står i `docs/regelbeslut.md` under Världskartan.
 
 ### Nästa i steg 8
 
-1. **Grafikmotorn (pågår, slängprov):** Vidar vill ha Avernums stil: samma rutnät men sett snett ovanifrån, rik natur, gruppens porträtt i en kolumn, en utrustningsdocka och många snabbtangenter. Han godkände fria bildpaket (med upphovspersoner i en fil om grafiken) och kan koppla in OpenRouter-krediter för bildmodeller till det som inte går att lösa så.
-   - Slängprovet: `src/game/IsoScene.ts` och `src/game/iso/` ritar samma motor snett ovanifrån. Det är förval; `?vy=plan` visar den gamla vyn.
+1. **Grafikmotorn (klar, sammanslagen i PR #13; speltestas nu):** Vidar vill ha Avernums stil: samma rutnät men sett snett ovanifrån, rik natur, gruppens porträtt i en kolumn, en utrustningsdocka och många snabbtangenter. Han godkände fria bildpaket (med upphovspersoner i en fil om grafiken) och kan koppla in OpenRouter-krediter för bildmodeller till det som inte går att lösa så.
+   - Vyn: `src/game/IsoScene.ts` och `src/game/iso/` ritar samma motor snett ovanifrån. Det är förval; `?vy=plan` visar den gamla vyn.
    - Grafiken: Flare (CC BY-SA 3.0) för gräs, träd, föremål, figurer i åtta riktningar, utrustningslager och porträtt, plockad och nedskalad med `tools/flare_art.py` till `public/art/flare/`. Upphovspersonerna står i `public/art/CREDITS.md`.
    - Kodritat: vägar, vatten och stränder med mjuka kanter, kullarnas skuggning, murar, berg och dörrar som block.
    - Gränssnittet: porträttkolumnen, minikartan uppe till höger, loggen och knapparna centrerade längst ned, statuspanelen bakom ☰ eller I, och utrustningsdockan i packningen (`src/ui/doll.ts`).
@@ -127,12 +127,44 @@ Besluten står i `docs/regelbeslut.md` under Världskartan.
    - Genomskinlig bubbla (Vidar): träd, murar och berg framför gruppens figurer tonas ut, mest närmast figuren (`bubble` i `IsoScene.ts`).
    - Dialogvalen väljs med siffertangenterna 1–9 (Vidar), utom när man skriver i textfältet.
    - Gå igenom varandra (husregel, Vidar): man byter plats med en kamrat (`blockedFor` och `swapWith` i `game.ts`, `tests/passthrough.test.ts`).
-   - Vidar ska titta på provet och säga vad som håller och vad som ska ändras innan det byggs på riktigt.
+   - Vidar har bestämt att det är den här stilen spelet ska ha. Speltestarna ger återkoppling; den tas om hand innan planen nedan.
+   - Kända brister: vargar, björnar och elementarer är de gamla pixelfigurerna förstorade, bergen är enkla block, svartalferna är Flares goblins med en färgton, och AI-samtalen saknar `OPENROUTER_API_KEY` i Vercel.
 2. **Vidars första äventyr:** han laddar upp ett äldre äventyr, och det byggs om till en modul med egna ord. Modulen får en världskarta som Provfärdens.
 3. **Resekartan** för kampanjen: platshållaren finns, och restiden bestäms senare.
 4. **Utvecklingen mellan äventyren:** klar (se ovan). Kvar är stadskartan i stället för menyn, att bestämma per modul vilka dåd som ger hjältepoäng och bonus-EP, en lista över vilka språk böckerna är skrivna på, och unika lärare i modulerna som kan flytta till staden (med kampanjspelet).
 5. **Riktiga tabeller för slumpmöten** i stället för de generiska.
 6. **Sparning på server** (till exempel Supabase), senare.
+
+### Plan för grafik och ljud (Vidar, efter grafikmotorn)
+
+Ordningen är Vidars. Varje punkt brainstormas när den är på tur.
+
+1. **Ljud och musik (nästa session).** Vidar gillar Flares ljudeffekter, så de används i första hand.
+   - Ljudeffekter för anfall av olika slag, förmågor, steg (olika för olika underlag), besvärjelser (olika för olika sorter), att tända en fackla, att lägga sig och sova, och en särskild signal när en strid börjar, till exempel vapenskrammel.
+   - Bakgrundsmusik i slingor, klassisk fantasy. Vidar har en egen ljudvision på sikt; till att börja med används musik under öppen licens.
+   - Källor att börja med:
+     - **Flare** (samma källa som grafiken, CC BY-SA). Kontrollera licensen och upphovspersonerna för ljudet och musiken innan det används. I `mods/fantasycore/` finns:
+       - steg på tyg, läder, metall och sten med eko (`soundfx/steps/`),
+       - ljud för besvärjelser (eldklot, blixt, frost, läkning, sköld, teleport med flera i `soundfx/powers/`),
+       - närstrid, träff och död, dörrar och packning,
+       - miljöslingor (fåglar, flod, eld, vind, grottdropp),
+       - tolv musikstycken: titel, stad, skog, grotta, fängelsehåla, strid, boss med flera.
+     - **OpenGameArt.org** och **Kenney** (mycket CC0) för det som saknas.
+     - **Freesound.org** är blandat (CC0, CC BY och CC BY-NC), så kontrollera licensen för varje ljud.
+     - Musik under CC BY finns till exempel hos Kevin MacLeod (incompetech).
+   - Allt som används förs in i `public/art/CREDITS.md`, eller i en motsvarande fil för ljudet.
+2. **Fler figurer i samma stil som Flares.**
+   - **Blender först (Vidar):** börja figurarbetet med att få tillgång till Blender, så att egna figurer och animationer kan renderas i samma stil som Flares. Pröva först om Blender går att köra utan skärm i molnmiljön (till exempel `apt-get install blender` eller Python-paketet `bpy`). Annars kan Vidar koppla in sin egen dator, där Blender är installerat.
+   - **Monstren:** en figur för varje varelse i monsterlistan i Bok II. Flare har goblin, skelett (även skytt och magiker), zombie, minotaur, myrlejon, wyvern, eld- och ismyror och en förbannad grav. Resten byggs. Flares figurer är renderade i Blender (`art_src/` har .blend-filerna), så nya figurer kan renderas med samma kamera och ljus, till exempel från fria 3D-modeller (CC0). Bildmodeller via OpenRouter är ett alternativ, men det är svårt att få åtta riktningar som hänger ihop.
+   - **Spelarfigurerna:** en figur per ras och yrke, både man och kvinna (sju raser, elva yrken). Figurerna byggs av lager som i dag:
+     - kropp efter kön och ras (dvärg och halvlängdsman kortare och bredare),
+     - huvud efter ras (alvöron, dvärgskägg, halvorchens betar),
+     - utrustning och vapen efter yrke.
+     - Bara huvuden och kroppsformer behöver göras nya. Ankan behöver en helt egen figur.
+     - Porträtten följer samma uppdelning.
+   - **Anfall:** Flares figurer har redan en hugg-animation (`swing`), och den spelas vid anfall i närstrid. Flare har också `cast` (besvärjelse), `shoot` (båge), `hit`, `block` och `die`. Dem plockar vi ut och använder vid besvärjelser, skott, träffar och död.
+3. **Animationer för besvärjelser.** I dag visas bara text (skada, miss, läkning) och zonerna (MÖRKER, DIMMA, BESKYDDARE). Varje besvärjelse behöver en egen effekt. Vidar vill pröva att göra dem i Blender, renderade till bildserier som figurerna; partiklar i Phaser och Flares effektbilder är alternativ.
+4. **Skapa rollperson och rollformuläret som i böckerna.** Vidar tar med skärmdumpar. Rollformuläret ska gå att ta fram i spelet och likna originalet, för nostalgin.
 
 ### Förmågor, besvärjelser och väder (pågår)
 
