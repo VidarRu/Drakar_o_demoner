@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { allErrors, newDraft, stepErrors } from '../src/engine/creation';
-import { CHAPTER_NAMES, CHAPTERS, chapterErrors, Turn } from '../src/ui/chapters';
+import { CHAPTER_NAMES, CHAPTERS, chapterErrors, inCarousel, sheetSideOnEntering, Turn } from '../src/ui/chapters';
 
 describe('kapitlen', () => {
   it('är åtta, i bokens ordning, och alla har ett namn', () => {
@@ -41,6 +41,20 @@ describe('kapitlen', () => {
   it('utrustningen ger alla fel i utkastet', () => {
     const d = newDraft();
     expect(chapterErrors(d, 'utrustning')).toEqual(allErrors(d));
+  });
+});
+
+describe('vägen mellan kapitlen', () => {
+  it('folk och yrke väljs i karusellen, resten i uppslaget', () => {
+    expect(CHAPTERS.filter(inCarousel)).toEqual(['folk', 'yrke']);
+  });
+
+  it('formuläret vänds bara när man går in i eller ut ur utrustningen', () => {
+    expect(sheetSideOnEntering('fardigheter', 'utrustning')).toBe('back');
+    expect(sheetSideOnEntering('utrustning', 'bakgrund')).toBe('front');
+    expect(sheetSideOnEntering('egenskaper', 'bakgrund')).toBeUndefined();
+    // Samma kapitel ritas om: spelarens egen vändning ligger kvar.
+    expect(sheetSideOnEntering('utrustning', 'utrustning')).toBeUndefined();
   });
 });
 

@@ -23,6 +23,23 @@ export const CHAPTER_NAMES: Record<Chapter, string> = {
   utrustning: 'Utrustning',
 };
 
+/** Folk och yrke väljs i en karusell över hela skärmen, resten av kapitlen i uppslaget. */
+export function inCarousel(c: Chapter): boolean {
+  return c === 'folk' || c === 'yrke';
+}
+
+/**
+ * Vilken sida av rollformuläret som ska visas när man går från ett kapitel till ett annat:
+ * baksidan i utrustningen och framsidan när man lämnar den. Annars ingen, så att formuläret
+ * ligger kvar som spelaren själv har vänt det.
+ */
+export function sheetSideOnEntering(from: Chapter, to: Chapter): 'front' | 'back' | undefined {
+  if (from === to) return undefined;
+  if (to === 'utrustning') return 'back';
+  if (from === 'utrustning') return 'front';
+  return undefined;
+}
+
 /** Felen som hindrar att man går vidare från kapitlet. I det sista kapitlet är det alla fel. */
 export function chapterErrors(d: Draft, c: Chapter): string[] {
   switch (c) {

@@ -31,6 +31,37 @@ export interface BookOptions {
   onChapter?: (c: Chapter) => void;
 }
 
+/** Det som går att fokusera på en sida, i dokumentets ordning. */
+const FOCUSABLE = 'button, input, select, textarea, summary, a[href], [tabindex]';
+
+/**
+ * Fyller kapitelremsan: klarade kapitel får en bock och går att klicka i (med `onChapter`),
+ * kapitlet man är i är markerat. Remsan i karusellerna och i uppslaget ritas härifrån.
+ */
+export function renderChapterStrip(strip: HTMLElement, at: Chapter, onChapter?: (c: Chapter) => void): void {
+  const now = CHAPTERS.indexOf(at);
+  strip.replaceChildren(
+    ...CHAPTERS.map((c, i) => {
+      const li = el('li', i < now ? 'klar' : i === now ? 'nu' : '');
+      const name = CHAPTER_NAMES[c];
+      if (i < now && onChapter) {
+        const b = el('button', '', name);
+        b.type = 'button';
+        b.addEventListener('click', () => onChapter(c));
+        li.append(b);
+      } else li.textContent = name;
+      if (i === now) li.setAttribute('aria-current', 'step');
+      return li;
+    }),
+  );
+}
+
+/** Rubriken på vänster sida. Utan den står "Kapitel N" och kapitlets namn där. */
+export interface PageHead {
+  label: string;
+  title: string;
+}
+
 export class BookUi {
   private readonly book = el('div', 'uppslag');
   private readonly strip = el('ol', 'kapitelremsa');
@@ -43,6 +74,8 @@ export class BookUi {
   private readonly sheetBox = el('div', 'rf');
 
   private chapter: Chapter | null = null;
+  /** Innehållet på vänster sida: rubriken och det kapitlet ritar. */
+  private content: HTMLElement | null = null;
   private source: SheetSource | null = null;
   private side: Side = 'front';
   private sheetPage: HTMLElement | null = null;
@@ -96,26 +129,47 @@ export class BookUi {
       },
       true,
     );
-    // Blyertsen och vändningen av formuläret är klara redan när knappen trycks ned.
-    this.book.addEventListener('pointerdown', () => this.finishInk(), true);
+    // Blyertsen, vändningen av formuläret och uppslagningen är klara redan när knappen trycks ned.
+    this.book.addEventListener(
+      'pointerdown',
+      () => {
+        this.finishInk();
+        this.book.classList.remove('oppnas');
+      },
+      true,
+    );
+    this.book.addEventListener('animationend', (e) => {
+      if (e.target === this.book) this.book.classList.remove('oppnas');
+    });
   }
 
-  /** Visar kapitlet och formuläret. Ett nytt kapitel vänder sidan, samma kapitel ritas om på plats. */
-  show(opts: { chapter: Chapter; left: HTMLElement; sheet: SheetSource; side?: Side }): void {
+  /**
+   * Visar kapitlet och formuläret. Ett nytt kapitel vänder sidan. Samma kapitel ritas om på plats:
+   * rubriken ligger kvar, och fokus flyttas till samma kontroll i det nya innehållet.
+   *
+   * `side` vänder formuläret. Skicka den bara när ett kapitel öppnas, annars tar den över när
+   * spelaren själv har vänt formuläret. `head` byter rubriken, och `strip: false` döljer remsan.
+   */
+  show(opts: { chapter: Chapter; left: HTMLElement; sheet: SheetSource; side?: Side; head?: PageHead; strip?: boolean }): void {
     this.closing.skip();
     if (!this.book.isConnected) this.open();
     this.turn.skip();
     const from = this.chapter;
     this.chapter = opts.chapter;
-    this.renderStrip();
+    this.strip.hidden = opts.strip === false;
+    renderChapterStrip(this.strip, opts.chapter, this.opts.onChapter);
 
-    const content = this.pageContent(opts.chapter, opts.left);
     const turned = from !== null && from !== opts.chapter;
-    if (turned && !reducedMotion()) this.turnTo(content, CHAPTERS.indexOf(opts.chapter) > CHAPTERS.indexOf(from));
-    else this.leftPage.replaceChildren(content);
-    if (turned) {
-      if (this.book.getBoundingClientRect().top < 0) this.book.scrollIntoView({ block: 'start' });
-      if (content.parentElement === this.leftPage) this.focusHeading(content);
+    if (!turned && this.content) this.replaceLeft(this.content, opts.left, opts.head ?? this.chapterHead(opts.chapter));
+    else {
+      const content = this.pageContent(opts.left, opts.head ?? this.chapterHead(opts.chapter));
+      this.content = content;
+      if (turned && !reducedMotion()) this.turnTo(content, CHAPTERS.indexOf(opts.chapter) > CHAPTERS.indexOf(from));
+      else this.leftPage.replaceChildren(content);
+      if (turned) {
+        if (this.book.getBoundingClientRect().top < 0) this.book.scrollIntoView({ block: 'start' });
+        if (content.parentElement === this.leftPage) this.focusHeading(content);
+      }
     }
 
     this.source = opts.sheet;
@@ -143,39 +197,44 @@ export class BookUi {
     });
   }
 
-  /** Lägger uppslaget i `root` och börjar om: inget kapitel och inget formulär före. */
+  /** Lägger uppslaget i `root` och börjar om: inget kapitel och inget formulär före. Boken slås upp. */
   private open(): void {
     this.chapter = null;
+    this.content = null;
     this.sheetPage = null;
     this.side = 'front';
+    this.book.classList.toggle('oppnas', !reducedMotion());
     this.root.append(this.book);
   }
 
-  private renderStrip(): void {
-    const at = CHAPTERS.indexOf(this.chapter!);
-    this.strip.replaceChildren(
-      ...CHAPTERS.map((c, i) => {
-        const li = el('li', i < at ? 'klar' : i === at ? 'nu' : '');
-        const name = CHAPTER_NAMES[c];
-        if (i < at && this.opts.onChapter) {
-          const b = el('button', '', name);
-          b.type = 'button';
-          b.addEventListener('click', () => this.opts.onChapter!(c));
-          li.append(b);
-        } else li.textContent = name;
-        if (i === at) li.setAttribute('aria-current', 'step');
-        return li;
-      }),
-    );
+  private chapterHead(c: Chapter): PageHead {
+    return { label: `Kapitel ${CHAPTERS.indexOf(c) + 1}`, title: CHAPTER_NAMES[c] };
   }
 
   /** Vänster sidas innehåll: "Kapitel N", rubriken och det som kapitlet ritar. */
-  private pageContent(c: Chapter, left: HTMLElement): HTMLElement {
+  private pageContent(left: HTMLElement, head: PageHead): HTMLElement {
     const content = el('div', 'sida-innehall');
-    const head = el('header', 'sida-huvud');
-    head.append(el('span', 'kapitel-nr', `Kapitel ${CHAPTERS.indexOf(c) + 1}`), el('h2', 'sida-rubrik', CHAPTER_NAMES[c]));
-    content.append(head, left);
+    const header = el('header', 'sida-huvud');
+    header.append(el('span', 'kapitel-nr', head.label), el('h2', 'sida-rubrik', head.title));
+    content.append(header, left);
     return content;
+  }
+
+  /**
+   * Byter det kapitlet ritar men behåller rubriken. Hade en kontroll på sidan fokus (t.ex. +
+   * vid STY), får kontrollen på samma plats i det nya innehållet fokus.
+   */
+  private replaceLeft(content: HTMLElement, left: HTMLElement, head: PageHead): void {
+    content.querySelector('.kapitel-nr')!.textContent = head.label;
+    content.querySelector('.sida-rubrik')!.textContent = head.title;
+    const old = content.lastElementChild as HTMLElement;
+    if (old === left) return;
+    const active = document.activeElement;
+    const at = active && old.contains(active) ? [...old.querySelectorAll(FOCUSABLE)].indexOf(active) : -1;
+    old.replaceWith(left);
+    if (at < 0) return;
+    const target = left.querySelectorAll<HTMLElement>(FOCUSABLE)[at];
+    if (target && !(target as HTMLButtonElement).disabled) target.focus({ preventScroll: true });
   }
 
   /**

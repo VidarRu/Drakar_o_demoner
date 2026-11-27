@@ -38,6 +38,7 @@ export class Carousel<T> {
   private readonly cards: HTMLElement[];
   private readonly prev: HTMLButtonElement;
   private readonly next: HTMLButtonElement;
+  private readonly resize: ResizeObserver;
 
   constructor(
     root: HTMLElement,
@@ -59,7 +60,8 @@ export class Carousel<T> {
     root.replaceChildren(wrap);
     this.listen();
     // Avstånden mellan korten följer kortens storlek, som följer skärmens.
-    new ResizeObserver(() => this.layout()).observe(this.stage);
+    this.resize = new ResizeObserver(() => this.layout());
+    this.resize.observe(this.stage);
     this.layout();
     this.renderInfo();
   }
@@ -71,6 +73,11 @@ export class Carousel<T> {
     this.at = n;
     this.layout();
     this.renderInfo();
+  }
+
+  /** Slutar följa scenens storlek. Görs när karusellen tas bort. */
+  destroy() {
+    this.resize.disconnect();
   }
 
   private clamp(i: number) {
@@ -124,6 +131,13 @@ export class Carousel<T> {
     this.stage.addEventListener('pointerdown', (e) => {
       startX = e.clientX;
       swiped = false;
+    });
+    // När fingret eller musen har dragits en bit fångas pekaren, så att ett svep som släpps
+    // utanför scenen ändå räknas. Ett vanligt klick fångas inte: då går klicket till kortet
+    // eller pilen under, inte till scenen.
+    this.stage.addEventListener('pointermove', (e) => {
+      if (startX === null || Math.abs(e.clientX - startX) < 10 || this.stage.hasPointerCapture(e.pointerId)) return;
+      this.stage.setPointerCapture(e.pointerId);
     });
     this.stage.addEventListener('pointerup', (e) => {
       if (startX === null) return;
