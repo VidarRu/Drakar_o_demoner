@@ -147,6 +147,15 @@ describe('ljudtabellen', () => {
     expect(SFX.ringbrynja).toContain(f[1]);
   });
 
+  it('en fackla som tänds låter som en låga som tar sig, en som släcks dämpat', () => {
+    const g = gravad();
+    const id = g.player.id;
+    expect(SFX.tanda).toContain(files(g, { type: 'ljus', actorId: id, lit: true })[0]);
+    const out = soundFor(g, { type: 'ljus', actorId: id, lit: false }, mid);
+    expect(SFX.tanda).not.toContain(out[0].file);
+    expect(out[0].volume).toBeLessThan(1);
+  });
+
   it('alla signaler ger minst ett ljud', () => {
     const g = gravad();
     const id = g.player.id;

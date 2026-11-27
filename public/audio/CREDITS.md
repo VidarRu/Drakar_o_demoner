@@ -46,3 +46,12 @@ av TinyWorlds. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/)
 Svärd som dras (`svard`) och ringbrynja (`ringbrynja`) ur
 [RPG Sound Pack](https://opengameart.org/content/rpg-sound-pack) av artisticdude.
 Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+### Facklan tänds (`oga/ljus/tanda`)
+
+- `tanda1`: [Spell 4 (fire)](https://opengameart.org/content/spell-4-fire) av Bart K.
+  Licens: [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+- `tanda2`, `tanda3`: spell_fire_06 och spell_fire_07 ur [80 CC0 RPG SFX](https://opengameart.org/content/80-cc0-rpg-sfx)
+  av rubberduck. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+Avkortade till en dryg sekund och uttonade.

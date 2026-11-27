@@ -60,6 +60,7 @@ export const SFX = {
   steg_grotta: oga('steg/grotta', 9),
   steg_vatten: oga('steg/vatten', 5),
   svard: oga('strid/svard', 5),
+  tanda: oga('ljus/tanda', 3),
   ringbrynja: oga('strid/ringbrynja', 2),
   dorr: fl('door_open'),
   kista: fl('wood_open'),
@@ -210,7 +211,7 @@ export function soundFor(g: Game, cue: Cue, rng: () => number = Math.random): So
       return out;
     }
     case 'ljus':
-      return [cue.lit ? pick('eld_tand', rng) : pick('tyg', rng, 1, 0.6)];
+      return [cue.lit ? pick('tanda', rng) : pick('tyg', rng, 1, 0.6)];
     case 'vila':
       return [pick('eld_tand', rng, 0.9, 0.6)];
     case 'strid':
