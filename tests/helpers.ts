@@ -19,7 +19,7 @@ export function testCharacter(): Character {
     'dra_vapen',
     'geografi',
     'hasardspel',
-    'kulturkannedom:manniskor',
+    'kulturkannedom:människor',
     'simma',
     'trastav',
     'barsarkagang',

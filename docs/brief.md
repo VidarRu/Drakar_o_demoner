@@ -266,7 +266,7 @@ Vidar vill också göra en genomgång av hela regelsystemet när det är klart, 
   - varelsernas turer (`autoTurn`), även för rollpersonen när skräcken tar över.
 - `src/engine/rules/fumble.ts`, `fear.ts` och `outcomes.ts` innehåller fummeltabellerna och Skräcktabellen som data med egna ord. Tabellen för kritiska skador och stridens konstanter ligger i `tables.ts`.
 - `Actor` har `locKp`, `bleeding`, `effects`, `bv` och `injuries`. Effekterna (`ActiveEffect`) varar i rundor, dagar, ett antal slag eller tills något händer.
-- `GameState.dropped` är föremål som tappats på marken och `GameState.time` är speltiden i sekunder. Sparformatet är version 6; äldre sparningar läses inte.
+- `GameState.dropped` är föremål som tappats på marken och `GameState.time` är speltiden i sekunder. Sparformatet är version 7 (`dod-save-v7`); äldre sparningar läses inte.
 - **Startmenyn och rollpersonsboken** (`src/ui/menu.ts`, `carousel.ts`, `book.ts`, `chapters.ts`, `ink.ts`, `creation.ts`): menyn på bokomslaget och guiden som uppslag. Se Plan för grafik och ljud, punkt 4.
 - **Rollformuläret** (`src/ui/sheet.ts`, öppnas med R) följer originalformulärets uppställning: framsida med grundegenskaper och färdigheter, baksida med kroppsfiguren och träffområdena, vapen, pengar och utrustning. Det ritas ur en `SheetSource`, från spelet eller från ett utkast. Förlorade KP kryssas över. Kroppsfiguren (`src/ui/figure.ts`) används också i statuspanelen, färgad efter skadorna.
 - **Ljudet** (`src/audio/`) lyssnar på motorns ljudsignaler (`Game.onCue`) och på `onChange` för musiken. Se Plan för grafik och ljud.
