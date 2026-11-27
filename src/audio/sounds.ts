@@ -1,7 +1,7 @@
 import { ARMOR } from '../data/armor';
 import { HERBS } from '../data/herbs';
 import { SPELLS } from '../data/spells';
-import { MELEE_WEAPONS } from '../data/weapons';
+import { MELEE_WEAPONS, RANGED_WEAPONS } from '../data/weapons';
 import type { Cue, Game } from '../engine/game';
 import { itemInfo } from '../engine/inventory';
 import { inBounds, tileAt } from '../engine/map';
@@ -9,62 +9,102 @@ import type { Actor } from '../engine/types';
 
 /**
  * Ljudtabellen: vilket ljud som hör till vilken ljudsignal. Det är den här filen som ändras när
- * nya ljud kommer. Filerna ligger under public/audio/flare/sfx/ och skrivs utan .mp3.
+ * nya ljud kommer. Filerna skrivs som sökvägar under public/audio/, utan .mp3.
  */
 
-/** Ett ljud att spela: filen, volymen (0–1) och tonhöjden (1 = som inspelat). */
+/** Ett ljud att spela: filen (under public/audio/, utan .mp3), volymen (0–1) och tonhöjden (1 = som inspelat). */
 export interface SoundPick {
   file: string;
   volume: number;
   rate: number;
+  /** Hur många ms efter signalen ljudet börjar (utan värdet: efter ordningen, se src/audio/index.ts). */
+  delay?: number;
 }
 
-const steps = (kind: string) => [1, 2, 3, 4].map((n) => `steps/step_${kind}${n}`);
+/** Flares ljud under public/audio/flare/sfx/. */
+const fl = (...names: string[]) => names.map((n) => `flare/sfx/${n}`);
+/** Ljud från OpenGameArt under public/audio/oga/ (tools/oga_audio.py), numrerade från 1. */
+const oga = (name: string, count: number) => Array.from({ length: count }, (_, i) => `oga/${name}${i + 1}`);
 
 /** Namngivna grupper av ljud. Ett av ljuden i gruppen väljs varje gång. */
 export const SFX = {
-  hugg: ['melee_attack', 'melee_attack_2', 'melee_attack_3'],
-  parera: ['powers/block'],
-  skott: ['powers/shoot'],
-  fummel: ['no_mana'],
-  manTraff: ['male_hit'],
-  kvinnaTraff: ['female_hit'],
-  manDor: ['male_die'],
-  kvinnaDor: ['female_die'],
-  svartalfTraff: ['enemies/goblin_hit'],
-  svartalfDor: ['enemies/goblin_die'],
-  skelettTraff: ['enemies/skeleton_hit'],
-  skelettDor: ['enemies/skeleton_die'],
-  zombieTraff: ['enemies/zombie_hit'],
-  zombieDor: ['enemies/zombie_die'],
-  storTraff: ['enemies/minotaur_hit'],
-  storDor: ['enemies/minotaur_die'],
-  eld: ['powers/fireball', 'powers/burn'],
-  blixt: ['powers/shock', 'powers/thunder'],
-  kold: ['powers/freeze'],
-  lak: ['powers/heal'],
-  skydd: ['powers/shield'],
-  flytt: ['powers/teleport'],
-  jord: ['powers/spikes', 'powers/quake'],
-  sinne: ['powers/timestop'],
-  misslyckad: ['no_mana'],
-  stridsrop: ['powers/warcry'],
-  steg_tyg: steps('cloth'),
-  steg_lader: steps('leather'),
-  steg_metall: steps('metal'),
-  steg_eko: steps('echo'),
-  dorr: ['door_open'],
-  kista: ['wood_open'],
-  eld_tand: ['environment/open_fire'],
-  metall: ['inventory/inventory_metal'],
-  lader: ['inventory/inventory_leather'],
-  tyg: ['inventory/inventory_cloth'],
-  dryck: ['inventory/inventory_potion'],
-  bok: ['inventory/inventory_book'],
-  mynt: ['inventory/inventory_coins'],
-  foremal: ['inventory/inventory_object'],
-  niva: ['level_up'],
-  knapp: ['widget_activate'],
+  /** Klor, nävar och annat utan eget vapenljud. */
+  hugg: fl('melee_attack', 'melee_attack_2', 'melee_attack_3'),
+  hugg_sabel: oga('hugg/sabel', 8),
+  hugg_yxa: oga('hugg/yxa', 6),
+  hugg_dolk: oga('hugg/dolk', 6),
+  hugg_spjut: oga('hugg/spjut', 6),
+  traff_svard: oga('traff/svard', 2),
+  traff_svard_rustning: oga('traff/svard_rustning', 2),
+  traff_kross: oga('traff/kross', 2),
+  traff_kross_rustning: oga('traff/kross_rustning', 2),
+  traff_stick: oga('traff/stick', 2),
+  traff_stick_rustning: oga('traff/stick_rustning', 2),
+  traff_slag: oga('traff/slag', 2),
+  parera: oga('parera/klang', 10),
+  /** Slungor och blåsrör. */
+  skott: fl('powers/shoot'),
+  skott_bage: oga('skott/bage', 2),
+  skott_armborst: oga('skott/armborst', 6),
+  fummel: fl('no_mana'),
+  manTraff: fl('male_hit'),
+  kvinnaTraff: fl('female_hit'),
+  manDor: fl('male_die'),
+  kvinnaDor: fl('female_die'),
+  svartalfTraff: fl('enemies/goblin_hit'),
+  svartalfDor: fl('enemies/goblin_die'),
+  skelettTraff: fl('enemies/skeleton_hit'),
+  skelettDor: fl('enemies/skeleton_die'),
+  zombieTraff: fl('enemies/zombie_hit'),
+  zombieDor: fl('enemies/zombie_die'),
+  storTraff: fl('enemies/minotaur_hit'),
+  storDor: fl('enemies/minotaur_die'),
+  varg_traff: oga('djur/varg_traff', 3),
+  varg_dor: oga('djur/varg_dor', 1),
+  bjorn_traff: oga('djur/bjorn_traff', 2),
+  bjorn_dor: oga('djur/bjorn_dor', 2),
+  brann: fl('powers/burn'),
+  sten: oga('element/sten', 3),
+  sten_dor: oga('element/sten_dor', 1),
+  plask: oga('element/plask', 4),
+  plask_dor: oga('element/plask_dor', 1),
+  skugga: oga('element/skugga', 4),
+  skugga_dor: oga('element/skugga_dor', 1),
+  eld: fl('powers/fireball', 'powers/burn'),
+  blixt: fl('powers/shock', 'powers/thunder'),
+  kold: fl('powers/freeze'),
+  lak: fl('powers/heal'),
+  skydd: fl('powers/shield'),
+  flytt: fl('powers/teleport'),
+  jord: fl('powers/spikes', 'powers/quake'),
+  sinne: fl('powers/timestop'),
+  misslyckad: fl('no_mana'),
+  stridsrop: fl('powers/warcry'),
+  steg_gras: oga('steg/gras', 9),
+  steg_lov: oga('steg/lov', 2),
+  steg_grus: oga('steg/grus', 10),
+  steg_tra: oga('steg/tra', 9),
+  steg_sten: oga('steg/sten', 9),
+  steg_grotta: oga('steg/grotta', 9),
+  steg_vatten: oga('steg/vatten', 5),
+  svard: oga('strid/svard', 5),
+  tanda: oga('ljus/tanda', 3),
+  lagga: oga('vila/lagga', 1),
+  kvitter: fl('utdrag/kvitter'),
+  uggla: fl('utdrag/uggla'),
+  lagereld: fl('utdrag/lagereld'),
+  ringbrynja: oga('strid/ringbrynja', 2),
+  dorr: fl('door_open'),
+  kista: fl('wood_open'),
+  metall: fl('inventory/inventory_metal'),
+  lader: fl('inventory/inventory_leather'),
+  tyg: fl('inventory/inventory_cloth'),
+  dryck: fl('inventory/inventory_potion'),
+  bok: fl('inventory/inventory_book'),
+  mynt: fl('inventory/inventory_coins'),
+  foremal: fl('inventory/inventory_object'),
+  niva: fl('level_up'),
+  knapp: fl('widget_activate'),
 } satisfies Record<string, string[]>;
 
 export type SfxGroup = keyof typeof SFX;
@@ -100,19 +140,17 @@ const EFFECT_SOUND: Record<string, SfxGroup> = {
 };
 const SCHOOL_SOUND: Record<string, SfxGroup> = { elementarmagi: 'eld', animism: 'jord', mentalism: 'sinne', allmän: 'sinne' };
 
-/** Varelser efter figur: ljudet och grundtonen. Figurer som inte står här låter som en svartalf, lite mörkare. */
-const CREATURE_VOICE: Record<string, { voice: 'svartalf' | 'skelett' | 'zombie' | 'stor' | 'man' | 'kvinna'; rate: number }> = {
-  svartalf: { voice: 'svartalf', rate: 1 },
-  hovding: { voice: 'svartalf', rate: 0.9 },
-  haxkonstnar: { voice: 'svartalf', rate: 1.1 },
-  varg: { voice: 'svartalf', rate: 0.8 },
-  bjorn: { voice: 'stor', rate: 0.8 },
-  knekt: { voice: 'man', rate: 1 },
-  vard: { voice: 'man', rate: 1 },
-  smed: { voice: 'man', rate: 1 },
-  gumma: { voice: 'kvinna', rate: 1 },
-};
+/** Ljuden när en figur träffas och dör: [träff, död]. */
 const VOICE_GROUPS = {
+  varg: ['varg_traff', 'varg_dor'],
+  bjorn: ['bjorn_traff', 'bjorn_dor'],
+  eld: ['brann', 'eld'],
+  jord: ['sten', 'sten_dor'],
+  vatten: ['plask', 'plask_dor'],
+  luft: ['hugg_spjut', 'flytt'],
+  kold: ['kold', 'kold'],
+  morker: ['skugga', 'skugga_dor'],
+  ljus: ['skydd', 'lak'],
   svartalf: ['svartalfTraff', 'svartalfDor'],
   skelett: ['skelettTraff', 'skelettDor'],
   zombie: ['zombieTraff', 'zombieDor'],
@@ -120,9 +158,83 @@ const VOICE_GROUPS = {
   man: ['manTraff', 'manDor'],
   kvinna: ['kvinnaTraff', 'kvinnaDor'],
 } as const satisfies Record<string, readonly [SfxGroup, SfxGroup]>;
+type Voice = { voice: keyof typeof VOICE_GROUPS; rate: number };
 
-/** Grundton för hugg efter vapengrupp: tunga vapen lägre, dolkar ljusare. */
-const WEAPON_RATE: Record<string, number> = { kross: 0.85, yxa: 0.85, dolkar: 1.15 };
+/** Varelser efter figur: ljudet och grundtonen. Figurer som inte står här låter som en svartalf, lite mörkare. */
+const CREATURE_VOICE: Record<string, Voice> = {
+  svartalf: { voice: 'svartalf', rate: 1 },
+  hovding: { voice: 'svartalf', rate: 0.9 },
+  haxkonstnar: { voice: 'svartalf', rate: 1.1 },
+  varg: { voice: 'varg', rate: 0.9 },
+  bjorn: { voice: 'bjorn', rate: 1 },
+  knekt: { voice: 'man', rate: 1 },
+  vard: { voice: 'man', rate: 1 },
+  smed: { voice: 'man', rate: 1 },
+  gumma: { voice: 'kvinna', rate: 1 },
+  linnea: { voice: 'kvinna', rate: 1 },
+  jagarinna: { voice: 'kvinna', rate: 1 },
+};
+
+/** Elementarerna låter efter sitt element. */
+const ELEMENT_VOICE: Record<string, Voice> = {
+  eld: { voice: 'eld', rate: 1 },
+  värme: { voice: 'eld', rate: 0.85 },
+  jord: { voice: 'jord', rate: 0.9 },
+  vatten: { voice: 'vatten', rate: 1 },
+  luft: { voice: 'luft', rate: 0.7 },
+  köld: { voice: 'kold', rate: 1 },
+  mörker: { voice: 'morker', rate: 0.9 },
+  ljus: { voice: 'ljus', rate: 1.1 },
+};
+
+/** Vapengruppens hugg och grundton. Klubbor och hammare har inget eget hugg: yxans, tyngre. */
+const SWING: Record<string, { group: SfxGroup; rate: number }> = {
+  svärd: { group: 'hugg_sabel', rate: 1 },
+  kattingvapen: { group: 'hugg_sabel', rate: 0.9 },
+  piska: { group: 'hugg_dolk', rate: 0.9 },
+  yxa: { group: 'hugg_yxa', rate: 1 },
+  kross: { group: 'hugg_yxa', rate: 0.85 },
+  dolkar: { group: 'hugg_dolk', rate: 1 },
+  stickvapen: { group: 'hugg_spjut', rate: 1 },
+  stangvapen: { group: 'hugg_spjut', rate: 0.9 },
+  trastav: { group: 'hugg_spjut', rate: 0.95 },
+};
+
+/** Vilket nedslag en träff ger: egg, krossande eller stickande. Utan rustning och med. */
+type Impact = 'svard' | 'kross' | 'stick' | 'slag';
+const IMPACT: Record<string, Impact> = {
+  svärd: 'svard',
+  yxa: 'svard',
+  kattingvapen: 'kross',
+  piska: 'slag',
+  kross: 'kross',
+  trastav: 'kross',
+  dolkar: 'stick',
+  stickvapen: 'stick',
+  stangvapen: 'svard',
+  bagar: 'stick',
+  armborst: 'stick',
+  blasror: 'stick',
+  slunga: 'kross',
+  kastvapen: 'svard',
+};
+const IMPACT_GROUPS: Record<Impact, [SfxGroup, SfxGroup]> = {
+  svard: ['traff_svard', 'traff_svard_rustning'],
+  kross: ['traff_kross', 'traff_kross_rustning'],
+  stick: ['traff_stick', 'traff_stick_rustning'],
+  slag: ['traff_slag', 'traff_slag'],
+};
+/** Nedslaget kommer när hugget når fram, och grymtandet strax efter. */
+const IMPACT_MS = 90;
+const GRUNT_MS = 160;
+
+const weaponGroup = (id: string) => MELEE_WEAPONS.find((w) => w.id === id)?.group ?? RANGED_WEAPONS.find((w) => w.id === id)?.group ?? '';
+
+function impactFor(g: Game, targetId: string, impact: Impact, rng: () => number): SoundPick {
+  const t = g.actor(targetId);
+  const armored = !!t && (t.armor.length > 0 || (t.naturalArmor ?? 0) > 0);
+  return { ...pick(IMPACT_GROUPS[impact][armored ? 1 : 0], rng), delay: IMPACT_MS };
+}
 
 const pick = (group: SfxGroup, rng: () => number, base = 1, volume = 1): SoundPick => {
   const files = SFX[group];
@@ -132,18 +244,30 @@ const pick = (group: SfxGroup, rng: () => number, base = 1, volume = 1): SoundPi
 const tileName = (g: Game, a: Actor) => (inBounds(g.map, a.x, a.y) ? tileAt(g.map, a.x, a.y)?.name : undefined);
 
 /** Vem som låter: en person efter kön, en varelse efter figur. */
-function voiceOf(g: Game, a: Actor): { voice: keyof typeof VOICE_GROUPS; rate: number } {
+function voiceOf(g: Game, a: Actor): Voice {
+  const element = a.elemental && ELEMENT_VOICE[a.elemental.kind];
+  if (element) return element;
   const ch = g.charOf(a);
   if (ch) return { voice: ch.gender === 'kvinna' ? 'kvinna' : 'man', rate: 1 };
   return CREATURE_VOICE[a.sprite] ?? { voice: 'svartalf', rate: 0.8 };
 }
 
-function stepGroup(g: Game, a: Actor): SfxGroup {
-  if (tileName(g, a) === 'grottgolv') return 'steg_eko';
-  const armor = a.armor.map((id) => ARMOR[id]).filter(Boolean);
-  if (armor.some((p) => p.metal)) return 'steg_metall';
-  return armor.length ? 'steg_lader' : 'steg_tyg';
-}
+/** Stegen låter efter marken, inte efter rustningen (Vidar). */
+const STEP_SOUND: Record<string, SfxGroup> = {
+  gräs: 'steg_gras',
+  'öppen skog': 'steg_gras',
+  kullar: 'steg_gras',
+  'tät skog': 'steg_lov',
+  stig: 'steg_grus',
+  trägolv: 'steg_tra',
+  bro: 'steg_tra',
+  dörr: 'steg_tra',
+  berg: 'steg_sten',
+  grottgolv: 'steg_grotta',
+  vadställe: 'steg_vatten',
+};
+
+const stepGroup = (g: Game, a: Actor): SfxGroup => STEP_SOUND[tileName(g, a) ?? ''] ?? 'steg_gras';
 
 function spellGroup(id: string): SfxGroup {
   const s = SPELLS[id];
@@ -166,19 +290,29 @@ export function soundFor(g: Game, cue: Cue, rng: () => number = Math.random): So
   switch (cue.type) {
     case 'anfall': {
       if (cue.result === 'fummel') return [pick('fummel', rng)];
-      const group = MELEE_WEAPONS.find((w) => w.id === cue.weapon)?.group ?? '';
-      const base = cue.natural ? 0.9 : (WEAPON_RATE[group] ?? 1);
-      const swing = pick('hugg', rng, base);
-      return cue.result === 'parerat' ? [swing, pick('parera', rng)] : [swing];
+      const group = weaponGroup(cue.weapon);
+      const swingOf = cue.natural ? undefined : SWING[group];
+      const swing = swingOf ? pick(swingOf.group, rng, swingOf.rate) : pick('hugg', rng, cue.natural ? 0.9 : 1);
+      if (cue.result === 'parerat') return [swing, pick('parera', rng)];
+      if (cue.result === 'träff') return [swing, impactFor(g, cue.targetId, cue.natural ? 'slag' : (IMPACT[group] ?? 'svard'), rng)];
+      return [swing];
     }
-    case 'skott':
-      return [pick(cue.result === 'fummel' ? 'fummel' : 'skott', rng)];
+    case 'skott': {
+      if (cue.result === 'fummel') return [pick('fummel', rng)];
+      const group = weaponGroup(cue.weapon);
+      const shot =
+        group === 'bagar' ? pick('skott_bage', rng)
+        : group === 'armborst' ? pick('skott_armborst', rng)
+        : group === 'kastvapen' ? pick(cue.weapon === 'kastkniv' ? 'hugg_dolk' : cue.weapon === 'kastspjut' ? 'hugg_spjut' : 'hugg_yxa', rng)
+        : pick('skott', rng);
+      return cue.result === 'träff' ? [shot, impactFor(g, cue.targetId, IMPACT[group] ?? 'stick', rng)] : [shot];
+    }
     case 'skada':
     case 'död': {
       const a = g.actor(cue.actorId);
       if (!a) return [];
       const { voice, rate } = voiceOf(g, a);
-      return [pick(VOICE_GROUPS[voice][cue.type === 'skada' ? 0 : 1], rng, rate)];
+      return [{ ...pick(VOICE_GROUPS[voice][cue.type === 'skada' ? 0 : 1], rng, rate), delay: GRUNT_MS }];
     }
     case 'besvärjelse':
       return [pick(cue.result === 'lyckas' ? spellGroup(cue.spell) : 'misslyckad', rng)];
@@ -192,11 +326,16 @@ export function soundFor(g: Game, cue: Cue, rng: () => number = Math.random): So
       return out;
     }
     case 'ljus':
-      return [cue.lit ? pick('eld_tand', rng) : pick('tyg', rng, 1, 0.6)];
-    case 'vila':
-      return [pick('eld_tand', rng, 0.9, 0.6)];
+      return [cue.lit ? pick('tanda', rng) : pick('tyg', rng, 1, 0.6)];
+    case 'vila': {
+      // Man lägger sig, natten går (lägereld och uggla ute i lägret) och man vaknar till fågelkvitter.
+      const lie = pick('lagga', rng, 1, 0.7);
+      const dawn = (delay: number) => ({ ...pick('kvitter', rng, 1, 0.6), delay });
+      if (cue.how === 'sömn') return [lie, dawn(1800)];
+      return [lie, { ...pick('lagereld', rng, 1, 0.6), delay: 200 }, { ...pick('uggla', rng, 1, 0.5), delay: 900 }, dawn(3200)];
+    }
     case 'strid':
-      return cue.phase === 'börjar' ? [pick('stridsrop', rng), pick('metall', rng)] : [];
+      return cue.phase === 'börjar' ? [pick('svard', rng), pick('ringbrynja', rng)] : [];
     case 'lås':
       if (cue.how === 'misslyckat') return [pick('metall', rng, 1.2, 0.5)];
       return [pick(cue.kind === 'kista' ? 'kista' : 'dorr', rng)];

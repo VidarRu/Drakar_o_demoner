@@ -14,6 +14,83 @@ Bearbetningarna i `public/audio/flare/` delas under samma licens.
 
 **Musik:** Brandon Morris "Augmentality" ([youtube.com/brandon75689](https://www.youtube.com/brandon75689)).
 
-**Ljudeffekter:** Flares upphovspersoner (se `public/art/CREDITS.md`). Enligt Flares
+**Ljudeffekter:** Flares upphovspersoner (se `public/art/CREDITS.md`). Utdragen i `sfx/utdrag/`
+(uggla, fågelkvitter och lägereld när man sover och slår läger) är klippta ur Flares miljöslingor,
+med in- och uttoning. Miljöljudet i `sfx/slinga/` (fåglar, uggla, flod, vind, droppar i grottan
+och en härd) är Flares miljöslingor med jämnad nivå, upprepade till minst 20 sekunder. Enligt Flares
 `CREDITS.txt` bygger ljuden också på fritt licensierat material av bland andra Ljudbank och
 Mike Koenig.
+
+## OpenGameArt (`public/audio/oga/`)
+
+Omkodade till MP3 (mono), med jämnad volym och, för stegen i grottor, ett eko, av
+`tools/oga_audio.py`. Bearbetningarna delas under samma licens som originalet.
+
+### Steg på gräs, grus, trä, sten och vatten (`oga/steg/`)
+
+Ur [Footsteps on different surfaces](https://opengameart.org/content/footsteps-on-different-surfaces),
+sammanställt av congusbongus från ljud på freesound.org:
+
+- **Gräs** (`gras`), **trä** (`tra`), **sten och grotta** (`sten`, `grotta`): footstep-grass.wav,
+  footstep-wood.wav och footstep-concrete.wav av [swuing](https://freesound.org/people/swuing/).
+  Licens: [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+- **Vatten** (`vatten`): Water Footsteps av [EminYILDIRIM](https://freesound.org/people/EminYILDIRIM/sounds/608663/)
+  och footstep-concrete.wav av swuing. Licens: [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+- **Grus** (`grus`): Gravel Footsteps av [Ali_6868](https://freesound.org/people/Ali_6868/packs/21608/).
+  Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+### Steg i tät skog (`oga/steg/lov`)
+
+Ur [Different steps on wood, stone, leaves, gravel and mud](https://opengameart.org/content/different-steps-on-wood-stone-leaves-gravel-and-mud)
+av TinyWorlds. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+### Vapenskrammel när striden börjar (`oga/strid/`) och att lägga sig (`oga/vila/`)
+
+Svärd som dras (`svard`), ringbrynja (`ringbrynja`) och tyg som prasslar när man lägger sig (`lagga`) ur
+[RPG Sound Pack](https://opengameart.org/content/rpg-sound-pack) av artisticdude.
+Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+### Facklan tänds (`oga/ljus/tanda`)
+
+- `tanda1`: [Spell 4 (fire)](https://opengameart.org/content/spell-4-fire) av Bart K.
+  Licens: [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+- `tanda2`, `tanda3`: spell_fire_06 och spell_fire_07 ur [80 CC0 RPG SFX](https://opengameart.org/content/80-cc0-rpg-sfx)
+  av rubberduck. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+Avkortade till en dryg sekund och uttonade.
+
+### Vapenhugg, båge och armborst (`oga/hugg/`, `oga/skott/`)
+
+Tagningar ur [Medieval sound effects - Weapon Textures](https://opengameart.org/content/medieval-sound-effects-weapon-textures)
+av Still North Media (uppladdat av MedicineStorm): Sabre Swing, Axe Swing, Dagger Swing,
+Spear Swing, English Longbow Shoot och Crossbow Shoot. Licens:
+[CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+### Nedslag när ett vapen träffar (`oga/traff/`)
+
+Ur [Fleshy Fight Sounds](https://opengameart.org/content/fleshy-fight-sounds) av will_leamon:
+svärd, hammare, stick och slag, utan och med rustning.
+Licens: [OGA-BY 3.0](https://static.opengameart.org/OGA-BY-3.0.txt).
+
+### Parering, vapen mot vapen (`oga/parera/`)
+
+Ur [20 Sword Sound Effects (Attacks and Clashes)](https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes)
+av StarNinjas, avkortade till 0,8 sekunder. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+### Djur och elementarer (`oga/djur/`, `oga/element/`)
+
+- **Varg som morrar** (`varg_traff`): [Dog Snarl Grunt Grumble](https://opengameart.org/content/dog-snarl-grunt-grumble)
+  av qubodup. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+- **Varg som ylar** (`varg_dor`): howl ur [80 CC0 creature SFX](https://opengameart.org/content/80-cc0-creature-sfx)
+  av rubberduck. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+- **Björn** (`bjorn_traff`, `bjorn_dor`): [Bear Growls](https://opengameart.org/content/bear-growls),
+  inspelade av U.S. Fish & Wildlife Service och uppladdade av AntumDeluge. Licens:
+  [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+- **Jordelementar** (`sten`, `sten_dor`): stones_01–04 ur [80 CC0 RPG SFX](https://opengameart.org/content/80-cc0-rpg-sfx)
+  av rubberduck. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+- **Vattenelementar** (`plask`, `plask_dor`): splash ur [40 CC0 water / splash / slime SFX](https://opengameart.org/content/40-cc0-water-splash-slime-sfx)
+  av rubberduck. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+- **Mörkerelementar** (`skugga`, `skugga_dor`): shade ur [RPG Sound Pack](https://opengameart.org/content/rpg-sound-pack)
+  av artisticdude. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+Eld, värme, luft, köld och ljus använder Flares besvärjelseljud.
