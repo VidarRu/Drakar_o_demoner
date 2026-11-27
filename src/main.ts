@@ -6,13 +6,11 @@ import '@fontsource/kalam/700.css';
 import Phaser from 'phaser';
 import { getAccessCode, setAccessCode } from './ai/dialogClient';
 import { attachAudio, audio, mountAudio } from './audio';
-import { finalize } from './engine/creation';
 import { Game } from './engine/game';
 import { clearSave, loadGame, saveGame } from './engine/save';
 import type { Character } from './engine/types';
 import { IsoScene } from './game/IsoScene';
 import { WorldScene } from './game/WorldScene';
-import { mountCreator } from './ui/creation';
 import { $, DialogUi, Hud } from './ui/hud';
 import { mountMenu } from './ui/menu';
 import { Minimap } from './ui/minimap';
@@ -81,8 +79,7 @@ function startNew(character: Character) {
 mountAudio();
 const menu = mountMenu({
   continueGame,
-  newCharacter: () => mountCreator(startNew),
-  pregen: (p) => startNew(finalize(p.draft())),
+  startNew,
   load: () => continueGame(),
 });
 const code = $<HTMLInputElement>('in-code');

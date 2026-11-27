@@ -1,16 +1,17 @@
 import { audioSliders } from '../audio';
-import { PREGENS, type Pregen } from '../content/forgenererade';
+import { PREGENS } from '../content/forgenererade';
 import { listSaves } from '../engine/save';
+import type { Character } from '../engine/types';
 import { bookArt } from './carousel';
+import { CreatorUi, type CreatorOptions } from './creation';
 import { $, el } from './hud';
 
 export type MenuView = 'huvud' | 'nytt' | 'ladda' | 'installningar' | 'om';
 
 export interface MenuHandlers {
   continueGame(): void;
-  /** Öppnar skapandet i behållaren `#creator` under "Nytt äventyr". */
-  newCharacter(): void;
-  pregen(p: Pregen): void;
+  /** Startar ett nytt äventyr med rollpersonen från rollpersonsboken. */
+  startNew(c: Character): void;
   load(key: string): void;
 }
 
@@ -70,14 +71,10 @@ export function mountMenu(handlers: MenuHandlers): { show(view?: MenuView): void
   const body = el('div', 'blad-innehall');
   sheet.append(back, title, body);
 
-  // Den gamla guiden ligger tills vidare här, i sin gamla mörka ruta.
-  const creatorCard = el('div', 'card wide meny-guide');
-  const creatorBack = button('← Tillbaka', 'tillbaka', () => openCreator(false));
-  const creator = el('div');
-  creator.id = 'creator';
-  creatorCard.append(creatorBack, creator);
-  creatorCard.hidden = true;
-  sub.append(sheet, creatorCard);
+  // Rollpersonsboken: karusellerna och uppslaget, på samma grindbild som undermenyerna.
+  const creator = el('div', 'skapa');
+  creator.hidden = true;
+  sub.append(sheet, creator);
 
   const views: Record<Exclude<MenuView, 'huvud'>, HTMLElement> = {
     nytt: newView(),
@@ -89,17 +86,23 @@ export function mountMenu(handlers: MenuHandlers): { show(view?: MenuView): void
   body.append(...Object.values(views));
   root.replaceChildren(main, sub);
 
-  function openCreator(open: boolean) {
-    sheet.hidden = open;
-    creatorCard.hidden = !open;
-    if (open) handlers.newCharacter();
+  /** Öppnar rollpersonsboken, eller stänger den med `null`. "Tillbaka" i boken leder till "Nytt äventyr". */
+  function openCreator(opts: CreatorOptions | null) {
+    sheet.hidden = opts !== null;
+    creator.hidden = opts === null;
+    if (opts === null) {
+      creator.replaceChildren();
+      return;
+    }
+    sub.scrollTop = 0;
+    new CreatorUi(creator, handlers.startNew, { ...opts, onBack: () => show('nytt') });
   }
 
   function newView() {
     const view = el('div', 'nytt');
     const create = el('div', 'nytt-skapa');
     create.append(
-      button('Skapa ny rollperson', 'band', () => openCreator(true)),
+      button('Skapa ny rollperson', 'band', () => openCreator({})),
       el('p', '', 'Välj folk och yrke och fyll i rollformuläret själv, steg för steg.'),
     );
     const cards = el('div', 'nytt-fardiga');
@@ -113,7 +116,7 @@ export function mountMenu(handlers: MenuHandlers): { show(view?: MenuView): void
       const text = el('span', 'fardig-text');
       text.append(el('b', '', p.title), el('span', '', p.blurb));
       card.append(img, text);
-      card.onclick = () => handlers.pregen(p);
+      card.onclick = () => openCreator({ draft: p.draft(), preview: true });
       cards.append(card);
     }
     view.append(create, box('Färdiga rollpersoner', cards));
@@ -182,7 +185,7 @@ export function mountMenu(handlers: MenuHandlers): { show(view?: MenuView): void
       return;
     }
     if (view === 'ladda') renderSaves();
-    openCreator(false);
+    openCreator(null);
     title.textContent = TITLES[view];
     for (const [id, node] of Object.entries(views)) node.hidden = id !== view;
   }

@@ -22,7 +22,7 @@ import { el } from './hud';
  * handstil, som med blyerts på papper.
  */
 
-const ATTR_NAMES: Record<AttrKey, string> = {
+export const ATTR_NAMES: Record<AttrKey, string> = {
   STY: 'Styrka',
   FYS: 'Fysik',
   SMI: 'Smidighet',

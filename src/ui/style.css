@@ -721,34 +721,6 @@ button.danger {
 .card.wide {
   width: min(860px, 100%);
 }
-#creator {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: 12px;
-}
-.steps li {
-  padding: 4px 8px;
-  border: 1px solid #3a3040;
-  border-radius: 2px;
-  color: var(--muted);
-}
-.steps li.done {
-  cursor: pointer;
-  color: var(--text);
-}
-.steps li.on {
-  border-color: var(--gold);
-  color: var(--gold);
-}
 .budget {
   display: flex;
   gap: 16px;
@@ -892,25 +864,6 @@ button.danger {
 }
 .errors:empty {
   display: none;
-}
-#creator select,
-#creator textarea {
-  font: inherit;
-  color: var(--text);
-  background: #100d12;
-  border: 1px solid #4a3e50;
-  padding: 4px;
-}
-#creator textarea {
-  width: 100%;
-}
-#creator details {
-  font-size: 13px;
-  color: var(--text);
-}
-#creator details summary {
-  cursor: pointer;
-  color: var(--gold);
 }
 
 @media (max-width: 720px) {

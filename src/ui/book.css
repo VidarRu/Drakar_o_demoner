@@ -66,12 +66,6 @@ button.tillbaka:hover:not(:disabled) {
   background: none;
   color: var(--bok-tusch);
 }
-.meny-guide button.tillbaka {
-  color: var(--muted);
-}
-.meny-guide button.tillbaka:hover:not(:disabled) {
-  color: var(--text);
-}
 #menu button:focus-visible,
 .karusell button:focus-visible {
   outline: 2px solid var(--gold);
@@ -223,9 +217,6 @@ button.tillbaka:hover:not(:disabled) {
 }
 .blad-ruta > :not(header) {
   margin: 12px 14px;
-}
-.meny-guide {
-  position: relative;
 }
 
 /* Om spelet: styckena har sina egna marginaler. */
@@ -802,14 +793,17 @@ button.karusell-pil:disabled {
 .rf .ink-new:not(.small) {
   display: inline-block;
 }
-.rf .ink-new {
+.rf .ink-new,
+.horn .ink-new {
   animation: ink-skriv 0.4s steps(8, end);
 }
-.rf .ink-hot {
+.rf .ink-hot,
+.horn .ink-hot {
   border-radius: 2px;
   animation: ink-glod 1.2s ease-out;
 }
-.rf .ink-new.ink-hot {
+.rf .ink-new.ink-hot,
+.horn .ink-new.ink-hot {
   animation:
     ink-skriv 0.4s steps(8, end),
     ink-glod 1.2s ease-out;
@@ -829,6 +823,436 @@ button.karusell-pil:disabled {
   to {
     background-color: rgba(232, 179, 58, 0);
   }
+}
+
+/* Boken slås upp när yrket är valt (samma rörelse som när den stängs, baklänges). */
+.uppslag.oppnas {
+  animation: uppslag-oppna 0.45s ease-out;
+}
+@keyframes uppslag-oppna {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.94);
+  }
+}
+
+/* ---------- Rollpersonsboken: folk och yrke ---------- */
+
+/* Guiden fyller undermenyn: karusellen över hela skärmen, uppslaget överst. */
+.skapa {
+  align-self: flex-start;
+  width: 100%;
+  min-height: 100%;
+}
+.skapa-karusell {
+  position: relative;
+  min-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.skapa-topp {
+  width: min(1240px, 100%);
+  margin: 0 auto;
+  padding: 14px 16px 0;
+  font-family: var(--f-form);
+}
+/* Karusellen och knapparna under den står mitt i höjden. */
+.skapa-plats {
+  margin-top: auto;
+}
+.skapa-nav {
+  width: min(760px, calc(100% - 32px));
+  margin: 0 auto auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.skapa-nav button.tillbaka,
+.skapa-nav button.tillbaka:hover:not(:disabled) {
+  color: var(--bok-linje);
+  text-shadow: 0 1px 3px var(--bok-natt);
+}
+.skapa-nav button.tillbaka:hover:not(:disabled) {
+  color: var(--bok-papper);
+}
+.skapa-nav button.band {
+  margin-left: auto;
+}
+
+/* På låga skärmar blir korten lite mindre, så att knapparna under rutan syns utan att rulla. */
+@media (max-height: 720px) {
+  .skapa .karusell {
+    --kort-h: clamp(200px, 39vh, 420px);
+    gap: 12px;
+  }
+  .skapa-karusell {
+    gap: 10px;
+  }
+}
+
+/* Hörnet av rollformuläret uppe till höger, där folket och yrket skrivs in. */
+.horn {
+  position: absolute;
+  top: 52px;
+  right: 16px;
+  z-index: 60;
+  width: 220px;
+  color: var(--bok-tusch);
+  background: var(--bok-papper);
+  border: 2px solid var(--bok-tusch);
+  font-family: var(--f-form);
+  font-size: 11px;
+  transform: rotate(2deg);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.6);
+}
+.horn-titel {
+  padding: 2px 8px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bok-papper);
+  background: var(--bok-rod);
+}
+.horn-falt {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.horn-falt > div {
+  min-height: 36px;
+  padding: 1px 6px 3px;
+  border-top: 1px solid var(--bok-tusch);
+}
+.horn-falt > div:nth-child(odd) {
+  border-right: 1px solid var(--bok-tusch);
+}
+.horn .hand {
+  display: block;
+  min-height: 20px;
+  font-family: var(--f-hand);
+  font-size: 16px;
+  line-height: 1.25;
+  color: var(--bok-blyerts);
+}
+
+/* ---------- Rollpersonsboken: kapitlen på vänster sida ---------- */
+
+/* Guidens kontroller på papper: svart bläck, röda band och tunna linjer. */
+.kapitel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 16px;
+  line-height: 1.4;
+}
+.kapitel .budget {
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bok-tusch);
+}
+.kapitel .budget span {
+  padding: 2px 8px;
+  border: 1.5px solid var(--bok-tusch);
+}
+.kapitel .budget .bad,
+.kapitel .bad {
+  color: var(--bok-morkrod);
+  font-weight: 700;
+}
+.kapitel .budget .bad {
+  border-color: var(--bok-morkrod);
+}
+.kapitel .step-body {
+  gap: 10px;
+}
+.kapitel .note {
+  font-size: 15px;
+  color: var(--bok-gra);
+}
+.kapitel h3 {
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bok-tusch);
+}
+.kapitel label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Knapparna i kapitlen (inte banden och "tillbaka"). */
+.kapitel button:not(.band):not(.tillbaka) {
+  font-family: var(--f-form);
+  color: var(--bok-tusch);
+  background: var(--bok-papper);
+  border: 1.5px solid var(--bok-tusch);
+  border-radius: 0;
+  box-shadow: 2px 2px 0 var(--bok-tusch);
+  text-shadow: none;
+}
+.kapitel button:not(.band):not(.tillbaka):hover:not(:disabled) {
+  background: #fff;
+  border-color: var(--bok-tusch);
+}
+.kapitel button:focus-visible,
+.kapitel select:focus-visible,
+.kapitel summary:focus-visible,
+.uppslag-topp button:focus-visible,
+.skapa-nav button:focus-visible {
+  outline: 2px solid var(--bok-rod);
+  outline-offset: 2px;
+}
+.kapitel .choices button {
+  color: var(--bok-gra);
+}
+.kapitel .choices button b {
+  font-weight: 700;
+  color: var(--bok-tusch);
+}
+.kapitel .choices button.sel {
+  background: #fff;
+  border: 2px solid var(--bok-rod);
+  box-shadow: 2px 2px 0 var(--bok-morkrod);
+}
+.kapitel .choices button.sel b {
+  color: var(--bok-morkrod);
+}
+.kapitel .choices.figures img {
+  background: #2a2326;
+}
+
+/* Rutorna har ett rött band överst, som rutorna på rollformuläret. */
+.kapitel .box {
+  gap: 8px;
+  padding: 0 12px 12px;
+  background: #fff;
+  border: 2px solid var(--bok-tusch);
+  border-radius: 0;
+}
+.kapitel .box > h3:first-child {
+  margin: 0 -12px 2px;
+  padding: 3px 10px;
+  font-size: 13px;
+  color: var(--bok-papper);
+  background: var(--bok-rod);
+  border-bottom: 2px solid var(--bok-tusch);
+}
+.kapitel .kv {
+  align-items: center;
+  gap: 10px;
+  padding: 3px 0;
+  border-bottom: 1px solid var(--bok-linje);
+}
+.kapitel .kv b {
+  color: inherit;
+}
+
+/* − värdet +: svarta knappar kring ett vitt fält. */
+.kapitel .stepper {
+  gap: 0;
+  border: 2px solid var(--bok-tusch);
+}
+.kapitel .stepper button:not(.band) {
+  width: 28px;
+  height: 26px;
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1;
+  color: var(--bok-papper);
+  background: var(--bok-tusch);
+  border: 0;
+  box-shadow: none;
+}
+.kapitel .stepper button:not(.band):hover:not(:disabled) {
+  background: var(--bok-rod);
+  border: 0;
+}
+.kapitel .stepper button:disabled {
+  opacity: 1;
+  color: #6f6763;
+}
+.kapitel .stepper b {
+  padding: 0 6px;
+  font-weight: 700;
+  color: var(--bok-tusch);
+  background: #fff;
+}
+
+.kapitel .attr-table,
+.kapitel .skill-table {
+  font-size: 15px;
+}
+.kapitel .attr-table th,
+.kapitel .attr-table td,
+.kapitel .skill-table th,
+.kapitel .skill-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--bok-linje);
+}
+.kapitel .attr-table tr:first-child th,
+.kapitel .skill-table tr:first-child th {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bok-gra);
+}
+.kapitel .attr-table td:last-child {
+  font-family: var(--f-hand);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--bok-blyerts);
+}
+.kapitel .attr-table td.bad:last-child {
+  color: var(--bok-morkrod);
+}
+.kapitel .skill-table tr.prof td:first-child {
+  font-weight: 700;
+  color: var(--bok-morkrod);
+}
+.kapitel .checks {
+  font-size: 15px;
+}
+.kapitel .checks label {
+  gap: 4px;
+  font-size: 15px;
+  flex-wrap: nowrap;
+}
+.kapitel .checks label.on {
+  font-weight: 700;
+  color: var(--bok-morkrod);
+}
+.kapitel input[type='checkbox'] {
+  accent-color: var(--bok-rod);
+}
+.kapitel .chips button:not(.band) {
+  padding: 2px 8px;
+  font-size: 13px;
+}
+
+/* Det spelaren skriver in står med blyerts, som på formuläret. */
+.kapitel input:not([type='checkbox']),
+.kapitel textarea {
+  font-family: var(--f-hand);
+  font-size: 17px;
+  color: var(--bok-blyerts);
+  background: #fff;
+  border: 0;
+  border-bottom: 2px solid var(--bok-tusch);
+  border-radius: 0;
+  padding: 3px 6px;
+}
+.kapitel input:not([type='checkbox']):focus,
+.kapitel textarea:focus {
+  outline: none;
+  border-color: var(--bok-rod);
+  box-shadow: 0 2px 0 var(--bok-rod);
+}
+.kapitel label input:not([type='checkbox']) {
+  flex: 1;
+  min-width: 160px;
+}
+.kapitel textarea {
+  width: 100%;
+  border: 1.5px solid var(--bok-tusch);
+}
+.kapitel select {
+  max-width: 100%;
+  font-family: var(--f-form);
+  font-size: 15px;
+  color: var(--bok-tusch);
+  background: #fff;
+  border: 1.5px solid var(--bok-tusch);
+  border-radius: 0;
+  padding: 3px 4px;
+}
+.kapitel details {
+  border-bottom: 1px solid var(--bok-linje);
+}
+.kapitel summary {
+  padding: 5px 0;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--bok-morkrod);
+}
+.kapitel details[open] {
+  padding-bottom: 6px;
+}
+
+/* Knapparna längst ned och felen under dem. */
+.kapitel-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.kapitel-nav-hoger {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px 14px;
+  margin-left: auto;
+}
+.kapitel-nav button.band {
+  white-space: nowrap;
+}
+.kapitel button.band:disabled {
+  opacity: 0.4;
+  box-shadow: 3px 3px 0 var(--bok-tusch);
+}
+button.band.ljus {
+  color: var(--bok-tusch);
+  background: var(--bok-papper);
+}
+button.band.ljus:hover:not(:disabled) {
+  background: #fff;
+}
+.kapitel .errors {
+  font-size: 15px;
+  color: var(--bok-morkrod);
+}
+
+/* Frågan om sparningen ska skrivas över, i boken. */
+.fraga {
+  background: #fff;
+}
+.fraga p {
+  margin: 12px 14px 0;
+}
+.fraga-knappar {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 12px 14px 14px;
+}
+
+/* Den färdiga rollpersonen. */
+.forh-vem {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+}
+.forh-utseende {
+  margin: 0;
+  font-family: var(--f-hand);
+  font-size: 18px;
+  color: var(--bok-blyerts);
+}
+.forhandsvisning .note {
+  margin: 0;
 }
 
 @media (max-width: 1023px) {
@@ -861,6 +1285,11 @@ button.karusell-pil:disabled {
   .nytt-fardiga {
     grid-template-columns: 1fr;
   }
+  .horn {
+    position: static;
+    margin: 10px 16px 0 auto;
+    transform: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -873,6 +1302,9 @@ button.karusell-pil:disabled {
     animation: none;
   }
   .uppslag.stanger,
+  .uppslag.oppnas,
+  .horn .ink-new,
+  .horn .ink-hot,
   .vandblad.framat,
   .vandblad.bakat,
   .sida-innehall.tonar-fram,
