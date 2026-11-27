@@ -354,17 +354,17 @@ function back(src: SheetSource): HTMLElement {
     if (WEAPONS[id] || id === p.shield || p.armor.includes(id)) continue;
     counts.set(id, (counts.get(id) ?? 0) + 1);
   }
-  const gear: string[][] = [];
-  for (const id of p.armor) gear.push([`${itemName(id)} (buren)`, kg(weight(id))]);
-  for (const [id, n] of counts) gear.push([n > 1 ? `${n} × ${itemName(id)}` : itemName(id), kg(weight(id) * n)]);
+  const gear: string[][] = []; // [text, vikt, nyckel]
+  for (const id of p.armor) gear.push([`${itemName(id)} (buren)`, kg(weight(id)), itemName(id)]);
+  for (const [id, n] of counts) gear.push([n > 1 ? `${n} × ${itemName(id)}` : itemName(id), kg(weight(id) * n), itemName(id)]);
   const gearList = el('div', 'rf-gear');
   const all = [...gear];
-  while (all.length < 18) all.push(['', '']);
-  all.forEach(([name, w], n) => {
+  while (all.length < 18) all.push(['', '', '']);
+  all.forEach(([name, w, key]) => {
     const r = el('div', 'rf-gear-row');
     r.append(el('span', '', ''), el('span', '', ''));
-    if (name) r.firstElementChild!.append(hand(name, '', `Utrustning ${n + 1}|0`));
-    if (w) r.lastElementChild!.append(hand(w, '', `Utrustning ${n + 1}|1`));
+    if (name) r.firstElementChild!.append(hand(name, '', `Utrustning|${key}|0`));
+    if (w) r.lastElementChild!.append(hand(w, '', `Utrustning|${key}|1`));
     gearList.append(r);
   });
   const gearBox = box('Utrustning', ['Vikt'], gearList);
