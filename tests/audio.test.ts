@@ -65,20 +65,71 @@ describe('ljudtabellen', () => {
     for (const f of SFX_FILES) expect(existsSync(`public/audio/${f}.mp3`), f).toBe(true);
   });
 
-  it('ett anfall med stridshammare låter lägre än med dolk', () => {
+  const attack = (g: Game, weapon: string, result: 'träff' | 'miss' | 'parerat', natural = false) =>
+    soundFor(g, { type: 'anfall', actorId: g.player.id, targetId: foe(g).id, weapon, natural, result }, mid);
+
+  it('svärd, yxa, klubba, dolk och spjut hugger olika', () => {
     const g = gravad();
-    const hit = (weapon: string) => soundFor(g, { type: 'anfall', actorId: g.player.id, targetId: foe(g).id, weapon, natural: false, result: 'träff' }, mid)[0];
-    expect(SFX.hugg).toContain(hit('stridshammare').file);
-    expect(hit('stridshammare').rate).toBeLessThan(hit('bredsvard').rate);
-    expect(hit('dolk').rate).toBeGreaterThan(hit('bredsvard').rate);
+    const swing = (weapon: string) => attack(g, weapon, 'miss')[0];
+    expect(SFX.hugg_sabel).toContain(swing('bredsvard').file);
+    expect(SFX.hugg_yxa).toContain(swing('handyxa').file);
+    // Klubban har inget eget hugg: yxans, tyngre.
+    expect(SFX.hugg_yxa).toContain(swing('klubba').file);
+    expect(swing('klubba').rate).toBeLessThan(swing('handyxa').rate);
+    expect(SFX.hugg_dolk).toContain(swing('dolk').file);
+    expect(SFX.hugg_spjut).toContain(swing('kortspjut').file);
+    // Klor och nävar låter som förut.
+    expect(SFX.hugg).toContain(attack(g, 'klo', 'miss', true)[0].file);
+    // En miss är bara hugget.
+    expect(attack(g, 'bredsvard', 'miss')).toHaveLength(1);
   });
 
-  it('ett parerat anfall ger hugg och block', () => {
+  it('en träff låter efter vapnet och efter om målet har rustning', () => {
     const g = gravad();
-    const f = files(g, { type: 'anfall', actorId: g.player.id, targetId: foe(g).id, weapon: 'bredsvard', natural: false, result: 'parerat' });
+    const f = foe(g);
+    const impact = (weapon: string, natural = false) => {
+      const p = attack(g, weapon, 'träff', natural);
+      expect(p).toHaveLength(2);
+      expect(p[1].delay).toBeGreaterThan(0);
+      return p[1].file;
+    };
+    f.armor = [];
+    expect(SFX.traff_svard).toContain(impact('bredsvard'));
+    expect(SFX.traff_svard).toContain(impact('handyxa'));
+    expect(SFX.traff_kross).toContain(impact('stridshammare'));
+    expect(SFX.traff_stick).toContain(impact('dolk'));
+    expect(SFX.traff_slag).toContain(impact('nave', true));
+    f.armor = ['ringbrynjeskjorta'];
+    expect(SFX.traff_svard_rustning).toContain(impact('bredsvard'));
+    expect(SFX.traff_kross_rustning).toContain(impact('stridshammare'));
+    expect(SFX.traff_stick_rustning).toContain(impact('dolk'));
+  });
+
+  it('ett parerat anfall ger hugg och vapen mot vapen', () => {
+    const g = gravad();
+    const f = attack(g, 'bredsvard', 'parerat').map((p) => p.file);
     expect(f).toHaveLength(2);
-    expect(SFX.hugg).toContain(f[0]);
-    expect(f[1]).toBe('flare/sfx/powers/block');
+    expect(SFX.hugg_sabel).toContain(f[0]);
+    expect(SFX.parera).toContain(f[1]);
+  });
+
+  it('båge och armborst låter olika, och en pil som träffar ger ett nedslag', () => {
+    const g = gravad();
+    const shot = (weapon: string, result: 'träff' | 'miss' = 'miss') => soundFor(g, { type: 'skott', actorId: g.player.id, targetId: foe(g).id, weapon, result }, mid);
+    expect(SFX.skott_bage).toContain(shot('kortbage')[0].file);
+    expect(SFX.skott_armborst).toContain(shot('latt_armborst')[0].file);
+    expect(SFX.skott).toContain(shot('slunga')[0].file);
+    expect(SFX.hugg_yxa).toContain(shot('kastyxa')[0].file);
+    foe(g).armor = [];
+    const hit = shot('kortbage', 'träff');
+    expect(SFX.traff_stick).toContain(hit[1].file);
+  });
+
+  it('grymtandet kommer efter nedslaget', () => {
+    const g = gravad();
+    const grunt = soundFor(g, { type: 'skada', actorId: foe(g).id }, mid)[0];
+    const hit = attack(g, 'bredsvard', 'träff')[1];
+    expect(grunt.delay).toBeGreaterThan(hit.delay!);
   });
 
   it('ELD ger eld, FROST köld, HELA läkning och en mentalistisk besvärjelse sinne', () => {

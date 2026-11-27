@@ -1,7 +1,7 @@
 import { ARMOR } from '../data/armor';
 import { HERBS } from '../data/herbs';
 import { SPELLS } from '../data/spells';
-import { MELEE_WEAPONS } from '../data/weapons';
+import { MELEE_WEAPONS, RANGED_WEAPONS } from '../data/weapons';
 import type { Cue, Game } from '../engine/game';
 import { itemInfo } from '../engine/inventory';
 import { inBounds, tileAt } from '../engine/map';
@@ -28,9 +28,24 @@ const oga = (name: string, count: number) => Array.from({ length: count }, (_, i
 
 /** Namngivna grupper av ljud. Ett av ljuden i gruppen väljs varje gång. */
 export const SFX = {
+  /** Klor, nävar och annat utan eget vapenljud. */
   hugg: fl('melee_attack', 'melee_attack_2', 'melee_attack_3'),
-  parera: fl('powers/block'),
+  hugg_sabel: oga('hugg/sabel', 8),
+  hugg_yxa: oga('hugg/yxa', 6),
+  hugg_dolk: oga('hugg/dolk', 6),
+  hugg_spjut: oga('hugg/spjut', 6),
+  traff_svard: oga('traff/svard', 2),
+  traff_svard_rustning: oga('traff/svard_rustning', 2),
+  traff_kross: oga('traff/kross', 2),
+  traff_kross_rustning: oga('traff/kross_rustning', 2),
+  traff_stick: oga('traff/stick', 2),
+  traff_stick_rustning: oga('traff/stick_rustning', 2),
+  traff_slag: oga('traff/slag', 2),
+  parera: oga('parera/klang', 10),
+  /** Slungor och blåsrör. */
   skott: fl('powers/shoot'),
+  skott_bage: oga('skott/bage', 2),
+  skott_armborst: oga('skott/armborst', 6),
   fummel: fl('no_mana'),
   manTraff: fl('male_hit'),
   kvinnaTraff: fl('female_hit'),
@@ -135,8 +150,54 @@ const VOICE_GROUPS = {
   kvinna: ['kvinnaTraff', 'kvinnaDor'],
 } as const satisfies Record<string, readonly [SfxGroup, SfxGroup]>;
 
-/** Grundton för hugg efter vapengrupp: tunga vapen lägre, dolkar ljusare. */
-const WEAPON_RATE: Record<string, number> = { kross: 0.85, yxa: 0.85, dolkar: 1.15 };
+/** Vapengruppens hugg och grundton. Klubbor och hammare har inget eget hugg: yxans, tyngre. */
+const SWING: Record<string, { group: SfxGroup; rate: number }> = {
+  svärd: { group: 'hugg_sabel', rate: 1 },
+  kattingvapen: { group: 'hugg_sabel', rate: 0.9 },
+  piska: { group: 'hugg_dolk', rate: 0.9 },
+  yxa: { group: 'hugg_yxa', rate: 1 },
+  kross: { group: 'hugg_yxa', rate: 0.85 },
+  dolkar: { group: 'hugg_dolk', rate: 1 },
+  stickvapen: { group: 'hugg_spjut', rate: 1 },
+  stangvapen: { group: 'hugg_spjut', rate: 0.9 },
+  trastav: { group: 'hugg_spjut', rate: 0.95 },
+};
+
+/** Vilket nedslag en träff ger: egg, krossande eller stickande. Utan rustning och med. */
+type Impact = 'svard' | 'kross' | 'stick' | 'slag';
+const IMPACT: Record<string, Impact> = {
+  svärd: 'svard',
+  yxa: 'svard',
+  kattingvapen: 'kross',
+  piska: 'slag',
+  kross: 'kross',
+  trastav: 'kross',
+  dolkar: 'stick',
+  stickvapen: 'stick',
+  stangvapen: 'svard',
+  bagar: 'stick',
+  armborst: 'stick',
+  blasror: 'stick',
+  slunga: 'kross',
+  kastvapen: 'svard',
+};
+const IMPACT_GROUPS: Record<Impact, [SfxGroup, SfxGroup]> = {
+  svard: ['traff_svard', 'traff_svard_rustning'],
+  kross: ['traff_kross', 'traff_kross_rustning'],
+  stick: ['traff_stick', 'traff_stick_rustning'],
+  slag: ['traff_slag', 'traff_slag'],
+};
+/** Nedslaget kommer när hugget når fram, och grymtandet strax efter. */
+const IMPACT_MS = 90;
+const GRUNT_MS = 160;
+
+const weaponGroup = (id: string) => MELEE_WEAPONS.find((w) => w.id === id)?.group ?? RANGED_WEAPONS.find((w) => w.id === id)?.group ?? '';
+
+function impactFor(g: Game, targetId: string, impact: Impact, rng: () => number): SoundPick {
+  const t = g.actor(targetId);
+  const armored = !!t && (t.armor.length > 0 || (t.naturalArmor ?? 0) > 0);
+  return { ...pick(IMPACT_GROUPS[impact][armored ? 1 : 0], rng), delay: IMPACT_MS };
+}
 
 const pick = (group: SfxGroup, rng: () => number, base = 1, volume = 1): SoundPick => {
   const files = SFX[group];
@@ -190,19 +251,29 @@ export function soundFor(g: Game, cue: Cue, rng: () => number = Math.random): So
   switch (cue.type) {
     case 'anfall': {
       if (cue.result === 'fummel') return [pick('fummel', rng)];
-      const group = MELEE_WEAPONS.find((w) => w.id === cue.weapon)?.group ?? '';
-      const base = cue.natural ? 0.9 : (WEAPON_RATE[group] ?? 1);
-      const swing = pick('hugg', rng, base);
-      return cue.result === 'parerat' ? [swing, pick('parera', rng)] : [swing];
+      const group = weaponGroup(cue.weapon);
+      const swingOf = cue.natural ? undefined : SWING[group];
+      const swing = swingOf ? pick(swingOf.group, rng, swingOf.rate) : pick('hugg', rng, cue.natural ? 0.9 : 1);
+      if (cue.result === 'parerat') return [swing, pick('parera', rng)];
+      if (cue.result === 'träff') return [swing, impactFor(g, cue.targetId, cue.natural ? 'slag' : (IMPACT[group] ?? 'svard'), rng)];
+      return [swing];
     }
-    case 'skott':
-      return [pick(cue.result === 'fummel' ? 'fummel' : 'skott', rng)];
+    case 'skott': {
+      if (cue.result === 'fummel') return [pick('fummel', rng)];
+      const group = weaponGroup(cue.weapon);
+      const shot =
+        group === 'bagar' ? pick('skott_bage', rng)
+        : group === 'armborst' ? pick('skott_armborst', rng)
+        : group === 'kastvapen' ? pick(cue.weapon === 'kastkniv' ? 'hugg_dolk' : cue.weapon === 'kastspjut' ? 'hugg_spjut' : 'hugg_yxa', rng)
+        : pick('skott', rng);
+      return cue.result === 'träff' ? [shot, impactFor(g, cue.targetId, IMPACT[group] ?? 'stick', rng)] : [shot];
+    }
     case 'skada':
     case 'död': {
       const a = g.actor(cue.actorId);
       if (!a) return [];
       const { voice, rate } = voiceOf(g, a);
-      return [pick(VOICE_GROUPS[voice][cue.type === 'skada' ? 0 : 1], rng, rate)];
+      return [{ ...pick(VOICE_GROUPS[voice][cue.type === 'skada' ? 0 : 1], rng, rate), delay: GRUNT_MS }];
     }
     case 'besvärjelse':
       return [pick(cue.result === 'lyckas' ? spellGroup(cue.spell) : 'misslyckad', rng)];

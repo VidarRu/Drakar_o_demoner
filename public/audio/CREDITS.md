@@ -57,3 +57,21 @@ Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
   av rubberduck. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
 
 Avkortade till en dryg sekund och uttonade.
+
+### Vapenhugg, båge och armborst (`oga/hugg/`, `oga/skott/`)
+
+Tagningar ur [Medieval sound effects - Weapon Textures](https://opengameart.org/content/medieval-sound-effects-weapon-textures)
+av Still North Media (uppladdat av MedicineStorm): Sabre Swing, Axe Swing, Dagger Swing,
+Spear Swing, English Longbow Shoot och Crossbow Shoot. Licens:
+[CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+### Nedslag när ett vapen träffar (`oga/traff/`)
+
+Ur [Fleshy Fight Sounds](https://opengameart.org/content/fleshy-fight-sounds) av will_leamon:
+svärd, hammare, stick och slag, utan och med rustning.
+Licens: [OGA-BY 3.0](https://static.opengameart.org/OGA-BY-3.0.txt).
+
+### Parering, vapen mot vapen (`oga/parera/`)
+
+Ur [20 Sword Sound Effects (Attacks and Clashes)](https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes)
+av StarNinjas, avkortade till 0,8 sekunder. Licens: [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
