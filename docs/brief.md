@@ -118,7 +118,16 @@ Besluten står i `docs/regelbeslut.md` under Världskartan.
 
 ### Nästa i steg 8
 
-1. **Grafikmotorn (nästa session):** Vidar vill arbeta med hur spelet ser ut innan hans första äventyr byggs. Han tar med sina idéer om utseendet. Grafiken ligger i `src/game/` (`WorldScene.ts` och `art/`).
+1. **Grafikmotorn (pågår, slängprov):** Vidar vill ha Avernums stil: samma rutnät men sett snett ovanifrån, rik natur, gruppens porträtt i en kolumn, en utrustningsdocka och många snabbtangenter. Han godkände fria bildpaket (med upphovspersoner i en fil om grafiken) och kan koppla in OpenRouter-krediter för bildmodeller till det som inte går att lösa så.
+   - Slängprovet: `src/game/IsoScene.ts` och `src/game/iso/` ritar samma motor snett ovanifrån. Det är förval; `?vy=plan` visar den gamla vyn.
+   - Grafiken: Flare (CC BY-SA 3.0) för gräs, träd, föremål, figurer i åtta riktningar, utrustningslager och porträtt, plockad och nedskalad med `tools/flare_art.py` till `public/art/flare/`. Upphovspersonerna står i `public/art/CREDITS.md`.
+   - Kodritat: vägar, vatten och stränder med mjuka kanter, kullarnas skuggning, murar, berg och dörrar som block.
+   - Gränssnittet: porträttkolumnen, minikartan uppe till höger, loggen och knapparna centrerade längst ned, statuspanelen bakom ☰ eller I, och utrustningsdockan i packningen (`src/ui/doll.ts`).
+   - Tangenterna går längs rutnätet (Vidar): W/↑ norrut, S/↓ söderut, A/← västerut, D/→ österut och Q, E, Z, C snett. B börjar strid, G smyger, T tänder eller släcker facklan, V sover, L lägger förband och mellanslag avslutar turen.
+   - Genomskinlig bubbla (Vidar): träd, murar och berg framför gruppens figurer tonas ut, mest närmast figuren (`bubble` i `IsoScene.ts`).
+   - Dialogvalen väljs med siffertangenterna 1–9 (Vidar), utom när man skriver i textfältet.
+   - Gå igenom varandra (husregel, Vidar): man byter plats med en kamrat (`blockedFor` och `swapWith` i `game.ts`, `tests/passthrough.test.ts`).
+   - Vidar ska titta på provet och säga vad som håller och vad som ska ändras innan det byggs på riktigt.
 2. **Vidars första äventyr:** han laddar upp ett äldre äventyr, och det byggs om till en modul med egna ord. Modulen får en världskarta som Provfärdens.
 3. **Resekartan** för kampanjen: platshållaren finns, och restiden bestäms senare.
 4. **Utvecklingen mellan äventyren:** klar (se ovan). Kvar är stadskartan i stället för menyn, att bestämma per modul vilka dåd som ger hjältepoäng och bonus-EP, en lista över vilka språk böckerna är skrivna på, och unika lärare i modulerna som kan flytta till staden (med kampanjspelet).

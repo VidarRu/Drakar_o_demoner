@@ -1,4 +1,5 @@
 import { ARMOR, SHIELDS } from '../data/armor';
+import { renderDoll } from './doll';
 import { HERBS, herbWorks } from '../data/herbs';
 import { SPELLS } from '../data/spells';
 import { WEAPONS } from '../data/weapons';
@@ -136,6 +137,9 @@ export class PackUi {
         } Rustning på kroppen räknas med halva vikten, kläder inte alls. Silver: ${p.silver}.`,
       ),
     );
+
+    // Slängprov: utrustningsdockan i den snedställda vyn.
+    if (document.body.classList.contains('iso')) body.append(renderDoll(g, p));
 
     // Händerna och kroppen.
     const hands: (string | HTMLElement)[][] = [];

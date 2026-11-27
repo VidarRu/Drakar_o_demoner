@@ -41,6 +41,13 @@ function button(text: string, onClick: () => void, cls = '', disabled = false): 
   return b;
 }
 
+/** Kopplar en snabbtangent till en knapp. Tangenten visas i knappens hörn. */
+function hot<T extends HTMLButtonElement>(b: T, key: string, hint = key.toUpperCase()): T {
+  b.dataset.key = key;
+  b.dataset.hint = hint;
+  return b;
+}
+
 const LOC_SHORT: Record<HitLocation, string> = {
   huvud: 'Huvud',
   bröstkorg: 'Bröst',
@@ -87,6 +94,15 @@ export class Hud {
       if (this.g.player.elemental) return;
       if (e.key === 'p' || e.key === 'P') this.open.pack();
       if ((e.key === 'm' || e.key === 'M') && this.g.char.spells.length) this.open.magic();
+      if (e.key === 'i' || e.key === 'I') $('status').classList.toggle('open');
+      // Snabbtangenterna på knapparna i panelen (se hot()).
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = e.key === ' ' ? 'space' : e.key.toLowerCase();
+      const b = document.querySelector<HTMLButtonElement>(`#combat button[data-key="${k}"]:not(:disabled)`);
+      if (b) {
+        e.preventDefault();
+        b.click();
+      }
     });
     g.onChange(() => this.render());
     this.render();
@@ -119,7 +135,7 @@ export class Hud {
     const g = this.g;
     const box = $('party');
     const members = [...g.partyMembers(), ...g.state.actors.filter((a) => a.alive && a.elemental)];
-    box.hidden = members.length < 2 || g.state.mode === 'dialog' || g.state.mode === 'dead' || g.state.mode === 'ended';
+    box.hidden = members.length < (document.body.classList.contains('iso') ? 1 : 2) || g.state.mode === 'dialog' || g.state.mode === 'dead' || g.state.mode === 'ended';
     if (box.hidden) return;
     box.replaceChildren(
       ...members.map((m) => {
@@ -299,15 +315,15 @@ export class Hud {
     panel.hidden = false;
     if (g.state.mode !== 'combat' || !c) {
       const hostiles = g.state.actors.some((a) => a.alive && a.hostile && !a.fled && g.isVisible(a.x, a.y));
-      panel.append(button('⚔ Till strid', () => g.startCombat(), 'danger', !hostiles));
-      if (p.bleeding.length) panel.append(button('Lägg förband', () => g.bandage(), '', !g.canBandage()));
+      panel.append(hot(button('⚔ Till strid', () => g.startCombat(), 'danger', !hostiles), 'b'));
+      if (p.bleeding.length) panel.append(hot(button('Lägg förband', () => g.bandage(), '', !g.canBandage()), 'l'));
       if (g.canSelfMedicine()) panel.append(button('Läkekonst', () => g.selfMedicine()));
       for (const h of g.helpOptions()) panel.append(button(h.label, () => g.help(h.kind, h.target)));
       panel.append(this.sneakButton(), this.torchButton());
       if (g.charOf(p)?.heroPoints || p.heroArmed) panel.append(this.heroButton());
       panel.append(...this.talentControls());
       panel.append(...this.lockControls());
-      panel.append(button('Sov 8 timmar', () => g.sleep(8), '', !g.canRest()));
+      panel.append(hot(button('Sov 8 timmar', () => g.sleep(8), '', !g.canRest()), 'v'));
       panel.append(button('Packning (P)', () => this.open.pack()));
       panel.append(button('Uppdrag (U)', () => this.open.quests()));
       if (g.char.spells.length) panel.append(button('Magi (M)', () => this.open.magic()));
@@ -381,13 +397,13 @@ export class Hud {
     if (mine) controls.append(this.sneakButton(), this.torchButton());
     if (mine && (g.charOf(p)?.heroPoints || p.heroArmed)) controls.append(this.heroButton());
     if (mine) controls.append(...this.talentControls());
-    if (p.bleeding.length) controls.append(button('Lägg förband', () => g.bandage(), '', !g.canBandage()));
+    if (p.bleeding.length) controls.append(hot(button('Lägg förband', () => g.bandage(), '', !g.canBandage()), 'l'));
     if (g.canFix()) controls.append(button('Rätta till', () => g.fix()));
     if ((p.reload ?? 0) > 0) controls.append(button(`Ladda om (${p.reload} SR)`, () => g.reload(), '', !g.canReload()));
     if (g.canTakeCover()) controls.append(button('Sök skydd', () => g.takeCover()));
     controls.append(button('Packning', () => this.open.pack(), '', !mine));
     if (g.char.spells.length) controls.append(button('Magi', () => this.open.magic(), '', !mine || acted));
-    controls.append(button('Avsluta tur', () => g.endTurn(), 'primary', !mine));
+    controls.append(hot(button('Avsluta tur', () => g.endTurn(), 'primary', !mine), 'space', '␣'));
     if (!activeHostiles(g).length) controls.append(el('span', 'info', 'Inga fiender kvar.'));
     panel.append(order, controls);
   }
@@ -395,7 +411,8 @@ export class Hud {
   private sneakButton(): HTMLButtonElement {
     const p = this.g.player;
     const b = button(p.sneaking ? 'Sluta smyga' : 'Smyg', () => this.g.toggleSneak(), p.sneaking ? 'primary' : '');
-    b.title = 'Smyga: ett slag i Smyga varje runda som en fiende kan se dig. Tänd fackla i mörker −10, dagsljus nära fienden −5.';
+    hot(b, 'g');
+    b.title = 'Smyga (G): ett slag i Smyga varje runda som en fiende kan se dig. Tänd fackla i mörker −10, dagsljus nära fienden −5.';
     return b;
   }
 
@@ -500,7 +517,8 @@ export class Hud {
     const p = this.g.player;
     const lantern = p.light?.kind === 'oljelykta';
     const b = button(p.torchOut ? (lantern ? 'Tänd lyktan' : 'Tänd en fackla') : lantern ? 'Släck lyktan' : 'Släck facklan', () => this.g.toggleTorch());
-    b.title = 'En fackla brinner en timme och en oljelykta sex timmar (fylls på med lampolja). Utan ljus syns du sämre i mörker, men du strider själv i mörker (−15) om du inte har mörkersyn.';
+    hot(b, 't');
+    b.title = 'Fackla (T): en fackla brinner en timme och en oljelykta sex timmar (fylls på med lampolja). Utan ljus syns du sämre i mörker, men du strider själv i mörker (−15) om du inte har mörkersyn.';
     return b;
   }
 
@@ -518,7 +536,7 @@ export class Hud {
       for (const id of a.targets) pick.append(new Option(g.actor(id)?.name ?? id, id));
       controls.append(pick, button(a.label, () => g.elementalAct(a.id, pick.value)));
     }
-    controls.append(button('Avsluta tur', () => g.endTurn(), 'primary'));
+    controls.append(hot(button('Avsluta tur', () => g.endTurn(), 'primary'), 'space', '␣'));
     return controls;
   }
 }
@@ -540,6 +558,17 @@ export class DialogUi {
       input.value = '';
       void this.say(text);
     };
+    // Sifferknapparna väljer dialogvalen (1 är det första), utom när man skriver i textfältet.
+    document.addEventListener('keydown', (e) => {
+      if ($('dialog').hidden || this.waiting || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      const n = /^[1-9]$/.test(e.key) ? Number(e.key) : e.code.startsWith('Numpad') ? Number(e.code.slice(6)) : NaN;
+      if (!(n >= 1 && n <= 9)) return;
+      const b = $('dialog-options').querySelectorAll('button')[n - 1];
+      if (!b) return;
+      e.preventDefault();
+      b.click();
+    });
   }
 
   async open(npc: Actor) {

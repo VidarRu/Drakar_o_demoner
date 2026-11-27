@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { getAccessCode, setAccessCode } from './ai/dialogClient';
 import { Game } from './engine/game';
 import { clearSave, loadGame, saveGame } from './engine/save';
+import { IsoScene } from './game/IsoScene';
 import { WorldScene } from './game/WorldScene';
 import { mountCreator } from './ui/creation';
 import { $, DialogUi, Hud } from './ui/hud';
@@ -12,6 +13,9 @@ import { TrainingUi } from './ui/training';
 
 function launch(game: Game) {
   $('start').hidden = true;
+  // Slängprov: den snedställda vyn är förval; ?vy=plan visar den gamla vyn rakt ovanifrån.
+  const plan = new URLSearchParams(location.search).get('vy') === 'plan';
+  document.body.classList.toggle('iso', !plan);
   const dialog = new DialogUi(game);
   const panels = mountPanels(game);
   new Hud(game, { pack: () => panels.pack.open(), magic: () => panels.magic.open(), quests: () => panels.quests.open() });
@@ -26,13 +30,15 @@ function launch(game: Game) {
   game.onChange(() => {
     if (game.state.mode === 'explore' || game.state.mode === 'ended') saveGame(game.state);
   });
+  const talk = (npc: Parameters<DialogUi['open']>[0]) => void dialog.open(npc);
   const phaser = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
     backgroundColor: '#08070a',
-    pixelArt: true,
+    pixelArt: plan,
+    antialias: !plan,
     scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
-    scene: [new WorldScene(game, (npc) => void dialog.open(npc))],
+    scene: [plan ? new WorldScene(game, talk) : new IsoScene(game, talk)],
   });
   // Åtkomst för felsökning och automatiska tester.
   Object.assign(window, { game, phaser });
