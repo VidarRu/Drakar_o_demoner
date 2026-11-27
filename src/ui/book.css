@@ -581,6 +581,275 @@ button.karusell-pil:disabled {
   color: var(--bok-morkrod);
 }
 
+/* ---------- Uppslaget ---------- */
+
+/* Boken uppslagen: kapitlet på vänster sida (vitt papper), rollformuläret på höger (rött) och
+   kapitelremsan överst. Under 1024 punkter läggs sidorna under varandra (se längre ned). */
+.uppslag {
+  width: min(1240px, 100%);
+  margin: 0 auto;
+  padding: 14px 16px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: var(--f-form);
+}
+.uppslag.stanger {
+  animation: uppslag-stang 0.5s ease-in forwards;
+  pointer-events: none;
+}
+@keyframes uppslag-stang {
+  to {
+    opacity: 0;
+    transform: translateY(24px) scale(0.94);
+  }
+}
+.uppslag-topp {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px 20px;
+  flex-wrap: wrap;
+}
+
+/* Kapitelremsan: klarade kapitel har en röd bock, kapitlet man är i en röd linje under. */
+.kapitelremsa {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.kapitelremsa li {
+  padding: 4px 10px;
+  /* Kapitlen som inte går att nå än är dämpade. Skuggan håller texten läsbar över grindbilden. */
+  color: rgba(251, 249, 245, 0.45);
+  text-shadow: 0 1px 3px var(--bok-natt);
+  border-bottom: 2px solid rgba(251, 249, 245, 0.18);
+}
+.kapitelremsa li.klar {
+  color: var(--bok-linje);
+}
+.kapitelremsa li.klar::before {
+  content: '✓ ';
+  color: var(--bok-rod);
+}
+.kapitelremsa li.nu {
+  color: var(--bok-papper);
+  font-weight: 700;
+  border-bottom-color: var(--bok-rod);
+}
+.kapitelremsa button {
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  text-shadow: none;
+}
+.kapitelremsa button:hover:not(:disabled) {
+  color: var(--bok-papper);
+  background: none;
+  text-decoration: underline;
+}
+.formular-vand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+.formular-sida {
+  font-size: 13px;
+  text-shadow: 0 1px 3px var(--bok-natt);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--bok-linje);
+}
+
+/* Sidorna. Vänster sida är lika hög som formuläret, som i en bok. */
+.uppslag-sidor {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(340px, 1fr) auto;
+  justify-content: center;
+  perspective: 2400px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.75);
+}
+.sida {
+  min-width: 0;
+}
+.sida.vanster {
+  color: var(--bok-tusch);
+  background: var(--bok-papper);
+  /* Skuggan mot mitten av uppslaget. */
+  box-shadow: inset -26px 0 30px -20px rgba(0, 0, 0, 0.35);
+}
+.sida-innehall {
+  padding: 22px 30px 26px 26px;
+  font-size: 17px;
+  line-height: 1.45;
+}
+.sida-huvud {
+  margin-bottom: 14px;
+}
+.kapitel-nr {
+  display: inline-block;
+  padding: 3px 8px;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bok-papper);
+  background: var(--bok-rod);
+}
+.sida-rubrik {
+  margin: 10px 0 0;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 42px;
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--bok-tusch);
+}
+.sida-rubrik:focus {
+  outline: none;
+}
+.uppslag .rf {
+  display: block;
+}
+.uppslag .rf-page {
+  /* Skuggan mot mitten, som på vänster sida. */
+  box-shadow: inset 26px 0 30px -20px rgba(0, 0, 0, 0.45);
+}
+
+/* Sidvändningen: ett blad vänds kring mitten. Framsidan har kapitlet, baksidan är tom. */
+.vandblad {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 5;
+  transform-origin: right center;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+.vandblad.framat {
+  animation: vand-framat 0.7s cubic-bezier(0.45, 0.05, 0.35, 1) both;
+}
+.vandblad.bakat {
+  animation: vand-bakat 0.7s cubic-bezier(0.45, 0.05, 0.35, 1) both;
+}
+@keyframes vand-framat {
+  from {
+    transform: rotateY(180deg);
+  }
+  to {
+    transform: rotateY(0deg);
+  }
+}
+@keyframes vand-bakat {
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(180deg);
+  }
+}
+.vandblad-text,
+.vandblad-baksida {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  color: var(--bok-tusch);
+  background: var(--bok-papper);
+  backface-visibility: hidden;
+}
+.vandblad-text {
+  box-shadow: inset -26px 0 30px -20px rgba(0, 0, 0, 0.35);
+}
+.vandblad-baksida {
+  transform: rotateY(180deg);
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.22), transparent 18%), var(--bok-papper);
+}
+.sida-innehall.tonar-fram {
+  animation: tonar-fram 0.35s ease-out;
+}
+@keyframes tonar-fram {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Formuläret vänds mellan framsidan och baksidan. */
+.uppslag .rf-page.vands {
+  transform-origin: left center;
+  animation: formular-vand 0.3s ease-out;
+}
+@keyframes formular-vand {
+  from {
+    transform: perspective(1600px) rotateY(-80deg);
+  }
+}
+
+/* Blyertsen: det som just ändrades skrivs fram från vänster till höger och lyser upp en stund. */
+.rf .ink-new:not(.small) {
+  display: inline-block;
+}
+.rf .ink-new {
+  animation: ink-skriv 0.4s steps(8, end);
+}
+.rf .ink-hot {
+  border-radius: 2px;
+  animation: ink-glod 1.2s ease-out;
+}
+.rf .ink-new.ink-hot {
+  animation:
+    ink-skriv 0.4s steps(8, end),
+    ink-glod 1.2s ease-out;
+}
+@keyframes ink-skriv {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes ink-glod {
+  from {
+    background-color: rgba(232, 179, 58, 0.55);
+  }
+  to {
+    background-color: rgba(232, 179, 58, 0);
+  }
+}
+
+@media (max-width: 1023px) {
+  .uppslag-sidor {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    box-shadow: none;
+  }
+  .sida.vanster,
+  .uppslag .rf-page {
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
+  }
+  .sida.hoger {
+    justify-self: center;
+    max-width: 100%;
+  }
+  .vandblad {
+    display: none;
+  }
+}
+
 @media (max-width: 860px) {
   .karusell-info {
     grid-template-columns: 1fr;
@@ -601,6 +870,16 @@ button.karusell-pil:disabled {
     transition: none;
   }
   .karusell-info.ny {
+    animation: none;
+  }
+  .uppslag.stanger,
+  .vandblad.framat,
+  .vandblad.bakat,
+  .sida-innehall.tonar-fram,
+  .uppslag .rf-page.vands,
+  .rf .ink-new,
+  .rf .ink-hot,
+  .rf .ink-new.ink-hot {
     animation: none;
   }
 }
