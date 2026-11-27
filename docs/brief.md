@@ -139,7 +139,7 @@ Besluten står i `docs/regelbeslut.md` under Världskartan.
 
 Ordningen är Vidars. Varje punkt brainstormas när den är på tur.
 
-1. **Ljud och musik (nästa session).**
+1. **Ljud och musik (nästa session).** Vidar gillar Flares ljudeffekter, så de används i första hand.
    - Ljudeffekter för anfall av olika slag, förmågor, steg (olika för olika underlag), besvärjelser (olika för olika sorter), att tända en fackla, att lägga sig och sova, och en särskild signal när en strid börjar, till exempel vapenskrammel.
    - Bakgrundsmusik i slingor, klassisk fantasy. Vidar har en egen ljudvision på sikt; till att börja med används musik under öppen licens.
    - Källor att börja med:
@@ -154,6 +154,7 @@ Ordningen är Vidars. Varje punkt brainstormas när den är på tur.
      - Musik under CC BY finns till exempel hos Kevin MacLeod (incompetech).
    - Allt som används förs in i `public/art/CREDITS.md`, eller i en motsvarande fil för ljudet.
 2. **Fler figurer i samma stil som Flares.**
+   - **Blender först (Vidar):** börja figurarbetet med att få tillgång till Blender, så att egna figurer och animationer kan renderas i samma stil som Flares. Pröva först om Blender går att köra utan skärm i molnmiljön (till exempel `apt-get install blender` eller Python-paketet `bpy`). Annars kan Vidar koppla in sin egen dator, där Blender är installerat.
    - **Monstren:** en figur för varje varelse i monsterlistan i Bok II. Flare har goblin, skelett (även skytt och magiker), zombie, minotaur, myrlejon, wyvern, eld- och ismyror och en förbannad grav. Resten byggs. Flares figurer är renderade i Blender (`art_src/` har .blend-filerna), så nya figurer kan renderas med samma kamera och ljus, till exempel från fria 3D-modeller (CC0). Bildmodeller via OpenRouter är ett alternativ, men det är svårt att få åtta riktningar som hänger ihop.
    - **Spelarfigurerna:** en figur per ras och yrke, både man och kvinna (sju raser, elva yrken). Figurerna byggs av lager som i dag:
      - kropp efter kön och ras (dvärg och halvlängdsman kortare och bredare),
@@ -162,7 +163,7 @@ Ordningen är Vidars. Varje punkt brainstormas när den är på tur.
      - Bara huvuden och kroppsformer behöver göras nya. Ankan behöver en helt egen figur.
      - Porträtten följer samma uppdelning.
    - **Anfall:** Flares figurer har redan en hugg-animation (`swing`), och den spelas vid anfall i närstrid. Flare har också `cast` (besvärjelse), `shoot` (båge), `hit`, `block` och `die`. Dem plockar vi ut och använder vid besvärjelser, skott, träffar och död.
-3. **Animationer för besvärjelser.** I dag visas bara text (skada, miss, läkning) och zonerna (MÖRKER, DIMMA, BESKYDDARE). Varje besvärjelse behöver en egen effekt, till exempel partiklar i Phaser eller Flares effektbilder.
+3. **Animationer för besvärjelser.** I dag visas bara text (skada, miss, läkning) och zonerna (MÖRKER, DIMMA, BESKYDDARE). Varje besvärjelse behöver en egen effekt. Vidar vill pröva att göra dem i Blender, renderade till bildserier som figurerna; partiklar i Phaser och Flares effektbilder är alternativ.
 4. **Skapa rollperson och rollformuläret som i böckerna.** Vidar tar med skärmdumpar. Rollformuläret ska gå att ta fram i spelet och likna originalet, för nostalgin.
 
 ### Förmågor, besvärjelser och väder (pågår)
