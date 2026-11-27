@@ -1002,7 +1002,7 @@ button.danger {
   background-image: var(--grain);
 }
 .rf .hand {
-  font-family: 'Segoe Print', 'Bradley Hand', 'Comic Sans MS', 'Chalkboard SE', cursive;
+  font-family: var(--f-hand);
   color: var(--rf-pencil);
   font-size: 13px;
   line-height: 1.15;
@@ -1637,9 +1637,6 @@ body.iso #dialog-portrait {
   text-decoration: line-through;
 }
 #ljud-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
   min-width: 190px;
   padding: 10px 12px;
   color: var(--text);
@@ -1648,21 +1645,23 @@ body.iso #dialog-portrait {
   border-image: var(--frame) 1;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.6);
 }
-#ljud-panel[hidden] {
-  display: none;
+.ljud-reglage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-#ljud-panel label {
+.ljud-reglage label {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   font-size: 14px;
 }
-#ljud-panel input[type='range'] {
+.ljud-reglage input[type='range'] {
   width: 110px;
   accent-color: var(--gold);
 }
-#ljud-panel .ljud-tyst {
+.ljud-reglage .ljud-tyst {
   justify-content: flex-start;
 }
 /* Smal skärm: loggen och knapparna når hela vägen ut, så ljudknappen står uppe till höger,

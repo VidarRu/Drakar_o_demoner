@@ -54,40 +54,52 @@ export function attachAudio(game: Game) {
   changed();
 }
 
-function mountControls() {
+/** Det som ska ritas om när ljudinställningarna ändras, så att alla reglage visar samma sak. */
+const refreshers: (() => void)[] = [];
+
+/** Reglagen för ljud, musik och tyst. ♪-panelen och Inställningar i menyn har var sin uppsättning. */
+export function audioSliders(): HTMLElement {
   const root = document.createElement('div');
-  root.id = 'ljud';
+  root.className = 'ljud-reglage';
   root.innerHTML = `
-    <button id="ljud-knapp" aria-label="Ljud och musik" aria-expanded="false">♪</button>
-    <div id="ljud-panel" hidden>
-      <label>Ljud <input id="ljud-sfx" type="range" min="0" max="100" step="5" /></label>
-      <label>Musik <input id="ljud-musik" type="range" min="0" max="100" step="5" /></label>
-      <label class="ljud-tyst"><input id="ljud-tyst" type="checkbox" /> Tyst</label>
-    </div>`;
-  document.body.append(root);
-  const button = root.querySelector<HTMLButtonElement>('#ljud-knapp')!;
-  const panel = root.querySelector<HTMLDivElement>('#ljud-panel')!;
-  const sfx = root.querySelector<HTMLInputElement>('#ljud-sfx')!;
-  const music = root.querySelector<HTMLInputElement>('#ljud-musik')!;
-  const muted = root.querySelector<HTMLInputElement>('#ljud-tyst')!;
+    <label>Ljud <input type="range" min="0" max="100" step="5" /></label>
+    <label>Musik <input type="range" min="0" max="100" step="5" /></label>
+    <label class="ljud-tyst"><input type="checkbox" /> Tyst</label>`;
+  const [sfx, music, muted] = root.querySelectorAll('input');
   const show = () => {
     sfx.value = String(Math.round(settings.sfx * 100));
     music.value = String(Math.round(settings.music * 100));
     muted.checked = settings.muted;
-    button.classList.toggle('tyst', settings.muted);
   };
   const change = () => {
     settings = { sfx: Number(sfx.value) / 100, music: Number(music.value) / 100, muted: muted.checked };
     audio.apply(settings);
     saveSettings(settings);
-    show();
+    for (const refresh of refreshers) refresh();
   };
+  for (const input of [sfx, music, muted]) input.oninput = change;
+  refreshers.push(show);
+  show();
+  return root;
+}
+
+function mountControls() {
+  const root = document.createElement('div');
+  root.id = 'ljud';
+  root.innerHTML = `
+    <button id="ljud-knapp" aria-label="Ljud och musik" aria-expanded="false">♪</button>
+    <div id="ljud-panel" hidden></div>`;
+  document.body.append(root);
+  const button = root.querySelector<HTMLButtonElement>('#ljud-knapp')!;
+  const panel = root.querySelector<HTMLDivElement>('#ljud-panel')!;
+  panel.append(audioSliders());
+  const show = () => button.classList.toggle('tyst', settings.muted);
   button.onclick = () => {
     panel.hidden = !panel.hidden;
     button.setAttribute('aria-expanded', String(!panel.hidden));
     // Knappen ska inte behålla fokus, så att spelets snabbtangenter fungerar direkt.
     button.blur();
   };
-  for (const el of [sfx, music, muted]) el.oninput = change;
+  refreshers.push(show);
   show();
 }

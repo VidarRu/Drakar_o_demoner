@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Drakar och Demoner</title>
     <link rel="stylesheet" href="/src/ui/style.css" />
+    <link rel="stylesheet" href="/src/ui/book.css" />
   </head>
   <body>
     <div id="game"></div>
@@ -62,19 +63,7 @@
       </div>
     </section>
 
-    <section id="start" class="screen">
-      <div class="card wide">
-        <h1>Drakar och Demoner</h1>
-        <p class="sub">Ett soloäventyr i byn Gråvad · <a href="art/CREDITS.md" target="_blank">Om grafiken och licenserna</a> · <a href="audio/CREDITS.md" target="_blank">Om ljudet och musiken</a></p>
-        <button id="btn-continue" class="primary" hidden>Fortsätt äventyret</button>
-        <h3>Ny rollperson</h3>
-        <div id="creator"></div>
-        <details>
-          <summary>AI-inställningar</summary>
-          <label>Åtkomstkod (om servern kräver en) <input id="in-code" type="password" autocomplete="off" /></label>
-        </details>
-      </div>
-    </section>
+    <section id="menu"></section>
 
     <section id="modal" class="screen" hidden>
       <div class="card">

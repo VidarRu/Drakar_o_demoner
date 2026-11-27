@@ -1,0 +1,606 @@
+/* Rollpersonsboken: huvudmenyn på omslaget, undermenyerna på grindbilden och karusellen.
+   Stilen följer rollformuläret från 1991: rött, vitt och svart, smala rubriker i röda band. */
+
+:root {
+  --bok-rod: #d8341f;
+  --bok-morkrod: #9e1f10;
+  --bok-papper: #fbf9f5;
+  --bok-tusch: #141010;
+  --bok-blyerts: #2b2e45;
+  --bok-natt: #0c0a0a;
+  --bok-linje: #d5ccc2;
+  --bok-gra: #6a5d57;
+  --f-display: 'Grenze Gotisch', Georgia, serif;
+  --f-form: 'Archivo Narrow', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif;
+  --f-hand: 'Kalam', 'Segoe Print', 'Bradley Hand', cursive;
+}
+
+/* ---------- Knapparna ---------- */
+
+/* Rött band med svart kant och en skugga som trycks in vid klick. */
+button.band {
+  font-family: var(--f-form);
+  font-weight: 700;
+  font-size: 17px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bok-papper);
+  background: var(--bok-rod);
+  border: 2px solid var(--bok-tusch);
+  border-radius: 0;
+  padding: 10px 22px;
+  box-shadow: 3px 3px 0 var(--bok-tusch);
+  text-shadow: none;
+  transition:
+    transform 0.12s,
+    box-shadow 0.12s;
+}
+button.band:hover:not(:disabled) {
+  background: var(--bok-rod);
+  border-color: var(--bok-tusch);
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--bok-tusch);
+}
+button.band:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--bok-tusch);
+}
+button.band.litet {
+  font-size: 14px;
+  padding: 5px 14px;
+}
+button.tillbaka {
+  align-self: flex-start;
+  font-family: var(--f-form);
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bok-gra);
+  background: none;
+  border: 0;
+  box-shadow: none;
+  text-shadow: none;
+  padding: 4px 0;
+}
+button.tillbaka:hover:not(:disabled) {
+  background: none;
+  color: var(--bok-tusch);
+}
+.meny-guide button.tillbaka {
+  color: var(--muted);
+}
+.meny-guide button.tillbaka:hover:not(:disabled) {
+  color: var(--text);
+}
+#menu button:focus-visible,
+.karusell button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+/* Scenen med piltangenterna: ringen hamnar på kortet i mitten i stället för runt hela raden. */
+.karusell-scen:focus-visible .kort.mitt {
+  outline: 3px solid var(--gold);
+  outline-offset: 4px;
+}
+
+/* ---------- Huvudmenyn ---------- */
+
+#menu {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: var(--bok-natt);
+}
+#menu > div {
+  position: absolute;
+  inset: 0;
+}
+
+/* Omslaget fyller höjden. Kanterna vid sidan är omslaget igen, suddigt och mörkt. */
+.meny-huvud {
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+.meny-huvud::before {
+  content: '';
+  z-index: -1;
+  position: absolute;
+  inset: -40px;
+  background: url('/art/bok/omslag.webp') center / cover;
+  filter: blur(24px) brightness(0.28) saturate(0.7);
+}
+.omslag {
+  position: relative;
+  height: min(100vh, 125vw);
+  aspect-ratio: 586 / 733;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.85);
+}
+.omslag img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+/* Bokryggen till vänster. */
+.omslag::after {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6%;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.5), transparent);
+  pointer-events: none;
+}
+.meny-knappar {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  transform: translateX(-50%);
+  width: min(300px, 80%);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 1.8vh, 14px);
+}
+.meny-knappar button.band {
+  width: 100%;
+  font-size: clamp(15px, 2.4vh, 19px);
+  padding: clamp(7px, 1.4vh, 11px) 16px;
+}
+
+/* ---------- Undermenyerna ---------- */
+
+.meny-under {
+  /* Egen stapling, så att grindbilden (::before) ligger under allt innehåll. */
+  isolation: isolate;
+  display: flex;
+  justify-content: center;
+  align-items: safe center;
+  padding: 24px 16px;
+  overflow-y: auto;
+}
+.meny-under::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(rgba(12, 10, 10, 0.72), rgba(12, 10, 10, 0.72)),
+    url('/art/bok/grind.webp') center / cover;
+  filter: grayscale(1);
+  z-index: -1;
+}
+.blad {
+  position: relative;
+  width: min(760px, 100%);
+  padding: 18px 28px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--bok-tusch);
+  background: var(--bok-papper);
+  border: 2px solid var(--bok-tusch);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.7);
+  font-family: var(--f-form);
+  font-size: 17px;
+  line-height: 1.45;
+}
+.blad-rubrik {
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: 0;
+  color: var(--bok-tusch);
+}
+.blad p {
+  margin: 0 0 10px;
+}
+.blad a {
+  color: var(--bok-morkrod);
+}
+.blad .hand {
+  font-family: var(--f-hand);
+  color: var(--bok-blyerts);
+  font-size: 17px;
+}
+.blad-innehall > div {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.blad-ruta {
+  border: 2px solid var(--bok-tusch);
+}
+.blad-ruta > header {
+  padding: 2px 10px;
+  font-weight: 700;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--bok-papper);
+  background: var(--bok-rod);
+  border-bottom: 2px solid var(--bok-tusch);
+}
+.blad-ruta > :not(header) {
+  margin: 12px 14px;
+}
+.meny-guide {
+  position: relative;
+}
+
+/* Om spelet: styckena har sina egna marginaler. */
+.blad-innehall > .om {
+  gap: 0;
+}
+
+/* Nytt äventyr */
+.nytt-skapa {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.nytt-skapa p {
+  flex: 1;
+  min-width: 200px;
+  margin: 0;
+  color: var(--bok-gra);
+}
+.nytt-fardiga {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+button.fardig {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+  text-align: left;
+  font-family: var(--f-form);
+  color: var(--bok-tusch);
+  background: var(--bok-papper);
+  border: 2px solid var(--bok-tusch);
+  border-radius: 0;
+  box-shadow: 3px 3px 0 var(--bok-tusch);
+  text-shadow: none;
+  transition:
+    transform 0.12s,
+    box-shadow 0.12s;
+}
+button.fardig:hover:not(:disabled) {
+  background: var(--bok-papper);
+  border-color: var(--bok-tusch);
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--bok-tusch);
+}
+button.fardig img {
+  display: block;
+  width: 100%;
+  height: 170px;
+  object-fit: cover;
+  object-position: center 12%;
+  background: #fff;
+  border-bottom: 2px solid var(--bok-tusch);
+}
+.fardig-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 0 10px;
+  font-size: 15px;
+  line-height: 1.35;
+}
+.fardig-text b {
+  padding: 3px 10px;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bok-papper);
+  background: var(--bok-rod);
+}
+.fardig-text span {
+  padding: 0 10px;
+}
+
+/* Ladda sparat spel */
+.sparningar table {
+  width: calc(100% - 28px);
+  border-collapse: collapse;
+}
+.sparningar th {
+  font-size: 12px;
+  font-weight: 400;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bok-gra);
+}
+.sparningar td {
+  padding: 4px 8px 4px 0;
+  border-top: 1px solid var(--bok-linje);
+}
+.sparningar td:last-child {
+  text-align: right;
+  padding-right: 0;
+}
+.sparningar .tomt {
+  color: var(--bok-gra);
+  font-style: italic;
+}
+
+/* Inställningar */
+.blad .ljud-reglage {
+  max-width: 340px;
+}
+.blad .ljud-reglage label {
+  font-size: 16px;
+}
+.blad .ljud-reglage input[type='range'] {
+  width: 220px;
+  accent-color: var(--bok-rod);
+}
+.blad .ljud-reglage input[type='checkbox'] {
+  accent-color: var(--bok-rod);
+}
+.blad label.falt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.blad input[type='password'] {
+  flex: 1;
+  min-width: 180px;
+  font-family: var(--f-hand);
+  font-size: 17px;
+  color: var(--bok-blyerts);
+  background: #fff;
+  border: 0;
+  border-bottom: 2px solid var(--bok-tusch);
+  border-radius: 0;
+}
+
+/* ---------- Karusellen ---------- */
+
+.karusell {
+  --kort-h: clamp(220px, 44vh, 420px);
+  --kort-b: calc(var(--kort-h) * 0.66);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+.karusell-scen {
+  position: relative;
+  height: calc(var(--kort-h) + 24px);
+  outline: none;
+  /* Korten längst ut klipps vid kanten, men skuggan under kortet i mitten syns. */
+  overflow-x: clip;
+  touch-action: pan-y;
+  user-select: none;
+}
+.kort {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  width: var(--kort-b);
+  height: var(--kort-h);
+  margin-left: calc(var(--kort-b) / -2);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 8px 0;
+  background: var(--bok-papper);
+  border: 3px solid var(--bok-tusch);
+  box-shadow: 0 18px 30px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  transition:
+    transform 0.45s cubic-bezier(0.3, 0.7, 0.2, 1),
+    opacity 0.35s,
+    filter 0.35s;
+}
+.kort.mitt {
+  cursor: default;
+}
+.kort-bild {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
+}
+.kort-bild img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.kort-ersattning {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: calc(var(--kort-h) * 0.4);
+  line-height: 1;
+  color: #cfc6ba;
+  background: #ece7df;
+}
+.kort-namn {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px -8px 0;
+  padding: 5px 10px;
+  font-family: var(--f-form);
+  font-weight: 700;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bok-papper);
+  background: var(--bok-rod);
+  border-top: 2px solid var(--bok-tusch);
+}
+.kort-namn em {
+  font-style: normal;
+  font-weight: 400;
+}
+button.karusell-pil {
+  position: absolute;
+  top: 50%;
+  z-index: 50;
+  width: 46px;
+  height: 46px;
+  margin-top: -23px;
+  padding: 0;
+  font-size: 26px;
+  line-height: 1;
+  color: var(--bok-papper);
+  background: rgba(12, 10, 10, 0.75);
+  border: 2px solid var(--bok-rod);
+  border-radius: 50%;
+  box-shadow: none;
+}
+button.karusell-pil:hover:not(:disabled) {
+  background: rgba(12, 10, 10, 0.9);
+  border-color: var(--bok-rod);
+}
+button.karusell-pil:disabled {
+  opacity: 0.25;
+}
+.karusell-pil.vanster {
+  left: 12px;
+}
+.karusell-pil.hoger {
+  right: 12px;
+}
+
+/* Rutan under bilden, i rollformulärets stil. Innehållet ritas av den som använder karusellen:
+   .rubrik (rött band), .beskr (texten) och .fakta (siffrorna, med .mods, .rad och .vald). */
+.karusell-info {
+  width: min(760px, calc(100% - 32px));
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  color: var(--bok-tusch);
+  background: var(--bok-papper);
+  border: 2px solid var(--bok-tusch);
+  font-family: var(--f-form);
+}
+.karusell-info.ny {
+  animation: karusell-info 0.2s ease-out;
+}
+@keyframes karusell-info {
+  from {
+    opacity: 0;
+  }
+}
+.karusell-info .rubrik {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 12px;
+  font-weight: 700;
+  font-size: 17px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--bok-papper);
+  background: var(--bok-rod);
+}
+.karusell-info .beskr {
+  min-width: 0;
+  padding: 12px 14px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 16px;
+  line-height: 1.45;
+  border-right: 1px solid var(--bok-linje);
+}
+.karusell-info .beskr p {
+  margin: 0 0 8px;
+}
+.karusell-info .beskr .formaga {
+  font-size: 15px;
+  color: #4a3f3a;
+}
+.karusell-info .beskr .formaga b {
+  color: var(--bok-morkrod);
+}
+.karusell-info .fakta {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 15px;
+}
+.karusell-info .mods {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  text-align: center;
+  border: 1px solid var(--bok-tusch);
+}
+.karusell-info .mods > div + div {
+  border-left: 1px solid var(--bok-tusch);
+}
+.karusell-info .mods i {
+  display: block;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--bok-gra);
+  border-bottom: 1px solid var(--bok-tusch);
+}
+.karusell-info .mods b {
+  font-family: var(--f-hand);
+  font-size: 18px;
+  color: var(--bok-blyerts);
+}
+.karusell-info .mods b.minus {
+  color: var(--bok-morkrod);
+}
+.karusell-info .rad {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--bok-linje);
+}
+.karusell-info .rad > :last-child {
+  font-family: var(--f-hand);
+  font-size: 17px;
+  color: var(--bok-blyerts);
+  text-align: right;
+}
+.karusell-info .fakta button.band {
+  justify-self: start;
+  margin-top: 4px;
+}
+.karusell-info .vald {
+  font-family: var(--f-hand);
+  font-size: 17px;
+  color: var(--bok-morkrod);
+}
+
+@media (max-width: 860px) {
+  .karusell-info {
+    grid-template-columns: 1fr;
+  }
+  .karusell-info .beskr {
+    border-right: 0;
+    border-bottom: 1px solid var(--bok-linje);
+  }
+  .nytt-fardiga {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.band,
+  button.fardig,
+  .kort {
+    transition: none;
+  }
+  .karusell-info.ny {
+    animation: none;
+  }
+}

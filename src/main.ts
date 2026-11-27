@@ -1,19 +1,27 @@
+import '@fontsource/grenze-gotisch/700.css';
+import '@fontsource/archivo-narrow/400.css';
+import '@fontsource/archivo-narrow/700.css';
+import '@fontsource/kalam/400.css';
+import '@fontsource/kalam/700.css';
 import Phaser from 'phaser';
 import { getAccessCode, setAccessCode } from './ai/dialogClient';
 import { attachAudio, audio, mountAudio } from './audio';
+import { finalize } from './engine/creation';
 import { Game } from './engine/game';
 import { clearSave, loadGame, saveGame } from './engine/save';
+import type { Character } from './engine/types';
 import { IsoScene } from './game/IsoScene';
 import { WorldScene } from './game/WorldScene';
 import { mountCreator } from './ui/creation';
 import { $, DialogUi, Hud } from './ui/hud';
+import { mountMenu } from './ui/menu';
 import { Minimap } from './ui/minimap';
 import { ModuleUi } from './ui/module';
 import { mountPanels } from './ui/panels';
 import { TrainingUi } from './ui/training';
 
 function launch(game: Game) {
-  $('start').hidden = true;
+  menu.hide();
   // Slängprov: den snedställda vyn är förval; ?vy=plan visar den gamla vyn rakt ovanifrån.
   const plan = new URLSearchParams(location.search).get('vy') === 'plan';
   document.body.classList.toggle('iso', !plan);
@@ -57,10 +65,29 @@ function autostart() {
   location.reload();
 }
 
+/** Fortsätter med sparningen, om den finns. Än så länge finns bara en sparplats. */
+function continueGame() {
+  const saved = loadGame();
+  if (saved) launch(new Game(saved));
+}
+
+/** Ett nytt äventyr skriver över sparningen. */
+function startNew(character: Character) {
+  setAccessCode($<HTMLInputElement>('in-code').value.trim());
+  clearSave();
+  launch(Game.create(character));
+}
+
 mountAudio();
-const saved = loadGame();
-$('btn-continue').hidden = !saved;
-$('btn-continue').onclick = () => saved && launch(new Game(saved));
+const menu = mountMenu({
+  continueGame,
+  newCharacter: () => mountCreator(startNew),
+  pregen: (p) => startNew(finalize(p.draft())),
+  load: () => continueGame(),
+});
+const code = $<HTMLInputElement>('in-code');
+code.value = getAccessCode();
+code.onchange = () => setAccessCode(code.value.trim());
 let resume = false;
 try {
   resume = sessionStorage.getItem(AUTOSTART) === '1';
@@ -68,15 +95,7 @@ try {
 } catch {
   // Se ovan.
 }
-if (resume && saved) launch(new Game(saved));
+if (resume) continueGame();
 $('btn-load-last').onclick = () => autostart();
-mountCreator((character) => {
-  setAccessCode($<HTMLInputElement>('in-code').value.trim());
-  clearSave();
-  launch(Game.create(character));
-});
-$('btn-restart').onclick = () => {
-  clearSave();
-  location.reload();
-};
-$<HTMLInputElement>('in-code').value = getAccessCode();
+// Tillbaka till huvudmenyn. Sparningen från före döden finns kvar under "Fortsätt äventyret".
+$('btn-restart').onclick = () => location.reload();
