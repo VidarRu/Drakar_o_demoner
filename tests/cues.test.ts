@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as combat from '../src/engine/combat';
 import { seededRng, type Rng } from '../src/engine/dice';
 import { Game, type Cue } from '../src/engine/game';
+import { psyRaise } from '../src/engine/hero';
 import { equip, stow } from '../src/engine/inventory';
 import { toggleLight } from '../src/engine/light';
 import { castSpell } from '../src/engine/magic';
@@ -144,6 +145,15 @@ describe('ljudsignaler från motorn', () => {
     expect(cues.at(-1)).toEqual({ type: 'packning', item: 'bredsvard', how: 'undanlagt' });
     expect(equip(g, 'bredsvard', 'weapon')).toBeNull();
     expect(cues.at(-1)).toEqual({ type: 'packning', item: 'bredsvard', how: 'utrustat' });
+  });
+
+  it('en höjd PSY ger träning', () => {
+    const { g, cues } = listen();
+    g.char.psyWin = 'motstånd';
+    // T20 1 höjer alltid.
+    g.rng = queue(face(1));
+    expect(psyRaise(g, g.player)).toBeGreaterThan(0);
+    expect(cues).toContainEqual({ type: 'träning', actorId: g.player.id });
   });
 
   it('ett fel hos en lyssnare stoppar inte motorn', () => {

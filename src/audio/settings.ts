@@ -13,11 +13,12 @@ const KEY = 'dod-ljud';
 
 const volume = (v: unknown, fallback: number) => (typeof v === 'number' && v >= 0 && v <= 1 ? v : fallback);
 
+/** Webbläsarens lagring. Läses inuti try: en webbläsare som blockerar lagringen kastar redan här. */
 const browserStorage = (): Storage | undefined => (typeof localStorage === 'undefined' ? undefined : localStorage);
 
-export function loadSettings(storage: Pick<Storage, 'getItem'> | undefined = browserStorage()): AudioSettings {
+export function loadSettings(storage?: Pick<Storage, 'getItem'>): AudioSettings {
   try {
-    const raw = storage?.getItem(KEY);
+    const raw = (storage ?? browserStorage())?.getItem(KEY);
     if (!raw) return { ...DEFAULT_SETTINGS };
     const s = JSON.parse(raw) as Partial<AudioSettings>;
     return {
@@ -30,9 +31,9 @@ export function loadSettings(storage: Pick<Storage, 'getItem'> | undefined = bro
   }
 }
 
-export function saveSettings(s: AudioSettings, storage: Pick<Storage, 'setItem'> | undefined = browserStorage()) {
+export function saveSettings(s: AudioSettings, storage?: Pick<Storage, 'setItem'>) {
   try {
-    storage?.setItem(KEY, JSON.stringify(s));
+    (storage ?? browserStorage())?.setItem(KEY, JSON.stringify(s));
   } catch {
     // Lagring avstängd: inställningarna gäller tills sidan laddas om.
   }

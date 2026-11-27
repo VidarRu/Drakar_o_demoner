@@ -19,9 +19,9 @@ export function mountAudio() {
   mounted = true;
   audio.apply(settings);
   audio.playMusic('titel');
+  // Telefoner räknar bara att fingret släpps (pointerup, touchend, click) som ett klick som får starta ljud.
   const unlock = () => audio.unlock();
-  document.addEventListener('pointerdown', unlock);
-  document.addEventListener('keydown', unlock);
+  for (const type of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) document.addEventListener(type, unlock, { capture: true });
   document.addEventListener('click', (e) => {
     if (e.target instanceof Element && e.target.closest('button')) audio.play(buttonSound());
   });
@@ -36,8 +36,12 @@ export function attachAudio(game: Game) {
   const settle = new Settle<MusicId>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const update = () => {
-    const next = settle.push(musicFor(game), performance.now());
-    if (next) audio.playMusic(next);
+    try {
+      const next = settle.push(musicFor(game), performance.now());
+      if (next) audio.playMusic(next);
+    } catch {
+      // Musiken får aldrig stoppa spelets andra lyssnare (gränssnittet, sparningen).
+    }
   };
   // Valet kontrolleras igen när det har hunnit sätta sig, även om inget mer händer.
   const changed = () => {
@@ -81,9 +85,9 @@ function mountControls() {
   button.onclick = () => {
     panel.hidden = !panel.hidden;
     button.setAttribute('aria-expanded', String(!panel.hidden));
+    // Knappen ska inte behålla fokus, så att spelets snabbtangenter fungerar direkt.
+    button.blur();
   };
   for (const el of [sfx, music, muted]) el.oninput = change;
-  // Tangenterna i reglagen ska inte styra spelet.
-  root.addEventListener('keydown', (e) => e.stopPropagation());
   show();
 }

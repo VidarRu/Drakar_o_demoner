@@ -61,6 +61,8 @@ const audioContextClass = (): Ctor | undefined =>
 interface Track {
   id: MusicId;
   el: HTMLAudioElement;
+  /** Musikens volym i Web Audio. Utan den används el.volume, som iPhone inte bryr sig om. */
+  gain?: GainNode;
   /** 0–1: hur långt intoningen har kommit. */
   level: number;
   fading: 'in' | 'out';
@@ -107,12 +109,16 @@ export class AudioEngine {
     if (!this.unlocked) {
       this.unlocked = true;
       if (this.wanted) this.startMusic(this.wanted);
+      return;
     }
+    // Musik som webbläsaren stoppade (ljud före ett riktigt klick) får försöka igen.
+    for (const t of this.tracks) if (t.fading === 'in' && t.el.paused) t.el.play()?.catch(() => {});
   }
 
   play(p: SoundPick) {
     const ctx = this.ctx;
-    if (!ctx || !this.out || this.settings.muted || this.settings.sfx <= 0 || this.failed.has(p.file)) return;
+    // Medan webbläsaren håller ljudet avstängt köas inga ljud (de skulle komma i en klump sedan).
+    if (!ctx || !this.out || ctx.state !== 'running' || this.settings.muted || this.settings.sfx <= 0 || this.failed.has(p.file)) return;
     if (!this.voices.admit(p.file, now())) return;
     this.load(p.file)
       .then((buffer) => {
@@ -138,7 +144,14 @@ export class AudioEngine {
   apply(s: AudioSettings) {
     this.settings = { ...s };
     this.applyGain();
-    for (const t of this.tracks) t.el.volume = this.trackVolume(t);
+    for (const t of this.tracks) this.setVolume(t);
+  }
+
+  private setVolume(t: Track) {
+    const v = this.trackVolume(t);
+    if (t.gain) t.gain.gain.value = v;
+    else t.el.volume = v;
+    t.el.muted = this.settings.muted;
   }
 
   private applyGain() {
@@ -181,8 +194,17 @@ export class AudioEngine {
         const el = new Audio(`${this.base}music/${MUSIC[id]}.mp3`);
         el.loop = true;
         el.preload = 'auto';
-        el.volume = 0;
         const t: Track = { id, el, level: 0, fading: 'in' };
+        if (this.ctx) {
+          try {
+            t.gain = this.ctx.createGain();
+            this.ctx.createMediaElementSource(el).connect(t.gain);
+            t.gain.connect(this.ctx.destination);
+          } catch {
+            t.gain = undefined;
+          }
+        }
+        this.setVolume(t);
         this.tracks.push(t);
         el.play()?.catch(() => {});
         el.onerror = () => {
@@ -200,7 +222,7 @@ export class AudioEngine {
     const step = FADE_STEP_MS / FADE_MS;
     for (const t of this.tracks) {
       t.level = Math.min(1, Math.max(0, t.level + (t.fading === 'in' ? step : -step)));
-      t.el.volume = this.trackVolume(t);
+      this.setVolume(t);
       if (t.fading === 'in' && t.el.paused) t.el.play()?.catch(() => {});
     }
     for (const t of this.tracks.filter((x) => x.fading === 'out' && x.level <= 0)) t.el.pause();

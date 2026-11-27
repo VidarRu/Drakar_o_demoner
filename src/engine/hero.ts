@@ -501,7 +501,10 @@ export function psyRaise(g: Game, a: Actor): number {
     gain = magician && throwDie() === 1 ? roll(PSY_RAISE.big, g.rng) : 1;
   }
   g.log(`${a.name} har vunnit en kamp PSY mot PSY och slår för att höja sin PSY (T20: ${d} mot ${Math.max(1, limit - psy)}): ${gain ? `PSY höjs med ${gain}.` : 'ingen höjning.'}`);
-  if (gain) bumpAttr(g, a, 'PSY', gain);
+  if (gain) {
+    bumpAttr(g, a, 'PSY', gain);
+    g.cue({ type: 'träning', actorId: a.id });
+  }
   return gain;
 }
 
