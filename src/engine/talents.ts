@@ -158,6 +158,7 @@ export function bodyControl(g: Game, a: Actor): string | null {
   if (check.success) {
     addEffect(a, { kind: 'styrka', label: `God kroppskontroll: +${r.sty} STY`, mod: r.sty, rounds: r.rounds });
     g.log(`${a.name} samlar kroppens krafter (Normalt FYS-slag, ${short(check)}): +${r.sty} STY i ${r.rounds} rundor.`);
+    g.cue({ type: 'förmåga', actorId: a.id, ability: 'kroppskontroll' });
   } else g.log(`${a.name} försöker samla kroppens krafter men lyckas inte (Normalt FYS-slag, ${short(check)}).`);
   spend(g, a);
   return null;
@@ -224,6 +225,7 @@ export function perform(g: Game, a: Actor, skill?: string): string | null {
   advanceTime(g, r.minutes * 60, 'vila');
   if (check.success) {
     addEffect(a, { kind: 'cl', scope: kind === 'bard' ? 'kar' : 'int', mod: r.bonus, rounds: (r.hours * 3600) / ROUND_SECONDS, persist: true, label: PERFORMANCE_LABEL[kind] });
+    g.cue({ type: 'förmåga', actorId: a.id, ability: 'framträdande' });
     g.log(`${a.name} ${what} en stund (${kind === 'munk' ? 'Normalt PSY-slag, ' : ''}${short(check)}): +${r.bonus} på ${kind === 'bard' ? 'KAR' : 'INT'}-färdigheter i en timme.`);
   } else g.log(`${a.name} ${what} en stund, men det ger ingenting (${kind === 'munk' ? 'Normalt PSY-slag, ' : ''}${short(check)}).`);
   g.changed();
@@ -281,6 +283,7 @@ export function layOnHands(g: Game, healer: Actor, patient: Actor, kind: HealKin
     healer.psy -= n;
     g.heal(n, patient);
     g.log(`${healer.name} lägger händerna på ${patient === healer ? 'sig själv' : patient.name} och läker ${n} KP (${n} PSY).`);
+    g.cue({ type: 'förmåga', actorId: healer.id, ability: 'handpåläggning' });
     if (g.state.mode === 'combat') spend(g, healer);
     else {
       advanceTime(g, n * ROUND_SECONDS, 'vila');
@@ -293,6 +296,7 @@ export function layOnHands(g: Game, healer: Actor, patient: Actor, kind: HealKin
     healer.psy -= poison.sty;
     const check = resistance(psy, poison.sty, g.rng);
     if (check.success) {
+      g.cue({ type: 'förmåga', actorId: healer.id, ability: 'handpåläggning' });
       g.log(`${healer.name} driver ut giftet ur ${patient.name} (PSY/2 ${psy} mot STY ${poison.sty}, ${short(check)}, ${poison.sty} PSY).`);
       neutralize(g, patient, poison.sty, poison.herb);
     } else g.log(`${healer.name} försöker driva ut giftet ur ${patient.name} men lyckas inte (PSY/2 ${psy} mot STY ${poison.sty}, ${short(check)}, ${poison.sty} PSY).`);
@@ -304,6 +308,7 @@ export function layOnHands(g: Game, healer: Actor, patient: Actor, kind: HealKin
     if (check.success) {
       patient.infections = patient.infections.filter((i) => i !== inf);
       patient.effects = patient.effects.filter((e) => !e.label.startsWith(`Infektion i ${inf.loc}`));
+      g.cue({ type: 'förmåga', actorId: healer.id, ability: 'handpåläggning' });
       g.log(`${healer.name} botar infektionen i ${patient.name}s ${inf.loc} (PSY/2 ${psy} mot ${sg}, ${short(check)}, ${sg} PSY).`);
     } else g.log(`${healer.name} försöker bota infektionen i ${patient.name}s ${inf.loc} men lyckas inte (PSY/2 ${psy} mot ${sg}, ${short(check)}, ${sg} PSY).`);
   }

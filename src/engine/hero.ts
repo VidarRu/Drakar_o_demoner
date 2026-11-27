@@ -454,6 +454,7 @@ export function raiseAttribute(g: Game, a: Actor, attr: AttrKey): string | null 
   ch.heroPoints! -= HERO.attrCost;
   bumpAttr(g, a, attr, 1);
   g.log(`${a.name} spenderar ${HERO.attrCost} hjältepoäng och höjer ${attr} till ${ch.attrs[attr]}.`);
+  g.cue({ type: 'träning', actorId: a.id });
   return null;
 }
 

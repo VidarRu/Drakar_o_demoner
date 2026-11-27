@@ -168,8 +168,15 @@ function restoreBv(g: Game, key: string, id: string, full: number | null) {
 
 /** Lägger undan det som finns i en hand. */
 export function stow(g: Game, slot: EquipSlot) {
+  const prev = stowSlot(g, slot);
+  if (prev && prev !== 'nave') g.cue({ type: 'packning', item: prev, how: 'undanlagt' });
+}
+
+/** Lägger undan det som är i handen utan ljudsignal. Returnerar det som lades undan. */
+function stowSlot(g: Game, slot: EquipSlot): string | undefined {
   const p = g.player;
   const ch = g.char;
+  const prev = slot === 'weapon' ? p.weapon : slot === 'offhand' ? p.offhand : p.shield;
   if (slot === 'weapon') {
     storeBv(g, 'weapon', p.weapon);
     p.weapon = 'nave';
@@ -183,6 +190,7 @@ export function stow(g: Game, slot: EquipSlot) {
     p.shield = undefined;
     ch.equipped.shield = undefined;
   }
+  return prev;
 }
 
 /** Tar fram ett vapen eller en sköld. I strid kostar det handlingen. Returnerar ett felmeddelande eller null. */
@@ -192,17 +200,17 @@ export function equip(g: Game, id: string, slot: EquipSlot): string | null {
   const p = g.player;
   const ch = g.char;
   if (slot === 'shield') {
-    stow(g, 'shield');
+    stowSlot(g, 'shield');
     p.shield = id;
     ch.equipped.shield = id;
     restoreBv(g, 'shield', id, SHIELDS[id].bv);
   } else {
-    stow(g, slot);
+    stowSlot(g, slot);
     const w = WEAPONS[id];
     // Projektilvapen kräver båda händerna: sköld och andra vapen läggs undan.
     if (slot === 'weapon' && (w.kind === 'projektil' || (w.kind === 'närstrid' && grip(w.styReq, p.attrs.STY, w.twoHandedOnly) !== 'en hand'))) {
-      stow(g, 'shield');
-      stow(g, 'offhand');
+      stowSlot(g, 'shield');
+      stowSlot(g, 'offhand');
     }
     if (slot === 'weapon') {
       p.weapon = id;
@@ -216,6 +224,7 @@ export function equip(g: Game, id: string, slot: EquipSlot): string | null {
   }
   const name = (WEAPONS[id] ?? SHIELDS[id]).name.toLowerCase();
   g.log(`${p.name} tar fram ${name}.`);
+  g.cue({ type: 'packning', item: id, how: 'utrustat' });
   spendAction(g, `${p.name} lägger handlingen på att byta vapen.`);
   return null;
 }
@@ -228,6 +237,7 @@ export function removeArmor(g: Game, id: string) {
   p.armor = p.armor.filter((x) => x !== id);
   g.char.equipped.armor = [...p.armor];
   g.log(`${p.name} tar av ${ARMOR[id].name.toLowerCase()}.`);
+  g.cue({ type: 'packning', item: id, how: 'undanlagt' });
 }
 
 /** Tar på en rustningsdel (utanför strid) och behåller dess slitage. */
@@ -241,6 +251,7 @@ export function wearArmor(g: Game, id: string): string | null {
     delete g.char.itemBv![id];
   }
   g.log(`${g.player.name} tar på ${ARMOR[id].name.toLowerCase()}.`);
+  g.cue({ type: 'packning', item: id, how: 'utrustat' });
   return null;
 }
 

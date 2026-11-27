@@ -105,10 +105,14 @@ export function pickLock(g: Game, a: Actor, l: LockSpot): string | null {
     l.state.open = true;
     delete l.state.left;
     g.log(`${a.name} dyrkar upp låset på ${l.name} (${short(check)}).`);
+    g.cue({ type: 'lås', kind: l.kind, how: 'dyrkat' });
   } else if (check.success) {
     l.state.left = left - Math.max(1, check.diff);
     g.log(`${a.name} arbetar med låset på ${l.name} (${short(check)}). Det ger efter, men håller fortfarande.`);
-  } else g.log(`${a.name} försöker dyrka låset på ${l.name} men kommer ingen vart (${short(check)}).`);
+  } else {
+    g.log(`${a.name} försöker dyrka låset på ${l.name} men kommer ingen vart (${short(check)}).`);
+    g.cue({ type: 'lås', kind: l.kind, how: 'misslyckat' });
+  }
   g.changed();
   return null;
 }
@@ -136,7 +140,11 @@ export function forceLock(g: Game, a: Actor, l: LockSpot): string | null {
     delete l.state.left;
     delete l.state.sealed;
     g.log(`${a.name} bryter upp ${l.name} med ett brak (STY ${a.attrs.STY} mot ${sg}, ${short(check)}).`);
-  } else g.log(`${a.name} sliter i ${l.name}, men den håller (STY ${a.attrs.STY} mot ${sg}, ${short(check)}).`);
+    g.cue({ type: 'lås', kind: l.kind, how: 'brutet' });
+  } else {
+    g.log(`${a.name} sliter i ${l.name}, men den håller (STY ${a.attrs.STY} mot ${sg}, ${short(check)}).`);
+    g.cue({ type: 'lås', kind: l.kind, how: 'misslyckat' });
+  }
   g.changed();
   return null;
 }
@@ -161,6 +169,7 @@ export function lootChest(g: Game, a: Actor, l: LockSpot): string | null {
   const items = l.def!.loot ?? [];
   ch.inventory.push(...items);
   const names = items.map((id) => WEAPONS[id]?.name ?? id);
+  g.cue({ type: 'lås', kind: 'kista', how: 'öppnat' });
   g.log(`${a.name} öppnar ${l.name}: ${[silver ? `${silver} silvermynt` : '', ...names].filter(Boolean).join(', ') || 'den är tom'}.`);
   g.changed();
   return null;
@@ -183,6 +192,7 @@ export function magicOpen(g: Game, l: LockSpot, grade: number) {
     l.state.open = true;
     delete l.state.left;
     g.log(`Låset på ${l.name} klickar upp.`);
+    g.cue({ type: 'lås', kind: l.kind, how: 'öppnat' });
   } else g.log(`${l.name[0].toUpperCase()}${l.name.slice(1)} är öppen.`);
 }
 

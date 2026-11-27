@@ -343,6 +343,7 @@ export function raiseSkill(g: Game, skill: string): boolean {
   ch.bonusEp = bonus - (cost - fromOwn);
   g.log(`${a.name} höjer ${SKILLS[skill.split(':')[0]]?.name ?? skill} till FV ${fv + 1}.`);
   setFv(g, a, skill, fv + 1);
+  g.cue({ type: 'träning', actorId: a.id });
   return true;
 }
 

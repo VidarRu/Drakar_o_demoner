@@ -57,6 +57,25 @@ export interface Fx {
   kind: 'damage' | 'miss' | 'heal' | 'info';
 }
 
+/**
+ * En ljudsignal: vad som hände, inte vilket ljud som ska spelas. Ljudmodulen (src/audio/)
+ * lyssnar på dem med onCue och väljer ljudet själv; motorn känner inte till ljud.
+ */
+export type Cue =
+  | { type: 'anfall'; actorId: string; targetId: string; weapon: string; natural: boolean; result: 'träff' | 'parerat' | 'miss' | 'fummel' }
+  | { type: 'skott'; actorId: string; targetId: string; weapon: string; result: 'träff' | 'miss' | 'fummel' }
+  | { type: 'skada'; actorId: string }
+  | { type: 'död'; actorId: string }
+  | { type: 'besvärjelse'; actorId: string; spell: string; result: 'lyckas' | 'misslyckas' | 'snedtändning' }
+  | { type: 'förmåga'; actorId: string; ability: 'kroppskontroll' | 'handpåläggning' | 'framträdande' }
+  | { type: 'steg'; actorId: string }
+  | { type: 'ljus'; actorId: string; lit: boolean }
+  | { type: 'vila'; how: 'sömn' | 'läger' }
+  | { type: 'strid'; phase: 'börjar' | 'slutar' }
+  | { type: 'lås'; kind: 'dörr' | 'kista'; how: 'dyrkat' | 'brutet' | 'öppnat' | 'misslyckat' }
+  | { type: 'packning'; item: string; how: 'utrustat' | 'undanlagt' | 'köpt' | 'sålt' }
+  | { type: 'träning'; actorId: string };
+
 const describe = (c: Check) => `T20: ${c.roll} mot ${c.target}`;
 
 interface ActorInit {
@@ -265,6 +284,7 @@ export class Game {
   private listeners: (() => void)[] = [];
   private mapListeners: (() => void)[] = [];
   private fxListeners: ((fx: Fx) => void)[] = [];
+  private cueListeners: ((c: Cue) => void)[] = [];
 
   constructor(
     public state: GameState,
@@ -323,6 +343,20 @@ export class Game {
   }
   onFx(fn: (fx: Fx) => void) {
     this.fxListeners.push(fn);
+  }
+  /** Ljudmodulen lyssnar på ljudsignalerna. */
+  onCue(fn: (c: Cue) => void) {
+    this.cueListeners.push(fn);
+  }
+  /** Skickar en ljudsignal. Ett fel hos en lyssnare får aldrig stoppa motorn. */
+  cue(c: Cue) {
+    for (const fn of this.cueListeners) {
+      try {
+        fn(c);
+      } catch {
+        // Ljudet är inte viktigare än spelet.
+      }
+    }
   }
   /** Gränssnittet bygger om kartvyn och minikartan när gruppen byter karta. */
   onMapChange(fn: () => void) {
@@ -480,6 +514,7 @@ export class Game {
     this.swapWith(p, to);
     p.x = to.x;
     p.y = to.y;
+    this.cue({ type: 'steg', actorId: p.id });
     // Följeslagarna går i ledarens spår. Den som inte kan gå bärs av de andra (tolkning).
     for (let i = 1; i < members.length; i++) {
       const m = members[i];
@@ -588,6 +623,7 @@ export class Game {
     p.y = to.y;
     c.movesLeft--;
     p.movedLast = (p.movedLast ?? 0) + 1;
+    this.cue({ type: 'steg', actorId: p.id });
     wardCheck(this);
     this.updateFov();
     if (!c.acted[p.id] && this.state.dropped.some((d) => d.x === p.x && d.y === p.y) && combat.pickUp(this)) {
@@ -946,7 +982,8 @@ export class Game {
   }
 
   /** Sover ett antal timmar (som standard en natt). */
-  sleep(hours = 8) {
+  sleep(hours = 8, how: 'sömn' | 'läger' = 'sömn') {
+    this.cue({ type: 'vila', how });
     time.advanceTime(this, hours * HOUR, 'sömn');
     this.changed();
   }

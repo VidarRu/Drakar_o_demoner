@@ -56,10 +56,12 @@ export function toggleLight(g: Game, a: Actor): string | null {
   if (!a.torchOut) {
     a.torchOut = true;
     g.log(`${a.name} släcker ${a.light?.kind === 'oljelykta' ? 'oljelyktan' : 'facklan'}.`);
+    g.cue({ type: 'ljus', actorId: a.id, lit: false });
     return null;
   }
   if (!lightUp(g, a)) return `${a.name} har ingen fackla och ingen olja till lyktan.`;
   g.log(`${a.name} tänder ${a.light!.kind === 'oljelykta' ? 'oljelyktan' : 'en fackla'}.`);
+  g.cue({ type: 'ljus', actorId: a.id, lit: true });
   return null;
 }
 

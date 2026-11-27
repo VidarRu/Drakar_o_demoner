@@ -158,6 +158,7 @@ export function travelStep(g: Game, to: Point): boolean {
     m.x = to.x;
     m.y = to.y;
   }
+  g.cue({ type: 'steg', actorId: p.id });
   time.advanceTime(g, minutes * 60, 'aktiv');
   g.updateFov();
   if (g.state.mode === 'explore') bandsAct(g, quarters * (g.map.stepMinutes / 15));
@@ -186,7 +187,7 @@ export function makeCamp(g: Game): boolean {
     return false;
   }
   g.log(`Det är natt. Ni slår läger och sover ${TRAVEL.camp.hours} timmar.`);
-  g.sleep(TRAVEL.camp.hours);
+  g.sleep(TRAVEL.camp.hours, 'läger');
   g.updateFov();
   return true;
 }
