@@ -2634,3 +2634,20 @@ function revertSpell(g: Game, a: Actor, e: ActiveEffect) {
   }
   if (a.alive) g.log(e.kind === 'vattenandning' ? `${a.name} måste upp ur vattnet.` : `${a.name} sjunker till marken.`);
 }
+
+/**
+ * FV med en färdighet. Vapengrupper ger minst halva FV (avrundat uppåt) från bästa grupp
+ * av samma slag (husregel, se docs/regelbeslut.md).
+ */
+export function skillFvOf(a: Actor, skill: string): number {
+  // Hamnbytare: djurets anfall har djurets FV.
+  if (skill === 'hamn') return shapeAttack(a)?.fv ?? 0;
+  // ASTRALVAPEN: FV är magikerns S när besvärjelsen lades.
+  if (skill === 'astralvapen') return a.effects.find((e) => e.kind === 'astralvapen')?.mod ?? 0;
+  const own = a.skills[skill];
+  const family = SKILLS[skill]?.weaponGroup;
+  if (!family || family === 'sköld' || family === 'piska') return own ?? 0;
+  let best = 0;
+  for (const [id, fv] of Object.entries(a.skills)) if (SKILLS[id]?.weaponGroup === family) best = Math.max(best, fv);
+  return Math.max(own ?? 0, Math.ceil(best / 2));
+}

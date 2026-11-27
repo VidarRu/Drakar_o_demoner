@@ -11,6 +11,7 @@ import {
   epSpent,
   finalAttrs,
   finalize,
+  previewCharacter,
   maxPurchase,
   newDraft,
   profSkillErrors,
@@ -201,5 +202,33 @@ describe('figuren (Vidar)', () => {
     expect(Game.create(c).leader.sprite).toBe('krigare');
     c.sprite = 'dvarg';
     expect(Game.create(c).leader.sprite).toBe('dvarg');
+  });
+});
+
+describe('förhandsvisning av ett utkast', () => {
+  it('ger samma rollperson som finalize när utkastet är komplett', () => {
+    expect(previewCharacter(teval())).toEqual(finalize(teval()));
+  });
+
+  it('kastar inte för ett tomt utkast och lämnar det som saknas tomt', () => {
+    const c = previewCharacter(newDraft());
+    expect(c.social).toBe('');
+    expect(c.swordHand).toBe('');
+    expect(c.ability).toBeNull();
+    expect(c.silver).toBe(0);
+    expect(c.capital).toBe(0);
+  });
+
+  it('kastar inte för en magiker utan yrkesfärdigheter', () => {
+    const d = newDraft();
+    d.profession = 'magiker';
+    expect(() => previewCharacter(d)).not.toThrow();
+  });
+
+  it('räknar om köpta värden när rasen byts', () => {
+    const d = newDraft();
+    d.bought.STY = 14;
+    d.race = 'anka';
+    expect(previewCharacter(d).attrs.STY).toBe(10);
   });
 });

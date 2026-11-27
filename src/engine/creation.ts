@@ -642,15 +642,25 @@ export function allErrors(d: Draft): string[] {
 export function finalize(d: Draft): Character {
   const errors = allErrors(d);
   if (errors.length) throw new Error(errors.join(' '));
+  return previewCharacter(d);
+}
+
+/**
+ * Rollpersonen så långt utkastet räcker, för att kunna rita rollpersonsbladet under skapandet.
+ * Kastar aldrig fel: det som saknas (sidoslag, kapital, förmåga, skola) blir tomt eller 0.
+ */
+export function previewCharacter(d: Draft): Character {
   const attrs = finalAttrs(d);
   const skills: Record<string, number> = {};
   for (const key of startingSkills(d)) skills[key] = skillValue(d, key);
   if (d.profession === 'magiker') {
-    const school = allProfSkills(d).find((k) => baseId(k) === 'magiskola')!;
-    const fv = skills[school];
-    const own = `kanna_magi:${subId(school)}`;
-    skills[own] = Math.max(skills[own] ?? 0, fv);
-    skills.kunskap_om_magi = Math.max(skills.kunskap_om_magi ?? 0, fv);
+    const magicSchool = allProfSkills(d).find((k) => baseId(k) === 'magiskola');
+    if (magicSchool) {
+      const fv = skills[magicSchool];
+      const own = `kanna_magi:${subId(magicSchool)}`;
+      skills[own] = Math.max(skills[own] ?? 0, fv);
+      skills.kunskap_om_magi = Math.max(skills.kunskap_om_magi ?? 0, fv);
+    }
   }
   const spells = d.spells.filter((id) => SPELLS[id]);
   // Startbesvärjelserna ligger i minnet, högst FV i skolan från varje skola.
@@ -669,7 +679,7 @@ export function finalize(d: Draft): Character {
   const kpFactor = a?.effect.kind === 'kpFactor' ? a.effect.factor : 1;
   const r = race(d);
   const years = d.years ?? (r.ages ? Math.round((r.ages[d.age][0] + r.ages[d.age][1]) / 2) : 100);
-  const capital = startCapital(d)!;
+  const capital = startCapital(d) ?? 0;
   return {
     name: d.name.trim(),
     gender: d.gender,
@@ -679,9 +689,9 @@ export function finalize(d: Draft): Character {
     age: { group: r.ageRules ? r.ageRules.attrsAndMaxFv : d.age, years },
     attrs,
     maxKp: Math.ceil(maxKp(attrs) * kpFactor),
-    swordHand: swordHand(d)!,
-    social: socialClass(d)!,
-    ability: a ? { id: a.id, total: d.abilityDice! + d.abilityBp, choice: d.abilityChoice } : null,
+    swordHand: swordHand(d) ?? '',
+    social: socialClass(d) ?? '',
+    ability: a ? { id: a.id, total: (d.abilityDice ?? 0) + d.abilityBp, choice: d.abilityChoice } : null,
     profSkills: allProfSkills(d),
     techniques: [...d.techniques],
     skills,
