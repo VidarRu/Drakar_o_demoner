@@ -116,7 +116,10 @@ hugg-animation behålls som i dag; ljudet kommer från motorns signal, inte frå
 
 Kartorna får ett valfritt fält `music` i `MapDef` (`src/engine/map.ts`), till exempel `'by'`,
 `'skog'`, `'grotta'`, `'fängelsehåla'`, `'trygg'`. Utan fältet väljs musiken efter kartans slag.
-Fiendegrupper kan markeras som `boss` och får då bossmusiken.
+Gråvad är en enda karta med by, skog och grotta, så musiken följer också rutan där gruppens ledare
+står: grottgolv ger grottmusiken och trägolv (inomhus) den trygga musiken. Varelser kan markeras
+med `boss` (`CreatureDef.boss`), och en strid mot en sådan får bossmusiken. Musiken byter först
+när valet har varit detsamma en sekund, så att den inte fladdrar vid grottmynningen.
 
 | Läge | Flare-stycke |
 | --- | --- |
@@ -130,7 +133,7 @@ Fiendegrupper kan markeras som `boss` och får då bossmusiken.
 | Strid | `battle_theme` |
 | Strid mot boss (Grukk) | `boss_theme` |
 | Förval för mötesplatser utan `music` | `magical_theme` |
-| Oroligt, till exempel efter en död | `unrest_theme` (sparas till senare) |
+| Rollpersonen är död | `unrest_theme` |
 
 Den som modulerna inte nämner får förvalet. `wind_ambient` används inte nu.
 
@@ -183,8 +186,8 @@ Som `tools/flare_art.py`: läser en utcheckning av flare-game och skriver till `
   Musiken i stereo, cirka 96 kbit/s. Ljudeffekternas tystnad i början och slutet klipps bort.
 - Bara filer som används i tabellen kodas om.
 - Kräver `ffmpeg`.
-- MP3 lägger till en kort tystnad i början. Musikslingorna tonas därför in och ut vid varje varv i
-  stället för att skarvas exakt.
+- MP3 lägger till en kort tystnad i början, så skarven i slingan kan höras. Musiken spelas med
+  `loop` till att börja med; hörs skarven tonas den i ett senare steg.
 
 ## Prövning
 
