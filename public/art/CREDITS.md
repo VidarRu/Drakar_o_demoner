@@ -22,3 +22,23 @@ Flare bygger i sin tur på fritt licensierad grafik av bland andra Aare, Bart K,
 Foundation, Cori Samuel, D. Sharon Pruitt, Hythlodaeus, Iwan "qubodup" Gabovitch, Lamoot,
 Lattice, Lorc, MaximB, Michael Baradari, Mikodrak, Misha, Mumu, Naraphim, p0ss, Renderwahn,
 Samuel Moxham, Sindwiller, Spookymodem, Stephan, TiZiana, Vwolfdog, Yughues och Zuendholz.
+
+## Bokens bilder (`public/art/bok/`)
+
+Omslaget, grindbilden och bilderna på folken och yrkena kommer ur Drakar och Demoner (1991).
+De tillhör sina upphovspersoner och används i ett privat fanprojekt, inte i något som säljs.
+`tools/book_art.py` skalar ner dem och sparar dem som WebP.
+
+**Tecknare:** _Vidar fyller i tecknarens namn här._
+
+## Typsnitt
+
+Rollpersonsboken och menyn använder tre typsnitt som följer med paketen från
+[Fontsource](https://fontsource.org/) (`@fontsource/...`). Spelet hämtar inga typsnitt från
+andra webbplatser.
+
+- Grenze Gotisch: rubriker och bandens text.
+- Archivo Narrow: tryckt text på formuläret.
+- Kalam: handskriften med blyerts.
+
+**Licens:** [SIL Open Font License 1.1](https://openfontlicense.org/).

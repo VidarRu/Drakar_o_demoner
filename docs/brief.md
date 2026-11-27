@@ -158,7 +158,20 @@ Ordningen är Vidars. Varje punkt brainstormas när den är på tur.
      - Porträtten följer samma uppdelning.
    - **Anfall:** Flares figurer har redan en hugg-animation (`swing`), och den spelas vid anfall i närstrid. Flare har också `cast` (besvärjelse), `shoot` (båge), `hit`, `block` och `die`. Dem plockar vi ut och använder vid besvärjelser, skott, träffar och död.
 3. **Animationer för besvärjelser.** I dag visas bara text (skada, miss, läkning) och zonerna (MÖRKER, DIMMA, BESKYDDARE). Varje besvärjelse behöver en egen effekt. Vidar vill pröva att göra dem i Blender, renderade till bildserier som figurerna; partiklar i Phaser och Flares effektbilder är alternativ.
-4. **Skapa rollperson och rollformuläret som i böckerna.** Vidar tar med skärmdumpar. Rollformuläret ska gå att ta fram i spelet och likna originalet, för nostalgin.
+4. **Skapa rollperson och rollformuläret som i böckerna (klart, Vidar behöver speltesta).** Design: `docs/superpowers/specs/2026-11-27-startmeny-och-rollpersonsboken-design.md`.
+   - **Menyn** (`src/ui/menu.ts`): huvudmenyn ligger på bokomslaget (Fortsätt äventyret, Nytt äventyr, Ladda sparat spel, Inställningar, Om spelet). Undermenyerna ligger på grindbilden. `mountMenu` bygger allt en gång och läser om sparningarna varje gång menyn visas. Listan över sparningar kommer från `listSaves` och `saveSummary` i `src/engine/save.ts`; i dag finns en enda sparplats, men formen rymmer flera.
+   - **Karusellerna** (`src/ui/carousel.ts`): folk och yrke väljs bland kort med bokens bilder (`bookArt`), med musen, fingret och piltangenterna. Bilderna ligger i `public/art/bok/` (omslag, grind, `raser/` och `yrken/`) som WebP. `tools/book_art.py` skalar dem och gör WebP av dem.
+   - **Uppslaget** (`src/ui/book.ts`, `src/ui/chapters.ts`): kapitelremsan, kapitlet på vänster sida och rollformuläret på höger. Kapitlen är folk, yrke, namn och figur, grundegenskaper, bakgrund, yrkesfärdigheter, startfärdigheter och utrustning (`CHAPTERS`). `Turn` är sidvändningen (under en sekund, och ett klick hoppar till slutet). `chapters.ts` rör inte sidan och går att testa i Node. Motorns sex steg (`STEPS`) finns kvar; de tre första kapitlen motsvarar steget `grund`.
+   - **Blyertsskriften** (`src/ui/ink.ts`): värden på formuläret bär `data-ink`. `readInk` och `changedInk` visar vad som skrevs eller ändrades mellan två ritningar, och det skrivs fram med blyerts under en halv sekund. Med prefers-reduced-motion blir allt direkt.
+   - **Guiden** (`CreatorUi` i `src/ui/creation.ts`) är nu kapitlen i boken. Den tar ett utkast, ett kapitel och `preview` (förhandsvisning med "Börja äventyret" och "Ändra").
+   - **Formuläret ritas ur ett utkast:** `SheetSource` och `sheetFromDraft` i `src/ui/sheet.ts` ger formuläret ur `previewCharacter` (`src/engine/creation.ts`), som bygger en rollperson så långt utkastet räcker och aldrig kastar fel. `renderSide` ritar en sida. Samma formulär visas i spelet med `sheetFromGame` (R).
+   - **Tre färdiga rollpersoner** (`src/content/forgenererade.ts`, `PREGENS`): krigaren Halvar, tjuven och magikern. De väljs under "Nytt äventyr" och går att ändra i boken.
+   - Typsnitten (Grenze Gotisch, Archivo Narrow, Kalam) kommer från `@fontsource` i `node_modules`; spelet hämtar inget från andra webbplatser. Bokens bilder och typsnitten står i `public/art/CREDITS.md`.
+   - **Kvar:**
+     - Flera sparplatser och en knapp "Spara spel" i spelet.
+     - Sparning på server (se punkt 6 under Nästa i steg 8).
+     - Den nya stilen på skärmarna "Mellan äventyren" och "Du har stupat".
+     - Tecknarens namn i `public/art/CREDITS.md` (Vidar fyller i).
 
 ### Förmågor, besvärjelser och väder (pågår)
 
@@ -254,7 +267,8 @@ Vidar vill också göra en genomgång av hela regelsystemet när det är klart, 
 - `src/engine/rules/fumble.ts`, `fear.ts` och `outcomes.ts` innehåller fummeltabellerna och Skräcktabellen som data med egna ord. Tabellen för kritiska skador och stridens konstanter ligger i `tables.ts`.
 - `Actor` har `locKp`, `bleeding`, `effects`, `bv` och `injuries`. Effekterna (`ActiveEffect`) varar i rundor, dagar, ett antal slag eller tills något händer.
 - `GameState.dropped` är föremål som tappats på marken och `GameState.time` är speltiden i sekunder. Sparformatet är version 6; äldre sparningar läses inte.
-- **Rollformuläret** (`src/ui/sheet.ts`, öppnas med R) följer originalformulärets uppställning: framsida med grundegenskaper och färdigheter, baksida med kroppsfiguren och träffområdena, vapen, pengar och utrustning. Förlorade KP kryssas över. Kroppsfiguren (`src/ui/figure.ts`) används också i statuspanelen, färgad efter skadorna.
+- **Startmenyn och rollpersonsboken** (`src/ui/menu.ts`, `carousel.ts`, `book.ts`, `chapters.ts`, `ink.ts`, `creation.ts`): menyn på bokomslaget och guiden som uppslag. Se Plan för grafik och ljud, punkt 4.
+- **Rollformuläret** (`src/ui/sheet.ts`, öppnas med R) följer originalformulärets uppställning: framsida med grundegenskaper och färdigheter, baksida med kroppsfiguren och träffområdena, vapen, pengar och utrustning. Det ritas ur en `SheetSource`, från spelet eller från ett utkast. Förlorade KP kryssas över. Kroppsfiguren (`src/ui/figure.ts`) används också i statuspanelen, färgad efter skadorna.
 - **Ljudet** (`src/audio/`) lyssnar på motorns ljudsignaler (`Game.onCue`) och på `onChange` för musiken. Se Plan för grafik och ljud.
 - `src/content/` innehåller äventyret Gråvad. Varelserna har `humanoid`, `darkvision`, `leader`, `noMorale`, `fear` och `ranged`, personerna `shop`, och kartan `habitats` (växtplatser för örter).
 - **Spelarfigurer:** spelaren väljer bland `PLAYER_SPRITES` (krigare, krigarinna, jägare, tjuv, magiker, alv och dvärg). `PROFESSION_SPRITES` ger förvalet för varje yrke.
@@ -275,7 +289,7 @@ npm test
 npx tsc --noEmit
 ```
 
-Det finns 324 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
+Det finns 352 tester. `tests/combat.test.ts` prövar stridens regler med styrda tärningar och spelar
 30 hela strider i grottan. `tests/time.test.ts` prövar läkning, infektioner och EP. `tests/creation.test.ts` bygger bokens exempelrollperson Teval och
 `tests/rules.test.ts` räknar om bokens exempel. `tests/step6.test.ts` prövar magin, avståndsstriden, bördan, handeln och gifterna, bland annat bokens giftexempel med Strahinya. `tests/step7.test.ts` prövar följeslagarna, smygarläget, Avväpna, Fasthållning, stridskonsterna och elementarerna, och spelar 20 hela strider med hela gruppen i grottan. `tests/step8.test.ts` prövar dödsregeln och äventyrsmodulerna. `tests/abilities.test.ts` prövar förmågornas regelvärden och `tests/talents.test.ts` förmågorna som används i spel. `tests/spells.test.ts` prövar fiendernas magi och besvärjelserna i strid. `tests/progress.test.ts` prövar lärarna, biblioteket, böckerna, arbetet, belöningarna, hjältepoängen, PSY-höjningen och igenkänningen. `tests/cues.test.ts` prövar motorns ljudsignaler, `tests/audio.test.ts` musikvalet och ljudtabellen och `tests/audioplayer.test.ts` uppspelningen och inställningarna. `tests/worldmap.test.ts` prövar världskartans tider, bördan, lägret, mörkersynen, det passiva smygandet, snabba fiender, jakten, Spåra och SPÅRLÖS, stridsmötena, mötesplatserna och slumpmötena.
 
