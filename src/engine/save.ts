@@ -55,8 +55,16 @@ export function saveSummary(state: GameState): SaveSummary {
   };
 }
 
-/** Sparningarna som finns att ladda. Än så länge en enda plats, men formen rymmer flera. */
+/**
+ * Sparningarna som finns att ladda. Än så länge en enda plats, men formen rymmer flera.
+ * En trasig sparning (rätt version men fält som saknas) räknas inte, så att menyn ändå kan visas.
+ */
 export function listSaves(): { key: string; summary: SaveSummary }[] {
   const state = loadGame();
-  return state ? [{ key: KEY, summary: saveSummary(state) }] : [];
+  if (!state) return [];
+  try {
+    return [{ key: KEY, summary: saveSummary(state) }];
+  } catch {
+    return [];
+  }
 }

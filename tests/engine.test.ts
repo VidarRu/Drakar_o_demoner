@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { CREATURES, MAPS, MODULES, NATURAL_WEAPONS, NPCS } from '../src/content';
 import { WEAPONS } from '../src/data/weapons';
 import { roll, seededRng } from '../src/engine/dice';
@@ -149,5 +149,31 @@ describe('sammanfattning av sparning', () => {
 
   it('listan är tom utan lagring', () => {
     expect(listSaves()).toEqual([]);
+  });
+
+  describe('med lagring', () => {
+    const store = new Map<string, string>();
+    beforeEach(() => {
+      store.clear();
+      Object.defineProperty(globalThis, 'localStorage', {
+        configurable: true,
+        value: { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => store.set(k, v), removeItem: (k: string) => store.delete(k) },
+      });
+    });
+    afterEach(() => {
+      delete (globalThis as { localStorage?: unknown }).localStorage;
+    });
+
+    it('en sparning ger en rad med sammanfattningen', () => {
+      const state = newGame().state;
+      store.set('dod-save-v7', JSON.stringify(state));
+      expect(listSaves()).toEqual([{ key: 'dod-save-v7', summary: saveSummary(state) }]);
+      expect(listSaves()[0].summary.name).toBe('Test');
+    });
+
+    it('en trasig sparning ger en tom lista i stället för att kasta', () => {
+      store.set('dod-save-v7', JSON.stringify({ version: 7 }));
+      expect(listSaves()).toEqual([]);
+    });
   });
 });
