@@ -75,6 +75,7 @@ const creatures: CreatureDef[] = [
     folk: 'svartalf',
     darkvision: true,
     leader: true,
+    boss: true,
     // En hövding som slåss till slutet: boken undantar hjältar och ledare av det slaget från moralen.
     noMorale: true,
     sight: 7,
@@ -377,6 +378,7 @@ const maps: MapDef[] = [
   {
     id: 'gravad',
     name: 'Gråvad',
+    music: 'by',
     start: { char: '@', tile: ',' },
     habitats: ['överallt', 'skog', 'ängar', 'åkerkanter', 'snårskog'],
     exits: { X: { tile: ',', name: 'Vägen västerut' } },

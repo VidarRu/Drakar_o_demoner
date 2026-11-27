@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { getAccessCode, setAccessCode } from './ai/dialogClient';
+import { attachAudio, audio, mountAudio } from './audio';
 import { Game } from './engine/game';
 import { clearSave, loadGame, saveGame } from './engine/save';
 import { IsoScene } from './game/IsoScene';
@@ -16,6 +17,7 @@ function launch(game: Game) {
   // Slängprov: den snedställda vyn är förval; ?vy=plan visar den gamla vyn rakt ovanifrån.
   const plan = new URLSearchParams(location.search).get('vy') === 'plan';
   document.body.classList.toggle('iso', !plan);
+  attachAudio(game);
   const dialog = new DialogUi(game);
   const panels = mountPanels(game);
   new Hud(game, { pack: () => panels.pack.open(), magic: () => panels.magic.open(), quests: () => panels.quests.open() });
@@ -41,7 +43,7 @@ function launch(game: Game) {
     scene: [plan ? new WorldScene(game, talk) : new IsoScene(game, talk)],
   });
   // Åtkomst för felsökning och automatiska tester.
-  Object.assign(window, { game, phaser });
+  Object.assign(window, { game, phaser, audio });
 }
 
 const AUTOSTART = 'dod-autostart';
@@ -55,6 +57,7 @@ function autostart() {
   location.reload();
 }
 
+mountAudio();
 const saved = loadGame();
 $('btn-continue').hidden = !saved;
 $('btn-continue').onclick = () => saved && launch(new Game(saved));

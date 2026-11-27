@@ -55,6 +55,9 @@ export interface PlaceDef {
   icon: string;
 }
 
+/** Kartans musik (src/audio/music.ts). Grottgolv och trägolv väljer egen musik var de än ligger. */
+export type MusicTheme = 'värld' | 'by' | 'skog' | 'grotta' | 'fängelsehåla' | 'trygg' | 'magisk';
+
 export interface MapDef {
   id: string;
   name: string;
@@ -64,6 +67,8 @@ export interface MapDef {
   spawns: Record<string, { tile: string; creature?: string; recruit?: string; band?: string }>;
   /** Kartans slag (standard: mötesplats). */
   kind?: MapKind;
+  /** Musiken på kartan (standard: efter kartans slag). */
+  music?: MusicTheme;
   /** Världskartan: minuter per ruta i vanlig terräng (standard en kvart). */
   stepMinutes?: number;
   /** Världskartan: mötesplatser, tecken -> plats. */
@@ -102,6 +107,7 @@ export interface GameMap {
   h: number;
   tiles: string[];
   kind: MapKind;
+  music: MusicTheme | null;
   stepMinutes: number;
   spawns: { creature?: string; recruit?: string; band?: string; x: number; y: number }[];
   start: { x: number; y: number };
@@ -158,6 +164,7 @@ export function parseMap(def: MapDef): GameMap {
     id: def.id,
     name: def.name,
     kind,
+    music: def.music ?? null,
     stepMinutes: def.stepMinutes ?? QUARTER_MINUTES,
     w,
     h,

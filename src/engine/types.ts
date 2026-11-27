@@ -43,6 +43,8 @@ export interface CreatureDef {
   darkvision?: boolean;
   /** Ledare för sin grupp: om hen faller slår de andra moralslag. */
   leader?: boolean;
+  /** Bossen i äventyret: striden mot den får bossmusiken. */
+  boss?: boolean;
   /** Lyder inte under moralreglerna och slåss till slutet. */
   noMorale?: boolean;
   /** Skräckslå: [automatiskt, aktivt]. null = kan inte. */

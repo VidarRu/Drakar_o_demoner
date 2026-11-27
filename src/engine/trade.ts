@@ -118,6 +118,7 @@ export function buy(g: Game, npc: Actor, id: string): string | null {
   else if (AMMO_ITEMS.has(id)) ch.ammo[id] = (ch.ammo[id] ?? 0) + 10;
   else ch.inventory.push(id);
   g.log(`${p.name} köper ${ware.name.toLowerCase()} för ${price} silvermynt.`);
+  g.cue({ type: 'packning', item: id, how: 'köpt' });
   g.changed();
   return null;
 }
@@ -139,6 +140,7 @@ export function sell(g: Game, npc: Actor, id: string): string | null {
   if (!removeItem(g, id)) return 'Du har inget sådant.';
   g.player.silver += ware.price;
   g.log(`${g.player.name} säljer ${ware.name.toLowerCase()} för ${ware.price} silvermynt.`);
+  g.cue({ type: 'packning', item: id, how: 'sålt' });
   g.changed();
   return null;
 }

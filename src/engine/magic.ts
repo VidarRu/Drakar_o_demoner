@@ -499,13 +499,16 @@ function resolve(g: Game, s: PendingSpell) {
   const head = `${spell.name} E${total} (S${S}, T20: ${check.roll} mot ${check.target}, −${cost} PSY)`;
   if (check.result === 'fummel') {
     g.log(`${head}: snedtändning!`);
+    g.cue({ type: 'besvärjelse', actorId: a.id, spell: s.spell, result: 'snedtändning' });
     g.emit(a.id, 'Snedtändning!', 'miss');
     misfire(g, a, s);
   } else if (!check.success) {
     g.log(`${head}: misslyckas.`);
+    g.cue({ type: 'besvärjelse', actorId: a.id, spell: s.spell, result: 'misslyckas' });
     g.emit(a.id, 'Misslyckas', 'miss');
   } else {
     g.log(`${head}: ${check.result === 'perfekt' ? 'perfekt!' : 'lyckas.'}`);
+    g.cue({ type: 'besvärjelse', actorId: a.id, spell: s.spell, result: 'lyckas' });
     // Scener i modulen som besvärjelsen visar (SYN, TELEPATI …).
     s.scene = showScenes(g, a, s.spell) > 0;
     apply(g, a, antimagic(g, a, s), s.grade, check);

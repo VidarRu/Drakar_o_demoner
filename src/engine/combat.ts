@@ -768,8 +768,14 @@ export type AttackResult = 'träff' | 'parerat' | 'miss' | 'fummel' | 'ingen';
 
 /** Ett anfall och försvararens parering, enligt resultattabellen (Bok II s. 17). */
 export function attackOnce(g: Game, att: Actor, def: Actor, slot: WeaponSlot, opt: AttackOptions = {}): AttackResult {
-  const c = g.state.combat;
   const w = opt.weapon ?? weaponInfo(att, slot);
+  const result = attackInner(g, att, def, slot, opt, w);
+  if (result !== 'ingen') g.cue({ type: 'anfall', actorId: att.id, targetId: def.id, weapon: w.id, natural: w.natural, result });
+  return result;
+}
+
+function attackInner(g: Game, att: Actor, def: Actor, slot: WeaponSlot, opt: AttackOptions, w: WeaponInfo): AttackResult {
+  const c = g.state.combat;
   if (!opt.keepFacing) face(att, def.x, def.y);
   provokeAnimal(g, att, def);
 
@@ -1188,6 +1194,7 @@ export function wound(g: Game, a: Actor, dmg: number, loc: HitLocation | null, s
   if (dmg <= 0 || !a.alive) return;
   const awake = !a.unconscious;
   a.kp -= dmg;
+  g.cue({ type: 'skada', actorId: a.id });
   breakConcentration(g, a);
   breakHiding(g, a, 'skadas');
   if (loc && a.detailed) {
@@ -1316,6 +1323,7 @@ export function stabilize(g: Game, a: Actor, how: string) {
 
 export function kill(g: Game, a: Actor) {
   if (!a.alive) return;
+  g.cue({ type: 'död', actorId: a.id });
   a.alive = false;
   a.unconscious = false;
   a.dying = false;
@@ -1718,6 +1726,7 @@ export function startCombat(g: Game, enemies: Actor[]) {
   for (const m of ours) face(m, enemies[0].x, enemies[0].y);
   const names = [...new Set(enemies.map((e) => e.name))].join(', ');
   g.log(`⚔ Strid! ${names}.`);
+  g.cue({ type: 'strid', phase: 'börjar' });
   // Husregel: rollpersonerna slår Dra vapen. De som lyckas får en gratis tur före första rundan.
   const drawn = party(g).filter((a) => {
     if (!canUseSkills(a)) return false;
@@ -2019,6 +2028,7 @@ export function endCombat(g: Game, message: string) {
   if (g.state.mode === 'combat') g.state.mode = 'explore';
   g.state.focus = g.state.playerId;
   g.log(message);
+  g.cue({ type: 'strid', phase: 'slutar' });
   const p = g.leader;
   if (!p.alive) return;
   for (const m of g.partyMembers()) m.reload = 0;
@@ -2389,6 +2399,7 @@ export function shoot(g: Game, a: Actor, target: Actor) {
   breakHiding(g, a, verb === 'kastar' ? 'kastar' : 'skjuter');
   // VIRVELSKÖLD: projektiler till och från den som har den missar.
   if (inVortex(a) || inVortex(target)) {
+    g.cue({ type: 'skott', actorId: a.id, targetId: target.id, weapon: r.id, result: 'miss' });
     g.log(`${a.name} ${verb} mot ${target.name}, men virvelskölden kring ${inVortex(a) ? a.name : target.name} stöter bort ${r.kind === 'kast' ? 'vapnet' : 'projektilen'}.`);
     g.emit(target.id, 'Miss', 'miss');
     return finishThrow(g, a, r, { x: target.x, y: target.y });
@@ -2396,6 +2407,7 @@ export function shoot(g: Game, a: Actor, target: Actor) {
   let check = heroic(g, a, rollCl(g, x));
   if (autoFail(a, 'anfall')) check = forceFail(check);
   const head = `${a.name} ${verb} mot ${target.name} med ${r.name.toLowerCase()} (T20: ${check.roll} mot ${x.cl}${x.notes.length ? `, ${x.notes.join(', ')}` : ''})`;
+  g.cue({ type: 'skott', actorId: a.id, targetId: target.id, weapon: r.id, result: check.result === 'fummel' ? 'fummel' : check.success ? 'träff' : 'miss' });
   const w = rangedWeapon(a, r);
   let landing = { x: target.x, y: target.y };
 
